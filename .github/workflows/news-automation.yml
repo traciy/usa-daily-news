@@ -10,7 +10,7 @@ on:
         default: false
   schedule:
     # Twice a day, at 00:17 and 12:17 in Nairobi time (similar to n8n's every-12-hours trigger).
-    - cron: "17 */12 * * *"
+    - cron: "17 */3 * * *"
       timezone: "Africa/Nairobi"
 
 permissions:
