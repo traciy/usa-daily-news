@@ -28,8 +28,8 @@ jobs:
       NEWSAPI_API_KEY: ${{ secrets.NEWSAPI_API_KEY }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       GEMINI_MODEL: gemini-3.5-flash-lite
-      ARTICLE_COUNT: "1"
-      ARTICLE_WORDS: "70"
+      ARTICLE_COUNT: "5"
+      ARTICLE_WORDS: "700"
       SUPABASE_FUNCTION_URL: https://atryeydaxeuaqmyuvqfg.supabase.co/functions/v1/api-articles
       SUPABASE_BEARER_TOKEN: ${{ secrets.SUPABASE_BEARER_TOKEN }}
       PUBLISH_ENABLED: ${{ (github.event_name == 'workflow_dispatch' && inputs.publish == true) || (github.event_name == 'schedule' && vars.PUBLISH_ENABLED == 'true') }}
