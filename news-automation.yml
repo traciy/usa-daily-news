@@ -1,0 +1,47 @@
+name: USA Daily News Automation
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Actually publish the generated articles to the website? Leave unchecked for a safe test."
+        required: true
+        type: boolean
+        default: false
+  schedule:
+    # Twice a day, at 00:17 and 12:17 in Nairobi time (similar to n8n's every-12-hours trigger).
+    - cron: "17 */12 * * *"
+      timezone: "Africa/Nairobi"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: usa-daily-news-automation
+  cancel-in-progress: false
+
+jobs:
+  generate-news:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      NEWSAPI_API_KEY: ${{ secrets.NEWSAPI_API_KEY }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GEMINI_MODEL: gemini-3.5-flash-lite
+      ARTICLE_COUNT: "10"
+      ARTICLE_WORDS: "2000"
+      SUPABASE_FUNCTION_URL: https://atryeydaxeuaqmyuvqfg.supabase.co/functions/v1/api-articles
+      SUPABASE_BEARER_TOKEN: ${{ secrets.SUPABASE_BEARER_TOKEN }}
+      PUBLISH_ENABLED: ${{ (github.event_name == 'workflow_dispatch' && inputs.publish == true) || (github.event_name == 'schedule' && vars.PUBLISH_ENABLED == 'true') }}
+
+    steps:
+      - name: Download repository code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Run news automation
+        run: node scripts/news-automation.mjs
