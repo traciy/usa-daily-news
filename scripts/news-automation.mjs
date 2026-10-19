@@ -141,7 +141,7 @@ ${JSON.stringify(sourceArticles.map((a) => ({
   }
 
   const parsed = parseModelJson(text);
-  if (parsed.length === 0) throw new Error("Gemini returned an empty article list.");
+  if (parsed.length === 0) {   console.error("Gemini diagnostic:", JSON.stringify({     model: MODEL,     finishReason: data?.candidates?.[0]?.finishReason,     promptFeedback: data?.promptFeedback,     candidateCount: data?.candidates?.length ?? 0,     responseTextLength: text.length,     responsePreview: text.slice(0, 500)   }, null, 2));    throw new Error("Gemini returned an empty article list. See diagnostic above."); }
   return parsed;
 }
 
