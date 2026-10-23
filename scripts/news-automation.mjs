@@ -23,7 +23,7 @@ function requiredEnv(name) {
   return value.trim();
 }
 
-async function fetchWithRetry(url, options = {}, label = "request", attempts = 3) {
+async function fetchWithRetry(url, options = {}, label = "request", attempts = 5) {
   let lastError;
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     try {
