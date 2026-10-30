@@ -1,0 +1,8 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "usa-daily-news",
+  "compatibility_date": "2026-10-30",
+  "assets": {
+    "not_found_handling": "single-page-application"
+  }
+}
