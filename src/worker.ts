@@ -131,7 +131,17 @@ function renderHomepage(articles: SeoArticle[]): string {
 }
 
 async function handleHomePage(request: Request, env: Env): Promise<Response> {
-  if (!env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) return env.ASSETS.fetch(request);
+  const fallback = async (reason: string, response?: Response): Promise<Response> => {
+    const asset = response ?? await env.ASSETS.fetch(request);
+    const headers = new Headers(asset.headers);
+    headers.set("X-Homepage-SEO", reason);
+    return new Response(asset.body, { status: asset.status, statusText: asset.statusText, headers });
+  };
+
+  if (!env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) {
+    return fallback("missing-runtime-env");
+  }
+
   try {
     const endpoint = new URL(env.SUPABASE_URL.replace(/\/$/, "") + "/rest/v1/articles");
     endpoint.searchParams.set("select", "id,title,category,image_url,seo_description,created_at,source_url");
@@ -145,13 +155,22 @@ async function handleHomePage(request: Request, env: Env): Promise<Response> {
       },
       cf: { cacheTtl: 60, cacheEverything: true },
     } as RequestInit & { cf: { cacheTtl: number; cacheEverything: boolean } });
-    if (!response.ok) return env.ASSETS.fetch(request);
+
+    if (!response.ok) {
+      console.error("Homepage SEO Supabase request failed:", response.status);
+      return fallback("supabase-http-" + response.status);
+    }
+
     const articles = await response.json() as SeoArticle[];
     const homepage = renderHomepage(articles);
+    if (!homepage) return fallback("no-valid-articles");
+
     const assetResponse = await env.ASSETS.fetch(request);
-    if (!assetResponse.ok || !homepage) return assetResponse;
+    if (!assetResponse.ok) return fallback("assets-http-" + assetResponse.status, assetResponse);
+
     let html = await assetResponse.text();
-    if (!html.includes('<div id="root"></div>')) return assetResponse;
+    if (!html.includes('<div id="root"></div>')) return fallback("root-placeholder-missing", new Response(html, { status: assetResponse.status, headers: assetResponse.headers }));
+
     html = html.replace('<div id="root"></div>', '<div id="root">' + homepage + '</div>');
     return new Response(html, {
       status: 200,
@@ -159,10 +178,12 @@ async function handleHomePage(request: Request, env: Env): Promise<Response> {
         "Content-Type": "text/html; charset=utf-8",
         "Cache-Control": "public, max-age=0, s-maxage=60",
         "X-Content-Type-Options": "nosniff",
+        "X-Homepage-SEO": "rendered-" + articles.length + "-articles",
       },
     });
-  } catch {
-    return env.ASSETS.fetch(request);
+  } catch (error) {
+    console.error("Homepage SEO rendering failed:", error);
+    return fallback("worker-exception");
   }
 }
 
