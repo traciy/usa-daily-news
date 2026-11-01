@@ -23,9 +23,20 @@ export function ArticlePage({ id, onBack }: ArticlePageProps) {
     let cancelled = false;
     setLoading(true);
     setError(null);
+    setArticle(null);
     window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+
+    const client = supabase;
+    if (!client) {
+      setError('The news database is not configured for this deployment. Check the Cloudflare build variables and redeploy.');
+      setLoading(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+
     (async () => {
-      const { data, error: err } = await supabase
+      const { data, error: err } = await client
         .from('articles')
         .select('*')
         .eq('id', id)
