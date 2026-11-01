@@ -88,12 +88,34 @@ function injectArticleSeo(documentHtml: string, article: SeoArticle): string {
     '</p><time datetime="' + htmlEscape(article.created_at) + '">' + htmlEscape(publishedIso || article.created_at) +
     "</time></header>" + (article.image_url && /^https?:\/\//i.test(article.image_url)
       ? '<figure><img src="' + htmlEscape(article.image_url) + '" alt="' + htmlEscape(article.title) + '" width="1600" height="900"></figure>' : "") +
-    "<div>" + renderArticleMarkdown(article.content || "") + "</div></article></main>";
+    "<div>" + renderArticleMarkdown(article.content || "") + "</div>" +
+    (article.source_url && /^https?:\\/\\//i.test(article.source_url)
+      ? '<p class="seo-source"><a href="' + htmlEscape(article.source_url) + '" target="_blank" rel="noopener noreferrer">Read the original source report</a></p>'
+      : "") +
+    "</article></main>";
   html = html.replace("</head>", tags + "\n</head>");
   return html.replace('<div id="root"></div>', '<div id="root">' + body + "</div>");
 }
 async function handleArticlePage(request: Request, env: Env, articleId: string): Promise<Response> {
   const fallback = () => env.ASSETS.fetch(new Request(new URL("/", request.url), { method: "GET", headers: request.headers }));
+  const notFound = async (): Promise<Response> => {
+    const assetResponse = await fallback();
+    if (!assetResponse.ok) {
+      return new Response("Article not found.", {
+        status: 404,
+        headers: { "Content-Type": "text/plain; charset=utf-8", "X-Robots-Tag": "noindex" },
+      });
+    }
+    let html = await assetResponse.text();
+    html = html
+      .replace(/<title\\b[^>]*>[\\s\\S]*?<\\/title>/i, "<title>Article not found | USA Daily News</title>")
+      .replace(/<link\\b[^>]*\\brel=["']canonical["'][^>]*>/i, "")
+      .replace("</head>", '<meta name="robots" content="noindex,follow"><meta name="description" content="The requested article could not be found."></head>');
+    return new Response(html, {
+      status: 404,
+      headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store", "X-Robots-Tag": "noindex" },
+    });
+  };
   if (!env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) return fallback();
   try {
     const endpoint = new URL(env.SUPABASE_URL.replace(/\/$/, "") + "/rest/v1/articles");
@@ -104,10 +126,13 @@ async function handleArticlePage(request: Request, env: Env, articleId: string):
       headers: { apikey: env.SUPABASE_ANON_KEY, Authorization: "Bearer " + env.SUPABASE_ANON_KEY, Accept: "application/json" },
       cf: { cacheTtl: 60, cacheEverything: true },
     } as RequestInit & { cf: { cacheTtl: number; cacheEverything: boolean } });
-    if (!response.ok) return fallback();
+    if (!response.ok) {
+      if (response.status === 404) return notFound();
+      return fallback();
+    }
     const articles = await response.json() as SeoArticle[];
     const article = articles[0];
-    if (!article) return fallback();
+    if (!article) return notFound();
     const assetResponse = await fallback();
     if (!assetResponse.ok) return assetResponse;
     const documentHtml = await assetResponse.text();
