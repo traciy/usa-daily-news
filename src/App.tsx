@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { PodcastPlayer } from '@/components/PodcastPlayer';
-import { LiveDashboard } from '@/components/LiveDashboard';
 import { HomePage } from '@/pages/HomePage';
 import { ArticlePage } from '@/pages/ArticlePage';
 import { WeatherPage } from '@/pages/WeatherPage';
@@ -24,7 +23,6 @@ function parseHash(): Route {
   return { name: 'home' };
 }
 
-/** Convert current hash into a gtag-friendly page path. */
 function routeToPath(): string {
   const h = window.location.hash.replace(/^#/, '');
   return h.startsWith('/') ? h : h ? `/${h}` : '/';
@@ -39,7 +37,6 @@ function App() {
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
 
-  // Track a page view on initial load and whenever the route changes.
   useEffect(() => {
     trackPageView(routeToPath());
   }, [route]);
@@ -59,9 +56,6 @@ function App() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans text-gray-900">
       <Header onHome={goHome} />
-
-      <LiveDashboard />
-
       <main className="flex-1">
         {route.name === 'home' && <HomePage onOpenArticle={openArticle} onNavigate={navigate} />}
         {route.name === 'article' && <ArticlePage id={route.id} onBack={goHome} />}
@@ -69,8 +63,6 @@ function App() {
         {route.name === 'football' && <FootballPage onBack={goHome} />}
       </main>
       <Footer onHome={goHome} />
-
-      {/* Floating podcast overlay — always on top, never obstructs content */}
       <PodcastPlayer variant="overlay" />
     </div>
   );
