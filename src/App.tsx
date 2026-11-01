@@ -58,12 +58,12 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans text-gray-900">
-      <Header onHome={goHome} onNavigate={navigate} />
+      <Header onHome={goHome} />
 
       <LiveDashboard />
 
       <main className="flex-1">
-        {route.name === 'home' && <HomePage onOpenArticle={openArticle} />}
+        {route.name === 'home' && <HomePage onOpenArticle={openArticle} onNavigate={navigate} />}
         {route.name === 'article' && <ArticlePage id={route.id} onBack={goHome} />}
         {route.name === 'weather' && <WeatherPage onBack={goHome} />}
         {route.name === 'football' && <FootballPage onBack={goHome} />}
