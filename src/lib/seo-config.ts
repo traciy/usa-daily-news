@@ -9,9 +9,9 @@ export const SITE_CONFIG = {
   tagline: 'Truth · Clarity · Coverage',
   description:
     'Independent American journalism covering Politics, Tech, Economy, and Culture. Fresh stories every day with clarity and coverage you can trust.',
-  url: 'https://usa-daily-news.pages.dev',
-  logo: 'https://usa-daily-news.pages.dev/logo.png',
-  ogImage: 'https://usa-daily-news.pages.dev/og-default.png',
+  url: 'https://usa-daily-news.info-luwigang254.workers.dev',
+  logo: 'https://usa-daily-news.info-luwigang254.workers.dev/logo.png',
+  ogImage: 'https://usa-daily-news.info-luwigang254.workers.dev/og-default.png',
   twitter: '@usadailynews',
   language: 'en',
   // Primary target keywords — used in meta keywords and structured data.
