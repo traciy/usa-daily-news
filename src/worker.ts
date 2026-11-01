@@ -96,6 +96,76 @@ function injectArticleSeo(documentHtml: string, article: SeoArticle): string {
   html = html.replace("</head>", tags + "\n</head>");
   return html.replace('<div id="root"></div>', '<div id="root">' + body + "</div>");
 }
+
+function renderHomepage(articles: SeoArticle[]): string {
+  const validArticles = articles.filter((article) =>
+    Number.isFinite(Number(article.id)) && article.title && article.category
+  );
+  if (validArticles.length === 0) return "";
+  const cards = validArticles.map((article, index) => {
+    const title = htmlEscape(article.title);
+    const category = htmlEscape(article.category);
+    const description = htmlEscape(article.seo_description || "");
+    const date = new Date(article.created_at);
+    const dateTime = Number.isNaN(date.getTime()) ? "" : date.toISOString();
+    const image = article.image_url && /^https?:\/\//i.test(article.image_url)
+      ? '<img src="' + htmlEscape(article.image_url) + '" alt="' + title + '" width="1200" height="675" ' +
+        (index === 0 ? 'loading="eager" fetchpriority="high"' : 'loading="lazy"') +
+        ' decoding="async" style="display:block;width:100%;height:auto;aspect-ratio:16/9;object-fit:cover">'
+      : "";
+    return '<article class="seo-home-card"><a href="/article/' + Number(article.id) + '">' +
+      image + '<p>' + category + '</p><h2>' + title + '</h2>' +
+      (description ? '<p>' + description + '</p>' : "") +
+      (dateTime ? '<time datetime="' + dateTime + '">' + date.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }) + '</time>' : "") +
+      '</a></article>';
+  }).join("");
+  return '<main id="seo-home" class="mx-auto max-w-6xl px-4 py-8">' +
+    '<header><h1>Latest US News, Politics, Technology, Economy &amp; Culture</h1>' +
+    '<p>Read the latest news and developing stories from across the United States.</p></header>' +
+    '<nav aria-label="News sections"><a href="/">Latest News</a> · ' +
+    '<a href="/?category=politics">Politics</a> · <a href="/?category=tech">Technology</a> · ' +
+    '<a href="/?category=economy">Economy</a> · <a href="/?category=culture">Culture</a> · ' +
+    '<a href="/football">Sports</a> · <a href="/weather">Weather</a></nav>' +
+    '<section aria-labelledby="seo-latest-heading"><h2 id="seo-latest-heading">Latest Stories</h2>' +
+    '<div class="seo-home-stories">' + cards + '</div></section></main>';
+}
+
+async function handleHomePage(request: Request, env: Env): Promise<Response> {
+  if (!env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) return env.ASSETS.fetch(request);
+  try {
+    const endpoint = new URL(env.SUPABASE_URL.replace(/\/$/, "") + "/rest/v1/articles");
+    endpoint.searchParams.set("select", "id,title,category,image_url,seo_description,created_at,source_url");
+    endpoint.searchParams.set("order", "created_at.desc");
+    endpoint.searchParams.set("limit", "24");
+    const response = await fetch(endpoint.toString(), {
+      headers: {
+        apikey: env.SUPABASE_ANON_KEY,
+        Authorization: "Bearer " + env.SUPABASE_ANON_KEY,
+        Accept: "application/json",
+      },
+      cf: { cacheTtl: 60, cacheEverything: true },
+    } as RequestInit & { cf: { cacheTtl: number; cacheEverything: boolean } });
+    if (!response.ok) return env.ASSETS.fetch(request);
+    const articles = await response.json() as SeoArticle[];
+    const homepage = renderHomepage(articles);
+    const assetResponse = await env.ASSETS.fetch(request);
+    if (!assetResponse.ok || !homepage) return assetResponse;
+    let html = await assetResponse.text();
+    if (!html.includes('<div id="root"></div>')) return assetResponse;
+    html = html.replace('<div id="root"></div>', '<div id="root">' + homepage + '</div>');
+    return new Response(html, {
+      status: 200,
+      headers: {
+        "Content-Type": "text/html; charset=utf-8",
+        "Cache-Control": "public, max-age=0, s-maxage=60",
+        "X-Content-Type-Options": "nosniff",
+      },
+    });
+  } catch {
+    return env.ASSETS.fetch(request);
+  }
+}
+
 async function handleArticlePage(request: Request, env: Env, articleId: string): Promise<Response> {
   const fallback = () => env.ASSETS.fetch(new Request(new URL("/", request.url), { method: "GET", headers: request.headers }));
   const notFound = async (): Promise<Response> => {
@@ -405,6 +475,9 @@ export default {
     }
     if (url.pathname === "/sitemap.xml") {
       return handleSitemap(env);
+    }
+    if (url.pathname === "/" && request.method === "GET") {
+      return handleHomePage(request, env);
     }
     const articleMatch = url.pathname.match(/^\/article\/(\d+)\/?$/);
     if (articleMatch && request.method === "GET") {
