@@ -1,16 +1,13 @@
 /**
- * Football data service — client-side fetcher that calls our Supabase
- * edge function proxy (`football-data`), which holds the real
- * football-data.org API key server-side. The browser never sees the key.
+ * Football data service — browser requests are handled by our Cloudflare
+ * Worker at /api/football. The API key stays in a Cloudflare Worker secret
+ * and is never exposed to the browser.
  *
- * football-data.org free tier: 10 requests/minute, 12 top competitions,
- * fixtures + results + standings. Live scores require a paid plan, so
- * the free tier returns IN_PLAY/PAUSED status only when a match is
- * genuinely in progress (the minute field updates during matches).
+ * football-data.org plan limits determine which competitions and match
+ * details are available for the account using the API key.
  */
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
-const PROXY_URL = `${SUPABASE_URL}/functions/v1/football-data`;
+const PROXY_URL = '/api/football';
 
 export type MatchStatus =
   | 'SCHEDULED'
