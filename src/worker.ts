@@ -22,7 +22,7 @@ async function handleSitemap(env: Env): Promise<Response> {
     return env.ASSETS.fetch(new Request(`${SITE_URL}/sitemap.xml`));
   }
 
-  const baseUrl = env.SUPABASE_URL.replace(/\\/$/, "");
+  const baseUrl = env.SUPABASE_URL.replace(/\/$/, "");
   const rows: Array<{ id: number; created_at: string }> = [];
   const pageSize = 1000;
 
