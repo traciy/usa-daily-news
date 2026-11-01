@@ -9,3 +9,6 @@ verify_jwt = false
 
 [functions.sitemap]
 verify_jwt = false
+
+[functions.football-data]
+verify_jwt = false

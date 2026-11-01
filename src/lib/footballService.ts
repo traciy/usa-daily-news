@@ -1,85 +1,165 @@
 /**
- * Football live scores service — SIMULATED.
+ * Football data service — client-side fetcher that calls our Supabase
+ * edge function proxy (`football-data`), which holds the real
+ * football-data.org API key server-side. The browser never sees the key.
  *
- * This project has no real football API integration, so this module
- * generates a deterministic demonstration feed. It simulates matches
- * that are currently in progress, advancing the minute and occasionally
- * updating the score every 30 seconds.
- *
- * Simulated data is never presented as genuine results. The component
- * that consumes this always labels the feed as a simulated demo.
- *
- * If a real free API (e.g. football-data.org) is integrated later,
- * replace `fetchLiveMatches` with the real fetch and keep the same
- * Match shape so the UI component needs no changes.
+ * football-data.org free tier: 10 requests/minute, 12 top competitions,
+ * fixtures + results + standings. Live scores require a paid plan, so
+ * the free tier returns IN_PLAY/PAUSED status only when a match is
+ * genuinely in progress (the minute field updates during matches).
  */
 
-export type MatchStatus = 'IN_PROGRESS' | 'HALFTIME';
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+const PROXY_URL = `${SUPABASE_URL}/functions/v1/football-data`;
 
-export interface Match {
-  id: string;
+export type MatchStatus =
+  | 'SCHEDULED'
+  | 'TIMED'
+  | 'IN_PLAY'
+  | 'PAUSED'
+  | 'FINISHED'
+  | 'SUSPENDED'
+  | 'POSTPONED'
+  | 'CANCELLED'
+  | 'AWARDED';
+
+export interface FootballMatch {
+  id: number;
+  competition: string;
+  competitionCode: string;
   homeTeam: string;
+  homeTla: string;
   awayTeam: string;
-  homeScore: number;
-  awayScore: number;
-  minute: number;
+  awayTla: string;
+  homeScore: number | null;
+  awayScore: number | null;
+  minute: number | null;
   status: MatchStatus;
+  utcDate: string;
 }
 
-const REFRESH_INTERVAL_MS = 30_000;
-const FULL_MATCH_MINUTE = 90;
+export interface Competition {
+  id: number;
+  name: string;
+  code: string;
+}
 
-/** Seed matches used to start the simulation. */
-const SEED_MATCHES: Match[] = [
-  { id: 'm1', homeTeam: 'ARS', awayTeam: 'MCI', homeScore: 2, awayScore: 1, minute: 74, status: 'IN_PROGRESS' },
-  { id: 'm2', homeTeam: 'LIV', awayTeam: 'CHE', homeScore: 1, awayScore: 1, minute: 58, status: 'IN_PROGRESS' },
-  { id: 'm3', homeTeam: 'TOT', awayTeam: 'MUN', homeScore: 0, awayScore: 2, minute: 41, status: 'IN_PROGRESS' },
-  { id: 'm4', homeTeam: 'BAR', awayTeam: 'RMA', homeScore: 3, awayScore: 2, minute: 82, status: 'IN_PROGRESS' },
-  { id: 'm5', homeTeam: 'JUV', awayTeam: 'INT', homeScore: 1, awayScore: 0, minute: 67, status: 'IN_PROGRESS' },
-  { id: 'm6', homeTeam: 'BAY', awayTeam: 'DOR', homeScore: 2, awayScore: 2, minute: 33, status: 'IN_PROGRESS' },
+export interface FootballDataResult {
+  matches?: FootballMatch[];
+  competitions?: Competition[];
+  error?: string;
+}
+
+interface RawMatch {
+  id: number;
+  status: string;
+  utcDate: string;
+  minute: number | null;
+  competition?: { name: string; code: string };
+  homeTeam?: { name: string; tla: string };
+  awayTeam?: { name: string; tla: string };
+  score?: {
+    fullTime?: { home: number | null; away: number | null };
+    halfTime?: { home: number | null; away: number | null };
+  };
+}
+
+function mapMatch(raw: RawMatch): FootballMatch {
+  return {
+    id: raw.id,
+    competition: raw.competition?.name ?? 'Unknown',
+    competitionCode: raw.competition?.code ?? '',
+    homeTeam: raw.homeTeam?.name ?? 'TBD',
+    homeTla: raw.homeTeam?.tla ?? raw.homeTeam?.name?.slice(0, 3).toUpperCase() ?? '???',
+    awayTeam: raw.awayTeam?.name ?? 'TBD',
+    awayTla: raw.awayTeam?.tla ?? raw.awayTeam?.name?.slice(0, 3).toUpperCase() ?? '???',
+    homeScore: raw.score?.fullTime?.home ?? null,
+    awayScore: raw.score?.fullTime?.away ?? null,
+    minute: raw.minute,
+    status: raw.status as MatchStatus,
+    utcDate: raw.utcDate,
+  };
+}
+
+async function fetchProxy(path: string): Promise<unknown> {
+  const url = `${PROXY_URL}?path=${encodeURIComponent(path)}`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 12000);
+  try {
+    const res = await fetch(url, { signal: controller.signal });
+    const json = await res.json();
+    if (!res.ok) {
+      throw new Error((json as { error?: string }).error ?? `HTTP ${res.status}`);
+    }
+    return (json as { data: unknown }).data;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Fetch all matches for the given competition code, optionally filtered by status. */
+export async function fetchMatches(
+  competitionCode?: string,
+  status?: 'LIVE' | 'SCHEDULED' | 'TIMED' | 'FINISHED'
+): Promise<FootballDataResult> {
+  try {
+    const base = competitionCode
+      ? `competitions/${competitionCode}/matches`
+      : 'matches';
+    const query = status ? `?status=${status}` : '';
+    const data = await fetchProxy(`${base}${query}`) as { matches?: RawMatch[] };
+    if (!data?.matches) return { matches: [] };
+    return { matches: data.matches.map(mapMatch) };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Football data unavailable.';
+    return { error: message };
+  }
+}
+
+/** Fetch the list of competitions available on the free tier. */
+export async function fetchCompetitions(): Promise<FootballDataResult> {
+  try {
+    const data = await fetchProxy('competitions') as {
+      competitions?: Array<{ id: number; name: string; code: string }>;
+    };
+    if (!data?.competitions) return { competitions: [] };
+    return { competitions: data.competitions.map((c) => ({ id: c.id, name: c.name, code: c.code })) };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Football data unavailable.';
+    return { error: message };
+  }
+}
+
+// Competitions available on the football-data.org free tier.
+export const FREE_COMPETITIONS: Competition[] = [
+  { id: 2021, name: 'Premier League', code: 'PL' },
+  { id: 2014, name: 'La Liga', code: 'PD' },
+  { id: 2002, name: 'Bundesliga', code: 'BL1' },
+  { id: 2019, name: 'Serie A', code: 'SA' },
+  { id: 2015, name: 'Ligue 1', code: 'FL1' },
+  { id: 2001, name: 'UEFA Champions League', code: 'CL' },
 ];
 
-let liveMatches: Match[] = SEED_MATCHES.map((m) => ({ ...m }));
+export const REFRESH_INTERVAL_MS = 30_000;
 
-function advanceMatch(match: Match): Match {
-  let { minute, homeScore, awayScore, status } = match;
+/** Statuses that count as "in progress" (live). */
+export const LIVE_STATUSES: MatchStatus[] = ['IN_PLAY', 'PAUSED'];
 
-  if (status === 'HALFTIME') {
-    // Resume from halftime into the second half.
-    status = 'IN_PROGRESS';
-    minute = 46;
-  } else {
-    minute += 1;
+export function isLive(status: MatchStatus): boolean {
+  return LIVE_STATUSES.includes(status);
+}
 
-    // Small chance of a goal on each tick (~6%).
-    if (Math.random() < 0.06) {
-      if (Math.random() < 0.5) homeScore += 1;
-      else awayScore += 1;
-    }
-
-    // Halftime at minute 45.
-    if (minute === 45) status = 'HALFTIME';
-
-    // Match ends at 90 — wrap back to a fresh early match so the demo
-    // always has content (real APIs would return an updated list instead).
-    if (minute > FULL_MATCH_MINUTE) {
-      minute = Math.floor(Math.random() * 15) + 5;
-      homeScore = Math.floor(Math.random() * 2);
-      awayScore = Math.floor(Math.random() * 2);
-      status = 'IN_PROGRESS';
-    }
+export function statusLabel(status: MatchStatus, minute: number | null): string {
+  switch (status) {
+    case 'IN_PLAY': return minute ? `${minute}'` : "Live";
+    case 'PAUSED': return 'HT';
+    case 'FINISHED': return 'FT';
+    case 'SCHEDULED':
+    case 'TIMED': return '';
+    case 'SUSPENDED': return 'Suspended';
+    case 'POSTPONED': return 'Postponed';
+    case 'CANCELLED': return 'Cancelled';
+    case 'AWARDED': return 'Awarded';
+    default: return '';
   }
-
-  return { ...match, minute, homeScore, awayScore, status };
 }
-
-/**
- * Returns the current set of simulated in-progress matches, advancing
- * each match by one minute on every call. Called once per refresh tick.
- */
-export function fetchLiveMatches(): Match[] {
-  liveMatches = liveMatches.map(advanceMatch);
-  return liveMatches.filter((m) => m.status === 'IN_PROGRESS' || m.status === 'HALFTIME');
-}
-
-export { REFRESH_INTERVAL_MS, FULL_MATCH_MINUTE };

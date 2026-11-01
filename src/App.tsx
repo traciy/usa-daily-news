@@ -5,16 +5,22 @@ import { PodcastPlayer } from '@/components/PodcastPlayer';
 import { LiveDashboard } from '@/components/LiveDashboard';
 import { HomePage } from '@/pages/HomePage';
 import { ArticlePage } from '@/pages/ArticlePage';
+import { WeatherPage } from '@/pages/WeatherPage';
+import { FootballPage } from '@/pages/FootballPage';
 import { trackPageView } from '@/lib/analytics';
 
 type Route =
   | { name: 'home' }
-  | { name: 'article'; id: number };
+  | { name: 'article'; id: number }
+  | { name: 'weather' }
+  | { name: 'football' };
 
 function parseHash(): Route {
   const h = window.location.hash.replace(/^#\/?/, '');
   const m = /^article\/(\d+)$/.exec(h);
   if (m) return { name: 'article', id: Number(m[1]) };
+  if (h === 'weather') return { name: 'weather' };
+  if (h === 'football') return { name: 'football' };
   return { name: 'home' };
 }
 
@@ -46,15 +52,21 @@ function App() {
     window.location.hash = `/article/${id}`;
   };
 
+  const navigate = (path: string) => {
+    window.location.hash = path;
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans text-gray-900">
-      <Header onHome={goHome} />
+      <Header onHome={goHome} onNavigate={navigate} />
 
       <LiveDashboard />
 
       <main className="flex-1">
         {route.name === 'home' && <HomePage onOpenArticle={openArticle} />}
         {route.name === 'article' && <ArticlePage id={route.id} onBack={goHome} />}
+        {route.name === 'weather' && <WeatherPage onBack={goHome} />}
+        {route.name === 'football' && <FootballPage onBack={goHome} />}
       </main>
       <Footer onHome={goHome} />
 

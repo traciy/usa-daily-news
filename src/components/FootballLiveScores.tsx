@@ -1,22 +1,41 @@
 import { useEffect, useState } from 'react';
 import { Radio, Info } from 'lucide-react';
-import { fetchLiveMatches, REFRESH_INTERVAL_MS, type Match } from '@/lib/footballService';
-
-const HALFTIME_LABEL = 'HT';
-
-function minuteLabel(match: Match): string {
-  return match.status === 'HALFTIME' ? HALFTIME_LABEL : `${match.minute}'`;
-}
+import {
+  fetchMatches, REFRESH_INTERVAL_MS, statusLabel, isLive,
+  type FootballMatch,
+} from '@/lib/footballService';
 
 export function FootballLiveScores() {
-  const [matches, setMatches] = useState<Match[]>(() => fetchLiveMatches());
+  const [matches, setMatches] = useState<FootballMatch[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setMatches(fetchLiveMatches());
-    }, REFRESH_INTERVAL_MS);
-    return () => clearInterval(interval);
+    let cancelled = false;
+
+    const load = async () => {
+      // 'LIVE' pseudo-status fetches IN_PLAY + PAUSED matches.
+      const result = await fetchMatches(undefined, 'LIVE');
+      if (cancelled) return;
+      if (result.error) {
+        setError(result.error);
+        setMatches([]);
+      } else {
+        setMatches(result.matches ?? []);
+        setError(null);
+      }
+      setLoading(false);
+    };
+
+    load();
+    const interval = setInterval(load, REFRESH_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, []);
+
+  const hasMatches = matches.length > 0;
 
   return (
     <section
@@ -33,18 +52,33 @@ export function FootballLiveScores() {
             Live Football Scores
           </h2>
         </div>
-        <span className="text-[10px] font-medium uppercase tracking-wider text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full shrink-0">
-          Simulated
-        </span>
+        <a href="#/football" className="text-[10px] font-medium uppercase tracking-wider text-blue-700 hover:underline shrink-0">
+          View all
+        </a>
       </div>
 
-      {matches.length === 0 ? (
+      {loading && (
+        <div className="flex items-center justify-center py-8" aria-label="Loading live football scores">
+          <div className="h-4 w-4 border-2 border-gray-300 border-t-gray-700 rounded-full animate-spin" aria-hidden="true" />
+        </div>
+      )}
+
+      {!loading && error && (
+        <div className="flex items-start gap-2 py-4 px-2" role="status">
+          <Info className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" aria-hidden="true" />
+          <p className="text-sm text-gray-600 leading-snug">{error}</p>
+        </div>
+      )}
+
+      {!loading && !error && !hasMatches && (
         <div className="flex items-center justify-center py-8 px-4 text-center" role="status">
           <p className="text-sm text-gray-500 leading-relaxed">
             No live matches currently in progress. Check back during game times.
           </p>
         </div>
-      ) : (
+      )}
+
+      {!loading && !error && hasMatches && (
         <ul
           className="divide-y divide-gray-100 overflow-y-auto max-h-44"
           aria-label="Live football matches in progress"
@@ -54,27 +88,20 @@ export function FootballLiveScores() {
               key={m.id}
               className="flex items-center gap-2 py-2.5 text-sm"
               role="group"
-              aria-label={`${m.homeTeam} vs ${m.awayTeam}, score ${m.homeScore} to ${m.awayScore}, minute ${minuteLabel(m)}`}
+              aria-label={`${m.homeTla} vs ${m.awayTla}, score ${m.homeScore} to ${m.awayScore}, ${statusLabel(m.status, m.minute)}`}
             >
-              <span className="font-semibold text-gray-900 w-10 text-right tabular-nums">{m.homeTeam}</span>
+              <span className="font-semibold text-gray-900 w-10 text-right tabular-nums">{m.homeTla}</span>
               <span className="font-serif font-bold text-gray-900 tabular-nums px-1.5">
                 {m.homeScore} - {m.awayScore}
               </span>
-              <span className="font-semibold text-gray-900 w-10 tabular-nums">{m.awayTeam}</span>
-              <span className="ml-auto text-xs font-medium text-red-700 tabular-nums shrink-0" aria-label={`Match minute ${minuteLabel(m)}`}>
-                {minuteLabel(m)}
+              <span className="font-semibold text-gray-900 w-10 tabular-nums">{m.awayTla}</span>
+              <span className="ml-auto text-xs font-medium text-red-700 tabular-nums shrink-0" aria-label={`Match minute ${statusLabel(m.status, m.minute)}`}>
+                {statusLabel(m.status, m.minute)}
               </span>
             </li>
           ))}
         </ul>
       )}
-
-      <div className="mt-3 flex items-start gap-1.5 pt-2 border-t border-gray-100">
-        <Info className="h-3 w-3 text-gray-300 mt-0.5 shrink-0" aria-hidden="true" />
-        <p className="text-[10px] text-gray-400 leading-snug">
-          Simulated demo feed for illustration. Not real match data.
-        </p>
-      </div>
     </section>
   );
 }
