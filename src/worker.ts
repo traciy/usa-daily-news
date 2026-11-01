@@ -10,6 +10,118 @@ interface Env {
 
 const SITE_URL = "https://usa-daily-news.info-luwigang254.workers.dev";
 
+interface SeoArticle {
+  id: number; title: string; content: string; category: string;
+  image_url: string | null; seo_description: string | null;
+  created_at: string; source_url: string | null;
+}
+function htmlEscape(value: string): string {
+  return value.replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  })[char] ?? char);
+}
+function renderArticleMarkdown(markdown: string): string {
+  const inline = (value: string) => htmlEscape(value)
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*([^*]+)\*/g, "<em>$1</em>");
+  return markdown.replace(/\r\n/g, "\n").split(/\n{2,}/).map((block) => {
+    const trimmed = block.trim();
+    if (!trimmed) return "";
+    const heading = /^(#{1,3})\s+(.+)$/.exec(trimmed);
+    if (heading) {
+      const level = heading[1].length;
+      return "<h" + level + ">" + inline(heading[2]) + "</h" + level + ">";
+    }
+    const lines = trimmed.split("\n");
+    if (lines.every((line) => /^[-*]\s+/.test(line))) {
+      return "<ul>" + lines.map((line) => "<li>" + inline(line.replace(/^[-*]\s+/, "")) + "</li>").join("") + "</ul>";
+    }
+    if (lines.every((line) => /^\d+\.\s+/.test(line))) {
+      return "<ol>" + lines.map((line) => "<li>" + inline(line.replace(/^\d+\.\s+/, "")) + "</li>").join("") + "</ol>";
+    }
+    return "<p>" + inline(lines.join(" ")) + "</p>";
+  }).join("\n");
+}
+function injectArticleSeo(documentHtml: string, article: SeoArticle): string {
+  const canonical = SITE_URL + "/article/" + article.id;
+  const description = (article.seo_description || article.content.replace(/[#*_>\[\]()]/g, " ").replace(/\s+/g, " ").trim()).slice(0, 155);
+  const image = article.image_url && /^https?:\/\//i.test(article.image_url) ? article.image_url : SITE_URL + "/og-default.png";
+  const published = new Date(article.created_at);
+  const publishedIso = Number.isNaN(published.getTime()) ? "" : published.toISOString();
+  const schema = {
+    "@context": "https://schema.org", "@type": "NewsArticle",
+    headline: article.title, description, image: [image],
+    datePublished: publishedIso || article.created_at,
+    dateModified: publishedIso || article.created_at,
+    inLanguage: "en-US", isAccessibleForFree: true,
+    author: { "@type": "Organization", name: "USA Daily News", url: SITE_URL },
+    publisher: { "@type": "Organization", name: "USA Daily News", logo: { "@type": "ImageObject", url: SITE_URL + "/logo.png" } },
+    mainEntityOfPage: { "@type": "WebPage", "@id": canonical },
+    articleSection: article.category, url: canonical,
+  };
+  const schemaJson = JSON.stringify(schema).replace(/</g, "\\u003c");
+  let html = documentHtml
+    .replace(/<title\b[^>]*>[\s\S]*?<\/title>/i, "")
+    .replace(/<meta\b[^>]*\bname=["']description["'][^>]*>/i, "")
+    .replace(/<meta\b[^>]*\bname=["']twitter:(?:card|title|description|image)["'][^>]*>/gi, "")
+    .replace(/<meta\b[^>]*\bproperty=["'](?:og:title|og:description|og:type|og:url|og:image|article:published_time|article:section)["'][^>]*>/gi, "")
+    .replace(/<link\b[^>]*\brel=["']canonical["'][^>]*>/i, "");
+  const tags = [
+    "<title>" + htmlEscape(article.title) + " | USA Daily News</title>",
+    '<meta name="description" content="' + htmlEscape(description) + '">',
+    '<link rel="canonical" href="' + htmlEscape(canonical) + '">',
+    '<meta property="og:type" content="article">',
+    '<meta property="og:title" content="' + htmlEscape(article.title) + '">',
+    '<meta property="og:description" content="' + htmlEscape(description) + '">',
+    '<meta property="og:url" content="' + htmlEscape(canonical) + '">',
+    '<meta property="og:image" content="' + htmlEscape(image) + '">',
+    '<meta name="twitter:card" content="summary_large_image">',
+    '<meta name="twitter:title" content="' + htmlEscape(article.title) + '">',
+    '<meta name="twitter:description" content="' + htmlEscape(description) + '">',
+    '<meta name="twitter:image" content="' + htmlEscape(image) + '">',
+    publishedIso ? '<meta property="article:published_time" content="' + publishedIso + '">' : "",
+    '<script type="application/ld+json">' + schemaJson + "</script>",
+  ].join("\n");
+  const body = '<main id="seo-article"><article><header><p>' + htmlEscape(article.category) +
+    "</p><h1>" + htmlEscape(article.title) + "</h1><p>" + htmlEscape(description) +
+    '</p><time datetime="' + htmlEscape(article.created_at) + '">' + htmlEscape(publishedIso || article.created_at) +
+    "</time></header>" + (article.image_url && /^https?:\/\//i.test(article.image_url)
+      ? '<figure><img src="' + htmlEscape(article.image_url) + '" alt="' + htmlEscape(article.title) + '" width="1600" height="900"></figure>' : "") +
+    "<div>" + renderArticleMarkdown(article.content || "") + "</div></article></main>";
+  html = html.replace("</head>", tags + "\n</head>");
+  return html.replace('<div id="root"></div>', '<div id="root">' + body + "</div>");
+}
+async function handleArticlePage(request: Request, env: Env, articleId: string): Promise<Response> {
+  const fallback = () => env.ASSETS.fetch(new Request(new URL("/", request.url), { method: "GET", headers: request.headers }));
+  if (!env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) return fallback();
+  try {
+    const endpoint = new URL(env.SUPABASE_URL.replace(/\/$/, "") + "/rest/v1/articles");
+    endpoint.searchParams.set("select", "id,title,content,category,image_url,seo_description,created_at,source_url");
+    endpoint.searchParams.set("id", "eq." + articleId);
+    endpoint.searchParams.set("limit", "1");
+    const response = await fetch(endpoint.toString(), {
+      headers: { apikey: env.SUPABASE_ANON_KEY, Authorization: "Bearer " + env.SUPABASE_ANON_KEY, Accept: "application/json" },
+      cf: { cacheTtl: 60, cacheEverything: true },
+    } as RequestInit & { cf: { cacheTtl: number; cacheEverything: boolean } });
+    if (!response.ok) return fallback();
+    const articles = await response.json() as SeoArticle[];
+    const article = articles[0];
+    if (!article) return fallback();
+    const assetResponse = await fallback();
+    if (!assetResponse.ok) return assetResponse;
+    const documentHtml = await assetResponse.text();
+    if (!documentHtml.includes('<div id="root"></div>')) return new Response(documentHtml, assetResponse);
+    return new Response(injectArticleSeo(documentHtml, article), {
+      status: 200,
+      headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "public, max-age=0, s-maxage=60", "X-Content-Type-Options": "nosniff" },
+    });
+  } catch {
+    return fallback();
+  }
+}
+
+
 function xmlEscape(value: string): string {
   return value.replace(/[<>&'"]/g, (char) => ({
     "<": "&lt;", ">": "&gt;", "&": "&amp;", "'": "&apos;", '"': "&quot;",
@@ -268,6 +380,10 @@ export default {
     }
     if (url.pathname === "/sitemap.xml") {
       return handleSitemap(env);
+    }
+    const articleMatch = url.pathname.match(/^\/article\/(\d+)\/?$/);
+    if (articleMatch && request.method === "GET") {
+      return handleArticlePage(request, env, articleMatch[1]);
     }
     return env.ASSETS.fetch(request);
   },
