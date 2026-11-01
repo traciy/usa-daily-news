@@ -10,6 +10,7 @@ import { CategoryFilter } from '@/components/CategoryFilter';
 
 interface HomePageProps {
   onOpenArticle: (id: number) => void;
+  onNavigate: (path: string) => void;
 }
 
 const FAQ_ENTRIES = [
@@ -35,7 +36,7 @@ const FAQ_ENTRIES = [
   },
 ];
 
-export function HomePage({ onOpenArticle }: HomePageProps) {
+export function HomePage({ onOpenArticle, onNavigate }: HomePageProps) {
   useSeo({
     title: 'USA Daily News — US Politics, Tech, Economy & Culture',
     description:
@@ -96,7 +97,7 @@ export function HomePage({ onOpenArticle }: HomePageProps) {
 
   return (
     <>
-      <CategoryFilter active={active} onSelect={setActive} />
+      <CategoryFilter active={active} onSelect={setActive} onNavigate={onNavigate} />
 
       <section className="mx-auto max-w-6xl px-4 py-8" aria-labelledby="latest-heading">
         <h1 id="latest-heading" className="sr-only">
@@ -197,6 +198,16 @@ export function HomePage({ onOpenArticle }: HomePageProps) {
                     </button>
                   </li>
                 ))}
+                <li>
+                  <button onClick={() => onNavigate('/football')} className="text-gray-700 hover:text-gray-900 hover:underline">
+                    Sports
+                  </button>
+                </li>
+                <li>
+                  <button onClick={() => onNavigate('/weather')} className="text-gray-700 hover:text-gray-900 hover:underline">
+                    Weather
+                  </button>
+                </li>
               </ul>
             </div>
           </aside>
