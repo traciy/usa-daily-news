@@ -285,7 +285,7 @@ export function FootballPage({ onBack }: FootballPageProps) {
                     <span className="text-xs text-gray-400 w-20 shrink-0 truncate hidden sm:block" title={m.competition}>
                       {m.competition}
                     </span>
-                    <span className="text-xs text-gray-400 sm:hidden shrink-0" title={match.competition}>
+                    <span className="text-xs text-gray-400 sm:hidden shrink-0" title={m.competition}>
                       {m.competitionCode}
                     </span>
                     <span className="font-semibold text-gray-900 w-16 sm:w-20 text-right truncate" title={m.homeTeam}>
@@ -325,7 +325,7 @@ export function FootballPage({ onBack }: FootballPageProps) {
                     <span className="text-xs text-gray-400 w-20 shrink-0 truncate hidden sm:block" title={m.competition}>
                       {m.competition}
                     </span>
-                    <span className="text-xs text-gray-400 sm:hidden shrink-0" title={match.competition}>
+                    <span className="text-xs text-gray-400 sm:hidden shrink-0" title={m.competition}>
                       {m.competitionCode}
                     </span>
                     <span className="font-semibold text-gray-900 w-16 sm:w-20 text-right truncate" title={m.homeTeam}>
