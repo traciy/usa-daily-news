@@ -1,11 +1,10 @@
-import { Newspaper, CloudSun, Trophy } from 'lucide-react';
+import { Newspaper } from 'lucide-react';
 
 interface HeaderProps {
   onHome: () => void;
-  onNavigate: (path: string) => void;
 }
 
-export function Header({ onHome, onNavigate }: HeaderProps) {
+export function Header({ onHome }: HeaderProps) {
   const today = new Date().toLocaleDateString('en-US', {
     weekday: 'long',
     year: 'numeric',
@@ -35,23 +34,6 @@ export function Header({ onHome, onNavigate }: HeaderProps) {
             Truth · Clarity · Coverage
           </p>
         </button>
-
-        <nav aria-label="Weather and football pages" className="flex items-center justify-center gap-2 pb-3">
-          <button
-            onClick={() => onNavigate('/weather')}
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 px-3 py-1.5 rounded-full hover:bg-gray-100 transition-colors"
-          >
-            <CloudSun className="h-4 w-4" aria-hidden="true" />
-            Weather
-          </button>
-          <button
-            onClick={() => onNavigate('/football')}
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 px-3 py-1.5 rounded-full hover:bg-gray-100 transition-colors"
-          >
-            <Trophy className="h-4 w-4" aria-hidden="true" />
-            Football
-          </button>
-        </nav>
       </div>
     </header>
   );
