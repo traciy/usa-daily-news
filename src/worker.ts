@@ -111,7 +111,7 @@ async function handleArticlePage(request: Request, env: Env, articleId: string):
     const assetResponse = await fallback();
     if (!assetResponse.ok) return assetResponse;
     const documentHtml = await assetResponse.text();
-    if (!documentHtml.includes('<div id="root"></div>')) return new Response(documentHtml, assetResponse);
+    if (!documentHtml.includes('<div id="root"></div>')) return new Response(documentHtml, { status: assetResponse.status, headers: assetResponse.headers });
     return new Response(injectArticleSeo(documentHtml, article), {
       status: 200,
       headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "public, max-age=0, s-maxage=60", "X-Content-Type-Options": "nosniff" },
