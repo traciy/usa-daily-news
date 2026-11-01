@@ -29,17 +29,22 @@ function json(status: number, body: unknown): Response {
   });
 }
 
-function dateStamp(date: Date): string {
-  return date.toISOString().slice(0, 10).replace(/-/g, "");
-}
-
-function dateRange(): string {
+function monthKeysInWindow(): string[] {
   const now = new Date();
   const from = new Date(now);
   const to = new Date(now);
   from.setUTCDate(from.getUTCDate() - 7);
   to.setUTCDate(to.getUTCDate() + 7);
-  return `${dateStamp(from)}-${dateStamp(to)}`;
+
+  const months = new Set<string>();
+  const cursor = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), 1));
+  const end = new Date(Date.UTC(to.getUTCFullYear(), to.getUTCMonth(), 1));
+
+  while (cursor <= end) {
+    months.add(`${cursor.getUTCFullYear()}${String(cursor.getUTCMonth() + 1).padStart(2, "0")}`);
+    cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+  }
+  return [...months];
 }
 
 function mapEspnEvent(event: any, league: { name: string }, code: string) {
@@ -81,28 +86,43 @@ async function fetchLeagueMatches(code: string): Promise<any[]> {
   const league = LEAGUES[code];
   if (!league) return [];
 
-  const url = new URL(`${ESPN_BASE}/${league.slug}/scoreboard`);
-  url.searchParams.set("dates", dateRange());
-  url.searchParams.set("limit", "100");
+  const months = monthKeysInWindow();
+  const responses = await Promise.all(months.map(async (month) => {
+    const url = new URL(`${ESPN_BASE}/${league.slug}/scoreboard`);
+    // ESPN currently rejects date ranges. A YYYYMM month query is supported.
+    url.searchParams.set("dates", month);
+    url.searchParams.set("limit", "100");
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-  try {
-    const upstream = await fetch(url.toString(), {
-      signal: controller.signal,
-      headers: { "Accept": "application/json" },
-      cf: { cacheTtl: 30, cacheEverything: true },
-    } as RequestInit & { cf: { cacheTtl: number; cacheEverything: boolean } });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    try {
+      const upstream = await fetch(url.toString(), {
+        signal: controller.signal,
+        headers: { "Accept": "application/json" },
+        cf: { cacheTtl: 300, cacheEverything: true },
+      } as RequestInit & { cf: { cacheTtl: number; cacheEverything: boolean } });
 
-    if (!upstream.ok) {
-      throw new Error(`ESPN returned HTTP ${upstream.status} for ${league.name}.`);
+      if (!upstream.ok) {
+        throw new Error(`ESPN returned HTTP ${upstream.status} for ${league.name} (${month}).`);
+      }
+
+      const data = await upstream.json() as { events?: any[] };
+      return data.events ?? [];
+    } finally {
+      clearTimeout(timer);
     }
+  }));
 
-    const data = await upstream.json() as { events?: any[] };
-    return (data.events ?? []).map((event) => mapEspnEvent(event, league, code));
-  } finally {
-    clearTimeout(timer);
-  }
+  const unique = new Map<string, any>();
+  for (const event of responses.flat()) unique.set(String(event.id), event);
+  const from = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const to = Date.now() + 7 * 24 * 60 * 60 * 1000;
+  return [...unique.values()]
+    .filter((event) => {
+      const kickoff = new Date(event.date).getTime();
+      return Number.isFinite(kickoff) && kickoff >= from && kickoff <= to;
+    })
+    .map((event) => mapEspnEvent(event, league, code));
 }
 
 async function handleFootballRequest(request: Request): Promise<Response> {
