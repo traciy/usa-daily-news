@@ -2,13 +2,13 @@ import { CATEGORIES, type Category } from '@/lib/categories';
 
 interface CategoryFilterProps {
   active: Category;
-  counts?: Partial<Record<Category, number>>;
   onSelect: (c: Category) => void;
+  onNavigate: (path: string) => void;
 }
 
-export function CategoryFilter({ active, onSelect }: CategoryFilterProps) {
+export function CategoryFilter({ active, onSelect, onNavigate }: CategoryFilterProps) {
   return (
-    <nav className="sticky top-0 z-20 bg-white/95 backdrop-blur border-b border-gray-200">
+    <nav aria-label="News topics" className="sticky top-0 z-20 bg-white/95 backdrop-blur border-b border-gray-200">
       <div className="mx-auto max-w-6xl px-4">
         <ul className="flex items-center gap-1 overflow-x-auto no-scrollbar py-2">
           {CATEGORIES.map((c) => {
@@ -29,6 +29,22 @@ export function CategoryFilter({ active, onSelect }: CategoryFilterProps) {
               </li>
             );
           })}
+          <li>
+            <button
+              onClick={() => onNavigate('/football')}
+              className="px-4 py-1.5 text-sm font-medium rounded-full whitespace-nowrap text-gray-700 hover:bg-gray-100 transition-colors"
+            >
+              Sports
+            </button>
+          </li>
+          <li>
+            <button
+              onClick={() => onNavigate('/weather')}
+              className="px-4 py-1.5 text-sm font-medium rounded-full whitespace-nowrap text-gray-700 hover:bg-gray-100 transition-colors"
+            >
+              Weather
+            </button>
+          </li>
         </ul>
       </div>
     </nav>
