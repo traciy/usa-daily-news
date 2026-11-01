@@ -42,14 +42,14 @@ function MatchRow({ match }: { match: FootballMatch }) {
       <span className="text-xs text-gray-400 sm:hidden shrink-0" title={match.competition}>
         {match.competitionCode}
       </span>
-      <span className="font-semibold text-gray-900 w-16 sm:w-20 text-right truncate" title={match.homeTeam}>
-        {match.homeTla}
+      <span className="font-semibold text-gray-900 flex-1 min-w-0 text-xs sm:text-sm text-right text-xs sm:text-sm" title={match.homeTeam}>
+        {match.homeTeam}
       </span>
       <span className="font-serif font-bold text-gray-900 tabular-nums px-1.5 shrink-0">
         {match.homeScore ?? '-'} - {match.awayScore ?? '-'}
       </span>
-      <span className="font-semibold text-gray-900 w-16 sm:w-20 truncate" title={match.awayTeam}>
-        {match.awayTla}
+      <span className="font-semibold text-gray-900 flex-1 min-w-0 text-xs sm:text-sm" title={match.awayTeam}>
+        {match.awayTeam}
       </span>
       <span
         className={`ml-auto text-xs font-medium tabular-nums shrink-0 ${live ? 'text-red-700' : 'text-gray-400'}`}
@@ -288,12 +288,12 @@ export function FootballPage({ onBack }: FootballPageProps) {
                     <span className="text-xs text-gray-400 sm:hidden shrink-0" title={m.competition}>
                       {m.competitionCode}
                     </span>
-                    <span className="font-semibold text-gray-900 w-16 sm:w-20 text-right truncate" title={m.homeTeam}>
-                      {m.homeTla}
+                    <span className="font-semibold text-gray-900 flex-1 min-w-0 text-xs sm:text-sm text-right text-xs sm:text-sm" title={m.homeTeam}>
+                      {m.homeTeam}
                     </span>
                     <span className="text-gray-400 px-1.5 shrink-0 text-sm">vs</span>
-                    <span className="font-semibold text-gray-900 w-16 sm:w-20 truncate" title={m.awayTeam}>
-                      {m.awayTla}
+                    <span className="font-semibold text-gray-900 flex-1 min-w-0 text-xs sm:text-sm" title={m.awayTeam}>
+                      {m.awayTeam}
                     </span>
                     <span className="ml-auto text-xs text-gray-500 tabular-nums shrink-0">
                       {formatKickoff(m.utcDate)}
@@ -328,14 +328,14 @@ export function FootballPage({ onBack }: FootballPageProps) {
                     <span className="text-xs text-gray-400 sm:hidden shrink-0" title={m.competition}>
                       {m.competitionCode}
                     </span>
-                    <span className="font-semibold text-gray-900 w-16 sm:w-20 text-right truncate" title={m.homeTeam}>
-                      {m.homeTla}
+                    <span className="font-semibold text-gray-900 flex-1 min-w-0 text-xs sm:text-sm text-right text-xs sm:text-sm" title={m.homeTeam}>
+                      {m.homeTeam}
                     </span>
                     <span className="font-serif font-bold text-gray-900 tabular-nums px-1.5 shrink-0">
                       {m.homeScore} - {m.awayScore}
                     </span>
-                    <span className="font-semibold text-gray-900 w-16 sm:w-20 truncate" title={m.awayTeam}>
-                      {m.awayTla}
+                    <span className="font-semibold text-gray-900 flex-1 min-w-0 text-xs sm:text-sm" title={m.awayTeam}>
+                      {m.awayTeam}
                     </span>
                     <span className="ml-auto text-xs text-gray-400 tabular-nums shrink-0">
                       {formatMatchDate(m.utcDate)}
