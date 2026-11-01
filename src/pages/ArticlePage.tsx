@@ -59,7 +59,7 @@ export function ArticlePage({ id, onBack }: ArticlePageProps) {
   const html = useMarkdown(article?.content);
   const color = article ? categoryColor(article.category) : categoryColor('');
 
-  const articleUrl = article ? `${SITE_CONFIG.url}/#/article/${article.id}` : SITE_CONFIG.url;
+  const articleUrl = article ? `${SITE_CONFIG.url}/article/${article.id}` : SITE_CONFIG.url;
 
   const articleSchema = article
     ? {
@@ -69,13 +69,17 @@ export function ArticlePage({ id, onBack }: ArticlePageProps) {
         description: article.seo_description || article.title,
         image: article.image_url || [SITE_CONFIG.ogImage],
         datePublished: article.created_at,
-        author: { '@type': 'Organization', name: SITE_CONFIG.name },
+        dateModified: article.created_at,
+        inLanguage: 'en-US',
+        isAccessibleForFree: true,
+        author: { '@type': 'Organization', name: SITE_CONFIG.name, url: SITE_CONFIG.url },
         publisher: {
           '@type': 'Organization',
           name: SITE_CONFIG.name,
           logo: { '@type': 'ImageObject', url: SITE_CONFIG.logo },
         },
         mainEntityOfPage: { '@type': 'WebPage', '@id': articleUrl },
+        isPartOf: { '@type': 'WebSite', name: SITE_CONFIG.name, url: SITE_CONFIG.url },
         articleSection: article.category,
         url: articleUrl,
       }
@@ -94,7 +98,7 @@ export function ArticlePage({ id, onBack }: ArticlePageProps) {
 
   const handleShare = async () => {
     if (!article) return;
-    const url = `${SITE_CONFIG.url}/#/article/${article.id}`;
+    const url = `${SITE_CONFIG.url}/article/${article.id}`;
     try {
       if (navigator.share) {
         await navigator.share({ title: article.title, url });
@@ -136,7 +140,7 @@ export function ArticlePage({ id, onBack }: ArticlePageProps) {
   const fallback = `https://picsum.photos/seed/${article.id}/1600/900`;
 
   return (
-    <article className="mx-auto max-w-3xl px-4 py-8">
+    <article className="mx-auto max-w-3xl px-4 py-8" itemScope itemType="https://schema.org/NewsArticle">
       <button
         onClick={onBack}
         className="inline-flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 mb-6"
@@ -160,7 +164,7 @@ export function ArticlePage({ id, onBack }: ArticlePageProps) {
 
       <div className="mt-4 flex items-center justify-between border-b border-gray-200 pb-4">
         <div className="text-sm text-gray-500">
-          <time dateTime={article.created_at}>{formatDate(article.created_at)}</time>
+          <time dateTime={article.created_at} itemProp="datePublished">{formatDate(article.created_at)}</time>
           <span className="mx-2">·</span>
           <span>{formatTimeAgo(article.created_at)}</span>
         </div>
