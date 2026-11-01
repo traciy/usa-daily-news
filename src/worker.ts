@@ -89,7 +89,7 @@ function injectArticleSeo(documentHtml: string, article: SeoArticle): string {
     "</time></header>" + (article.image_url && /^https?:\/\//i.test(article.image_url)
       ? '<figure><img src="' + htmlEscape(article.image_url) + '" alt="' + htmlEscape(article.title) + '" width="1600" height="900"></figure>' : "") +
     "<div>" + renderArticleMarkdown(article.content || "") + "</div>" +
-    (article.source_url && /^https?:\\/\\//i.test(article.source_url)
+    (article.source_url && (article.source_url.startsWith("https://") || article.source_url.startsWith("http://"))
       ? '<p class="seo-source"><a href="' + htmlEscape(article.source_url) + '" target="_blank" rel="noopener noreferrer">Read the original source report</a></p>'
       : "") +
     "</article></main>";
@@ -108,8 +108,8 @@ async function handleArticlePage(request: Request, env: Env, articleId: string):
     }
     let html = await assetResponse.text();
     html = html
-      .replace(/<title\\b[^>]*>[\\s\\S]*?<\\/title>/i, "<title>Article not found | USA Daily News</title>")
-      .replace(/<link\\b[^>]*\\brel=["']canonical["'][^>]*>/i, "")
+      .replace(/<title\b[^>]*>[\s\S]*?<\/title>/i, "<title>Article not found | USA Daily News</title>")
+      .replace(/<link\b[^>]*\brel=["']canonical["'][^>]*>/i, "")
       .replace("</head>", '<meta name="robots" content="noindex,follow"><meta name="description" content="The requested article could not be found."></head>');
     return new Response(html, {
       status: 404,
