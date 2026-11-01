@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://usa-daily-news.info-luwigang254.workers.dev/sitemap.xml
