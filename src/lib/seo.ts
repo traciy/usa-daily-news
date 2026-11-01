@@ -33,6 +33,10 @@ function setMeta(attr: 'name' | 'property', key: string, content: string) {
   el.setAttribute('content', content);
 }
 
+function removeMeta(attr: 'name' | 'property', key: string) {
+  document.head.querySelector(`meta[${attr}="${key}"]`)?.remove();
+}
+
 function setLink(rel: string, href: string) {
   let el = document.head.querySelector<HTMLLinkElement>(`link[rel="${rel}"]`);
   if (!el) {
@@ -87,22 +91,27 @@ export function useSeo(opts: SeoOptions) {
     setMeta('property', 'og:locale', 'en_US');
 
     setMeta('name', 'twitter:card', 'summary_large_image');
-    setMeta('name', 'twitter:site', SITE_CONFIG.twitter);
     setMeta('name', 'twitter:title', title);
     setMeta('name', 'twitter:description', description);
     setMeta('name', 'twitter:image', image);
 
     if (opts.publishedTime) {
       setMeta('property', 'article:published_time', opts.publishedTime);
+    } else {
+      removeMeta('property', 'article:published_time');
     }
     if (opts.section) {
       setMeta('property', 'article:section', opts.section);
+    } else {
+      removeMeta('property', 'article:section');
     }
 
     setLink('canonical', url);
 
     if (opts.jsonLd) {
       injectJsonLd(opts.jsonLd);
+    } else {
+      removeStaleJsonLd();
     }
   }, [title, description, url, image, type, opts.publishedTime, opts.section, opts.jsonLd]);
 }
