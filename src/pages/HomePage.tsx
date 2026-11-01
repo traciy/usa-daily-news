@@ -54,8 +54,19 @@ export function HomePage({ onOpenArticle }: HomePageProps) {
     let cancelled = false;
     setLoading(true);
     setError(null);
+
+    const client = supabase;
+    if (!client) {
+      setError('The news database is not configured for this deployment. Check the Cloudflare build variables and redeploy.');
+      setArticles([]);
+      setLoading(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+
     (async () => {
-      let query = supabase
+      let query = client
         .from('articles')
         .select('id, title, category, image_url, seo_description, created_at, source_url')
         .order('created_at', { ascending: false })
