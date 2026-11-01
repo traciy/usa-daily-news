@@ -68,14 +68,21 @@ function mapEspnEvent(event: any, league: { name: string }, code: string) {
 
   return {
     id: Number(event.id),
-    competition: league.name,
-    competitionCode: code,
-    homeTeam: home?.team?.displayName ?? home?.team?.name ?? "TBD",
-    homeTla: home?.team?.abbreviation ?? "???",
-    awayTeam: away?.team?.displayName ?? away?.team?.name ?? "TBD",
-    awayTla: away?.team?.abbreviation ?? "???",
-    homeScore: home?.score != null && home.score !== "" ? Number(home.score) : null,
-    awayScore: away?.score != null && away.score !== "" ? Number(away.score) : null,
+    competition: { name: league.name, code },
+    homeTeam: {
+      name: home?.team?.displayName ?? home?.team?.name ?? "TBD",
+      tla: home?.team?.abbreviation ?? "???",
+    },
+    awayTeam: {
+      name: away?.team?.displayName ?? away?.team?.name ?? "TBD",
+      tla: away?.team?.abbreviation ?? "???",
+    },
+    score: {
+      fullTime: {
+        home: home?.score != null && home.score !== "" ? Number(home.score) : null,
+        away: away?.score != null && away.score !== "" ? Number(away.score) : null,
+      },
+    },
     minute: Number.isFinite(parsedMinute) ? parsedMinute : null,
     status,
     utcDate: event.date ?? competition?.date ?? new Date().toISOString(),
