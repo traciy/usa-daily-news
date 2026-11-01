@@ -16,12 +16,15 @@ export function ArticleCard({ article, variant = 'default' }: ArticleCardProps) 
     return (
       <a
         href={`#/article/${article.id}`}
+        aria-label={`Read story: ${article.title}`}
         className="group block bg-white rounded-sm overflow-hidden shadow-sm border border-gray-200 hover:shadow-md transition-shadow"
       >
         <div className="aspect-[16/9] overflow-hidden bg-gray-100">
           <img
             src={article.image_url || fallback}
             alt={article.title}
+            width={1200}
+            height={675}
             loading="lazy"
             className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500"
           />
@@ -53,12 +56,15 @@ export function ArticleCard({ article, variant = 'default' }: ArticleCardProps) 
     return (
       <a
         href={`#/article/${article.id}`}
+        aria-label={`Read story: ${article.title}`}
         className="group flex gap-3 py-3 border-b border-gray-200"
       >
         <div className="w-20 h-20 shrink-0 overflow-hidden bg-gray-100 rounded-sm">
           <img
             src={article.image_url || `https://picsum.photos/seed/${article.id}/200/200`}
             alt={article.title}
+            width={200}
+            height={200}
             loading="lazy"
             className="w-full h-full object-cover group-hover:scale-105 transition-transform"
           />
@@ -79,12 +85,15 @@ export function ArticleCard({ article, variant = 'default' }: ArticleCardProps) 
   return (
     <a
       href={`#/article/${article.id}`}
+      aria-label={`Read story: ${article.title}`}
       className="group flex flex-col bg-white rounded-sm overflow-hidden shadow-sm border border-gray-200 hover:shadow-md transition-shadow"
     >
       <div className="aspect-[16/10] overflow-hidden bg-gray-100">
         <img
           src={article.image_url || fallback}
           alt={article.title}
+          width={1200}
+          height={750}
           loading="lazy"
           className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500"
         />

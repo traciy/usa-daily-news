@@ -26,9 +26,9 @@ export function Header({ onHome }: HeaderProps) {
         >
           <div className="flex items-center gap-3">
             <Newspaper className="h-8 w-8 text-red-700 group-hover:scale-105 transition-transform" strokeWidth={1.5} />
-            <h1 className="text-4xl sm:text-5xl font-serif font-bold tracking-tight text-gray-900">
+            <span className="text-4xl sm:text-5xl font-serif font-bold tracking-tight text-gray-900">
               USA Daily News
-            </h1>
+            </span>
           </div>
           <p className="mt-1 text-[11px] tracking-[0.3em] uppercase text-gray-500">
             Truth · Clarity · Coverage

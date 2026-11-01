@@ -49,10 +49,10 @@ function App() {
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans text-gray-900">
       <Header onHome={goHome} />
 
-      <div className="flex-1">
+      <main className="flex-1">
         {route.name === 'home' && <HomePage onOpenArticle={openArticle} />}
         {route.name === 'article' && <ArticlePage id={route.id} onBack={goHome} />}
-      </div>
+      </main>
       <Footer onHome={goHome} />
 
       {/* Floating podcast overlay — always on top, never obstructs content */}

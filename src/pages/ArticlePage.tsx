@@ -5,6 +5,7 @@ import { useSeo } from '@/lib/seo';
 import { useMarkdown } from '@/lib/markdown';
 import { categoryColor } from '@/lib/categories';
 import { formatDate, formatTimeAgo } from '@/lib/date';
+import { SITE_CONFIG } from '@/lib/seo-config';
 import type { Article } from '@/types/article';
 
 interface ArticlePageProps {
@@ -47,17 +48,42 @@ export function ArticlePage({ id, onBack }: ArticlePageProps) {
   const html = useMarkdown(article?.content);
   const color = article ? categoryColor(article.category) : categoryColor('');
 
+  const articleUrl = article ? `${SITE_CONFIG.url}/#/article/${article.id}` : SITE_CONFIG.url;
+
+  const articleSchema = article
+    ? {
+        '@context': 'https://schema.org',
+        '@type': 'NewsArticle',
+        headline: article.title,
+        description: article.seo_description || article.title,
+        image: article.image_url || [SITE_CONFIG.ogImage],
+        datePublished: article.created_at,
+        author: { '@type': 'Organization', name: SITE_CONFIG.name },
+        publisher: {
+          '@type': 'Organization',
+          name: SITE_CONFIG.name,
+          logo: { '@type': 'ImageObject', url: SITE_CONFIG.logo },
+        },
+        mainEntityOfPage: { '@type': 'WebPage', '@id': articleUrl },
+        articleSection: article.category,
+        url: articleUrl,
+      }
+    : null;
+
   useSeo({
-    title: article ? `${article.title} — USA Daily News` : 'USA Daily News',
+    title: article ? article.title : 'USA Daily News',
     description: article?.seo_description || article?.title || undefined,
     image: article?.image_url || undefined,
     type: 'article',
-    url: article ? `${window.location.origin}/#/article/${article.id}` : undefined,
+    url: articleUrl,
+    publishedTime: article?.created_at,
+    section: article?.category,
+    jsonLd: articleSchema ?? undefined,
   });
 
   const handleShare = async () => {
     if (!article) return;
-    const url = `${window.location.origin}/#/article/${article.id}`;
+    const url = `${SITE_CONFIG.url}/#/article/${article.id}`;
     try {
       if (navigator.share) {
         await navigator.share({ title: article.title, url });
@@ -104,7 +130,7 @@ export function ArticlePage({ id, onBack }: ArticlePageProps) {
         onClick={onBack}
         className="inline-flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 mb-6"
       >
-        <ArrowLeft className="h-4 w-4" /> All stories
+        <ArrowLeft className="h-4 w-4" /> Back to all stories
       </button>
 
       <span className={`inline-block text-xs font-semibold uppercase tracking-wider px-2 py-0.5 rounded ${color.bg} ${color.text}`}>
@@ -130,6 +156,7 @@ export function ArticlePage({ id, onBack }: ArticlePageProps) {
         <button
           onClick={handleShare}
           className="inline-flex items-center gap-1.5 text-sm text-gray-700 hover:text-gray-900 border border-gray-300 rounded-full px-3 py-1 hover:bg-gray-50 transition-colors"
+          aria-label={`Share article: ${article.title}`}
         >
           <Share2 className="h-3.5 w-3.5" />
           {copied ? 'Link copied' : 'Share'}
@@ -141,6 +168,8 @@ export function ArticlePage({ id, onBack }: ArticlePageProps) {
           <img
             src={article.image_url}
             alt={article.title}
+            width={1600}
+            height={900}
             className="w-full h-auto object-cover sm:rounded-sm"
           />
         </figure>
@@ -150,6 +179,8 @@ export function ArticlePage({ id, onBack }: ArticlePageProps) {
           <img
             src={fallback}
             alt={article.title}
+            width={1600}
+            height={900}
             className="w-full h-auto object-cover sm:rounded-sm opacity-90"
           />
         </figure>
@@ -168,7 +199,7 @@ export function ArticlePage({ id, onBack }: ArticlePageProps) {
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 text-sm text-blue-700 hover:text-blue-900 hover:underline"
           >
-            View original source <ExternalLink className="h-3.5 w-3.5" />
+            Read the original source report <ExternalLink className="h-3.5 w-3.5" />
           </a>
         </div>
       )}

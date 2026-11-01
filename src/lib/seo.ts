@@ -1,11 +1,26 @@
 import { useEffect } from 'react';
+import { SITE_CONFIG } from '@/lib/seo-config';
 
-interface SeoOptions {
+export interface SeoOptions {
   title: string;
   description?: string;
   image?: string;
   url?: string;
   type?: string;
+  /** When provided, injects this object as a JSON-LD structured data block. */
+  jsonLd?: Record<string, unknown> | Record<string, unknown>[];
+  /** Published date (ISO) for article schema. */
+  publishedTime?: string;
+  /** Section / category for article schema. */
+  section?: string;
+}
+
+/** Hard limit on meta description length for snippet display. */
+const MAX_DESC = 155;
+const MAX_TITLE = 60;
+
+function clamp(value: string, max: number): string {
+  return value.length > max ? `${value.slice(0, max - 1).trimEnd()}…` : value;
 }
 
 function setMeta(attr: 'name' | 'property', key: string, content: string) {
@@ -28,29 +43,66 @@ function setLink(rel: string, href: string) {
   el.setAttribute('href', href);
 }
 
+function removeStaleJsonLd() {
+  document.head
+    .querySelectorAll('script[data-dynamic-jsonld]')
+    .forEach((el) => el.remove());
+}
+
+function injectJsonLd(data: Record<string, unknown> | Record<string, unknown>[]) {
+  removeStaleJsonLd();
+  const blocks = Array.isArray(data) ? data : [data];
+  for (const block of blocks) {
+    const script = document.createElement('script');
+    script.type = 'application/ld+json';
+    script.setAttribute('data-dynamic-jsonld', 'true');
+    script.textContent = JSON.stringify(block);
+    document.head.appendChild(script);
+  }
+}
+
 /**
- * Updates document title and social/SEO meta tags on mount and whenever the
- * options change. Used on the article page for per-article SEO.
+ * Updates document title, canonical link, Open Graph / Twitter meta tags, and
+ * JSON-LD structured data on mount and whenever the options change.
+ * Used on every page for per-route SEO.
  */
 export function useSeo(opts: SeoOptions) {
+  const title = clamp(opts.title, MAX_TITLE);
+  const description = opts.description ? clamp(opts.description, MAX_DESC) : SITE_CONFIG.description;
+  const url = opts.url || window.location.href.split('#')[0];
+  const image = opts.image || SITE_CONFIG.ogImage;
+  const type = opts.type || 'website';
+
   useEffect(() => {
-    document.title = opts.title;
-    if (opts.description) {
-      setMeta('name', 'description', opts.description);
-      setMeta('property', 'og:description', opts.description);
-      setMeta('name', 'twitter:description', opts.description);
+    document.title = title;
+
+    setMeta('name', 'description', description);
+
+    setMeta('property', 'og:title', title);
+    setMeta('property', 'og:description', description);
+    setMeta('property', 'og:type', type);
+    setMeta('property', 'og:url', url);
+    setMeta('property', 'og:image', image);
+    setMeta('property', 'og:site_name', SITE_CONFIG.name);
+    setMeta('property', 'og:locale', 'en_US');
+
+    setMeta('name', 'twitter:card', 'summary_large_image');
+    setMeta('name', 'twitter:site', SITE_CONFIG.twitter);
+    setMeta('name', 'twitter:title', title);
+    setMeta('name', 'twitter:description', description);
+    setMeta('name', 'twitter:image', image);
+
+    if (opts.publishedTime) {
+      setMeta('property', 'article:published_time', opts.publishedTime);
     }
-    setMeta('property', 'og:title', opts.title);
-    setMeta('name', 'twitter:title', opts.title);
-    if (opts.type) setMeta('property', 'og:type', opts.type);
-    if (opts.image) {
-      setMeta('property', 'og:image', opts.image);
-      setMeta('name', 'twitter:image', opts.image);
-      setLink('image_src', opts.image);
+    if (opts.section) {
+      setMeta('property', 'article:section', opts.section);
     }
-    if (opts.url) {
-      setLink('canonical', opts.url);
-      setMeta('property', 'og:url', opts.url);
+
+    setLink('canonical', url);
+
+    if (opts.jsonLd) {
+      injectJsonLd(opts.jsonLd);
     }
-  }, [opts.title, opts.description, opts.image, opts.url, opts.type]);
+  }, [title, description, url, image, type, opts.publishedTime, opts.section, opts.jsonLd]);
 }
