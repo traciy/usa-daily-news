@@ -2,6 +2,79 @@ interface Env {
   ASSETS: {
     fetch(request: Request): Promise<Response>;
   };
+  // Add these as Cloudflare Worker runtime variables. The anon key is public,
+  // read-only site access; never use a service-role key here.
+  SUPABASE_URL?: string;
+  SUPABASE_ANON_KEY?: string;
+}
+
+const SITE_URL = "https://usa-daily-news.info-luwigang254.workers.dev";
+
+function xmlEscape(value: string): string {
+  return value.replace(/[<>&'"]/g, (char) => ({
+    "<": "&lt;", ">": "&gt;", "&": "&amp;", "'": "&apos;", '"': "&quot;",
+  })[char] ?? char);
+}
+
+async function handleSitemap(env: Env): Promise<Response> {
+  if (!env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) {
+    // Keep the existing static sitemap available until runtime variables are set.
+    return env.ASSETS.fetch(new Request(`${SITE_URL}/sitemap.xml`));
+  }
+
+  const baseUrl = env.SUPABASE_URL.replace(/\\/$/, "");
+  const rows: Array<{ id: number; created_at: string }> = [];
+  const pageSize = 1000;
+
+  for (let offset = 0; ; offset += pageSize) {
+    const endpoint = new URL(`${baseUrl}/rest/v1/articles`);
+    endpoint.searchParams.set("select", "id,created_at");
+    endpoint.searchParams.set("order", "created_at.desc");
+    endpoint.searchParams.set("limit", String(pageSize));
+    endpoint.searchParams.set("offset", String(offset));
+
+    const response = await fetch(endpoint.toString(), {
+      headers: {
+        apikey: env.SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${env.SUPABASE_ANON_KEY}`,
+        Accept: "application/json",
+      },
+      cf: { cacheTtl: 300, cacheEverything: true },
+    } as RequestInit & { cf: { cacheTtl: number; cacheEverything: boolean } });
+
+    if (!response.ok) {
+      return new Response("The article sitemap is temporarily unavailable.", {
+        status: 502,
+        headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" },
+      });
+    }
+
+    const batch = await response.json() as Array<{ id: number; created_at: string }>;
+    rows.push(...batch);
+    if (batch.length < pageSize) break;
+  }
+
+  const articleUrls = rows.map((article) => {
+    const lastmod = new Date(article.created_at);
+    const lastmodTag = Number.isNaN(lastmod.getTime())
+      ? ""
+      : `<lastmod>${lastmod.toISOString()}</lastmod>`;
+    return `<url><loc>${xmlEscape(`${SITE_URL}/article/${article.id}`)}</loc>${lastmodTag}</url>`;
+  }).join("");
+
+  const staticUrls = ["/", "/football", "/weather"]
+    .map((path) => `<url><loc>${SITE_URL}${path}</loc></url>`)
+    .join("");
+
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${staticUrls}${articleUrls}</urlset>`;
+
+  return new Response(xml, {
+    headers: {
+      "Content-Type": "application/xml; charset=utf-8",
+      "Cache-Control": "public, max-age=300, s-maxage=300",
+      "X-Content-Type-Options": "nosniff",
+    },
+  });
 }
 
 const ESPN_BASE = "https://site.api.espn.com/apis/site/v2/sports/soccer";
@@ -192,6 +265,9 @@ export default {
     const url = new URL(request.url);
     if (url.pathname === "/api/football") {
       return handleFootballRequest(request);
+    }
+    if (url.pathname === "/sitemap.xml") {
+      return handleSitemap(env);
     }
     return env.ASSETS.fetch(request);
   },
