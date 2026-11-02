@@ -549,10 +549,10 @@ function validateAndNormalize(generated, sourceArticles) {
     const duplicateCoverage = validated.some((existing) => titleSimilarity(existing.title, title) >= 0.7);
 
     const normalizedParagraphText = content.replace(/<[^>]*>/g, " ").trim();
-    const wordCount = normalizedParagraphText.split(/\\s+/).filter(Boolean).length;
+    const wordCount = normalizedParagraphText.split(/\s+/).filter(Boolean).length;
     const descriptionLength = seoDescription.length;
     const titleLength = title.length;
-    const primaryTerms = title.toLowerCase().replace(/[^a-z0-9 ]/g, " ").split(/\\s+/).filter((term) => term.length > 3);
+    const primaryTerms = title.toLowerCase().replace(/[^a-z0-9 ]/g, " ").split(/\s+/).filter((term) => term.length > 3);
     const openingText = normalizedParagraphText.slice(0, 700).toLowerCase();
     const primaryTermCoverage = primaryTerms.length
       ? primaryTerms.filter((term) => openingText.includes(term)).length / primaryTerms.length
