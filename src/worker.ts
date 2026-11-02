@@ -729,7 +729,7 @@ export default {
     const url = new URL(request.url);
     if (url.pathname.length > 1 && url.pathname.endsWith("/")) {
       const clean = new URL(url);
-      clean.pathname = clean.pathname.replace(/\\/+$/, "");
+      clean.pathname = clean.pathname.replace(/\/+$/, "");
       return Response.redirect(clean.toString(), 301);
     }
     if (url.pathname === "/sports") {
