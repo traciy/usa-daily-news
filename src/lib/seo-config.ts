@@ -1,21 +1,19 @@
 /**
  * Central SEO configuration for USA Daily News.
- * All per-page metadata hooks read from this so titles, descriptions,
- * social profiles, and structured data stay consistent across the site.
+ * Shared metadata and publisher identity used across the site.
  */
 
 export const SITE_CONFIG = {
   name: 'USA Daily News',
-  tagline: 'Truth · Clarity · Coverage',
+  tagline: 'News · Context · Coverage',
   description:
-    'Independent American journalism covering Politics, Tech, Economy, and Culture. Fresh stories every day with clarity and coverage you can trust.',
+    'Digital news coverage and source-attributed summaries across US and international affairs, politics, business, technology, culture, weather and sports.',
   url: 'https://usadailynews.space',
-  logo: 'https://usadailynews.space/logo.png',
-  ogImage: 'https://usadailynews.space/og-default.png',
+  logo: 'https://usadailynews.space/logo.svg',
+  ogImage: 'https://usadailynews.space/og-default.svg',
   twitter: '@usadailynews',
   language: 'en',
-  // Primary target keywords — used in meta keywords and structured data.
-  keywords: ['US news', 'American politics', 'tech news', 'economy'],
+  keywords: ['US news', 'USA news', 'American politics', 'business news', 'technology news'],
   sameAs: [
     'https://twitter.com/usadailynews',
     'https://www.facebook.com/usadailynews',
@@ -32,29 +30,16 @@ export const NAV_SECTIONS = [
   { label: 'Culture', path: '#/category/culture' },
 ] as const;
 
-/** Organization JSON-LD schema — describes the publisher to search engines and LLMs. */
 export const ORGANIZATION_SCHEMA = {
   '@context': 'https://schema.org',
   '@type': 'NewsMediaOrganization',
   name: SITE_CONFIG.name,
   url: SITE_CONFIG.url,
-  logo: {
-    '@type': 'ImageObject',
-    url: SITE_CONFIG.logo,
-  },
+  logo: { '@type': 'ImageObject', url: SITE_CONFIG.logo },
   description: SITE_CONFIG.description,
   sameAs: SITE_CONFIG.sameAs,
-  publisher: {
-    '@type': 'Organization',
-    name: SITE_CONFIG.name,
-    logo: {
-      '@type': 'ImageObject',
-      url: SITE_CONFIG.logo,
-    },
-  },
 } as const;
 
-/** Website JSON-LD schema — describes the site and search action. */
 export const WEBSITE_SCHEMA = {
   '@context': 'https://schema.org',
   '@type': 'WebSite',
@@ -64,48 +49,37 @@ export const WEBSITE_SCHEMA = {
   publisher: {
     '@type': 'Organization',
     name: SITE_CONFIG.name,
-    logo: {
-      '@type': 'ImageObject',
-      url: SITE_CONFIG.logo,
-    },
+    url: SITE_CONFIG.url,
+    logo: { '@type': 'ImageObject', url: SITE_CONFIG.logo },
   },
 } as const;
 
-/** FAQPage JSON-LD schema — surfaces in rich results / AI Overview snippets. */
 export const FAQ_SCHEMA = {
   '@context': 'https://schema.org',
   '@type': 'FAQPage',
   mainEntity: [
     {
       '@type': 'Question',
-      name: 'What is USA Daily News?',
+      name: 'How is content prepared for USA Daily News?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'USA Daily News is an independent American news outlet covering Politics, Technology, Economy, and Culture. We publish fresh, verified stories every day with a focus on clarity, accuracy, and coverage you can trust.',
+        text: 'Digital tools and AI-assisted processes may help discover, organize and prepare news summaries. Articles may summarize reporting published by other outlets, with source links provided when available.',
       },
     },
     {
       '@type': 'Question',
-      name: 'What topics does USA Daily News cover?',
+      name: 'Is every article original reporting?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'We cover four core sections: Politics (policy, elections, government), Tech (innovation, AI, industry), Economy (markets, jobs, fiscal policy), and Culture (arts, society, lifestyle). Each section is updated daily with original reporting.',
+        text: 'No. Some articles summarize or discuss reporting published by other outlets. USA Daily News aims to identify and link to source material when available.',
       },
     },
     {
       '@type': 'Question',
-      name: 'How often is USA Daily News updated?',
+      name: 'How can I report an error?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'New stories are published every day across all sections. Our editorial team monitors developing stories in real time, so readers always have the latest reporting on American politics, technology, the economy, and culture.',
-      },
-    },
-    {
-      '@type': 'Question',
-      name: 'Is USA Daily News independent journalism?',
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: 'Yes. USA Daily News is fully independent. We are not owned by a political party, corporation, or foreign entity. Our reporting is guided by facts, sourced verification, and a commitment to plain-language truth for every reader.',
+        text: 'Email info.luwigang254@gmail.com with the article URL, the detail you believe is incorrect and reliable supporting information.',
       },
     },
   ],
