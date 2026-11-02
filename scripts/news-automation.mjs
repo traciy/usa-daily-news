@@ -460,13 +460,12 @@ function validateAndNormalize(generated, sourceArticles) {
     const attributedInOpening = sourceName && content.slice(0, 700).toLowerCase().includes(sourceName);
     const duplicateCoverage = validated.some((existing) => titleSimilarity(existing.title, title) >= 0.7);
 
-    const normalizedParagraphText = content
-      .replace(/<\\/p>\\s*<p[^>]*>/gi, "\\n\\n")
-      .replace(/<br\\s*\\/?\\s*>/gi, "\\n")
-      .replace(/<[^>]*>/g, "")
-      .trim();
-    const paragraphCount = normalizedParagraphText.split(/\\n\\s*\\n|(?<=[.!?])\\s+(?=[A-Z0-9])/).filter((paragraph) => paragraph.trim().length >= 40).length;
-    const wordCount = normalizedParagraphText.split(/\\s+/).filter(Boolean).length;
+    const normalizedParagraphText = content.replace(/<[^>]*>/g, " ").trim();
+    const htmlParagraphs = content.match(/<p\b[^>]*>[\s\S]*?<\/p>/gi);
+    const paragraphCount = htmlParagraphs
+      ? htmlParagraphs.length
+      : content.split(/\n\s*\n/).filter((paragraph) => paragraph.replace(/<[^>]*>/g, "").trim().length >= 40).length;
+    const wordCount = normalizedParagraphText.split(/\s+/).filter(Boolean).length;
 
     if (!title || !content || !seoDescription || !category || !hasSubstantialEvidence || content.length < 350 || paragraphCount < 5 || wordCount < 350) {
       console.warn(`Skipping an article with missing fields, insufficient evidence, invalid category, or insufficient length/paragraphs (${wordCount} words, ${paragraphCount} paragraphs). Source: ${original.title}`);
