@@ -188,6 +188,30 @@ const STATIC_SEO_PAGES: Record<string, StaticSeoPage> = {
       "For a correction request, include the article URL, the specific detail you believe is inaccurate and a link or document that can help us review it."
     ]
   },
+  "/politics": {
+    title: "US Politics News | USA Daily News",
+    description: "US politics news, government coverage, policy developments and election updates from USA Daily News.",
+    heading: "US Politics News",
+    paragraphs: ["Follow US politics, government decisions, public policy and election developments with news summaries and links to source reporting."]
+  },
+  "/tech": {
+    title: "Technology News | USA Daily News",
+    description: "Technology news, AI developments, innovation and digital industry coverage from USA Daily News.",
+    heading: "Technology News",
+    paragraphs: ["Explore technology coverage including artificial intelligence, innovation, digital platforms and developments across the technology industry."]
+  },
+  "/economy": {
+    title: "Business & Economy News | USA Daily News",
+    description: "Business and economy news, markets, jobs, finance and economic policy coverage from USA Daily News.",
+    heading: "Business & Economy News",
+    paragraphs: ["Follow business and economic developments, markets, employment, finance and policy with source-attributed news summaries."]
+  },
+  "/culture": {
+    title: "Culture & Entertainment News | USA Daily News",
+    description: "Culture news, entertainment, arts, society and lifestyle coverage from USA Daily News.",
+    heading: "Culture News",
+    paragraphs: ["Read coverage of entertainment, arts, media, society and cultural developments in the United States and around the world."]
+  },
   "/football": {
     title: "Football & Sports News | USA Daily News",
     description: "Follow football fixtures, scores and sports coverage from USA Daily News.",
@@ -422,7 +446,7 @@ async function handleSitemap(env: Env): Promise<Response> {
     return `<url><loc>${xmlEscape(`${SITE_URL}/article/${article.id}`)}</loc>${lastmodTag}</url>`;
   }).join("");
 
-  const staticUrls = ["/", "/football", "/weather", "/about", "/contact", "/editorial-policy", "/corrections", "/privacy-policy"]
+  const staticUrls = ["/", "/politics", "/tech", "/economy", "/culture", "/football", "/weather", "/about", "/contact", "/editorial-policy", "/corrections", "/privacy-policy"]
     .map((path) => `<url><loc>${SITE_URL}${path}</loc></url>`)
     .join("");
 
