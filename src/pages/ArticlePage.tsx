@@ -66,6 +66,8 @@ export function ArticlePage({ id, onBack }: ArticlePageProps) {
         '@context': 'https://schema.org',
         '@type': 'NewsArticle',
         headline: article.title,
+        articleBody: article.content.replace(/[#*_>]/g, ' ').replace(/\s+/g, ' ').trim(),
+        citation: article.source_url && /^https?:\/\//i.test(article.source_url) ? article.source_url : undefined,
         description: article.seo_description || article.title,
         image: article.image_url || [SITE_CONFIG.ogImage],
         datePublished: article.created_at,
@@ -81,6 +83,7 @@ export function ArticlePage({ id, onBack }: ArticlePageProps) {
         mainEntityOfPage: { '@type': 'WebPage', '@id': articleUrl },
         isPartOf: { '@type': 'WebSite', name: SITE_CONFIG.name, url: SITE_CONFIG.url },
         articleSection: article.category,
+        keywords: [article.category, 'USA Daily News'],
         url: articleUrl,
       }
     : null;
@@ -185,6 +188,9 @@ export function ArticlePage({ id, onBack }: ArticlePageProps) {
             alt={article.title}
             width={1600}
             height={900}
+            loading="eager"
+            fetchPriority="high"
+            decoding="async"
             className="w-full h-auto object-cover sm:rounded-sm"
           />
         </figure>
@@ -196,6 +202,9 @@ export function ArticlePage({ id, onBack }: ArticlePageProps) {
             alt={article.title}
             width={1600}
             height={900}
+            loading="eager"
+            fetchPriority="high"
+            decoding="async"
             className="w-full h-auto object-cover sm:rounded-sm opacity-90"
           />
         </figure>
