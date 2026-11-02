@@ -331,7 +331,7 @@ function validateAndNormalize(generated, sourceArticles) {
     const requestedCategory = typeof article.category === "string" ? article.category.trim() : "";
     const category = [...allowedCategories].find((allowed) => allowed.toLowerCase() === requestedCategory.toLowerCase());
 
-    const hasSubstantialEvidence = original.article_text.length >= 700 || original.content.length >= 1500;
+    const hasSubstantialEvidence = (original.article_text || "").length >= 700 || (original.content || "").length >= 1500;
     if (!title || !content || !seoDescription || !category || !hasSubstantialEvidence || content.length < 500) {
       console.warn(`Skipping an article with missing fields, insufficient source evidence, or invalid category. Source: ${original.title}`);
       continue;
