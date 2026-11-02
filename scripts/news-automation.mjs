@@ -109,10 +109,11 @@ async function getHeadlines(newsApiKey) {
 
 async function generateArticles(geminiApiKey, sourceArticles) {
   const prompt = `You are the Chief Editor of USA Daily News. Look at the raw news articles provided below. Select the ${ARTICLE_COUNT} top most impactful stories. For each story:
-1. Rewrite the headline to be punchy and engaging.
-2. Summarize the text into exactly ${ARTICLE_WORDS} words using simple language and fully SEO optimized.
-3. Categorize it (Politics, Tech, Economy, or Culture).
-4. Generate a 150-character SEO description.
+1. Rewrite the headline clearly and accurately; do not exaggerate the facts.
+2. Write an original report of approximately ${ARTICLE_WORDS} words using only facts supported by the supplied source material. Do not pad the article or invent quotes, statistics, dates, causes, motives, or background details. If the source material is too thin to support a useful report, return fewer articles rather than guessing.
+3. Categorize it (Politics, Tech, Economy, Culture, or Sports).
+4. Generate a clear SEO description of about 150 characters.
+5. Keep the article neutral, specific, readable, and useful. Attribute information to the supplied source where appropriate.
 
 Output the result strictly as a clean JSON array matching these keys: title, content, category, source_url, image_url, seo_description.
 
