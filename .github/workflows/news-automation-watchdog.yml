@@ -24,7 +24,7 @@ jobs:
           REPOSITORY: ${{ github.repository }}
           MAIN_WORKFLOW_ID: "389035432"
         run: |
-          node <<'NODE'
+          node --input-type=module <<'NODE'
           const repo = process.env.REPOSITORY;
           const workflowId = process.env.MAIN_WORKFLOW_ID;
           const api = process.env.GITHUB_API_URL || "https://api.github.com";
