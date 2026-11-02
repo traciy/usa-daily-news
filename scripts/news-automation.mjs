@@ -76,23 +76,48 @@ function parseModelJson(text) {
 }
 
 const RSS_FEEDS = [
-  { name: "NPR", url: "https://feeds.npr.org/1001/rss.xml", category: "Politics" },
-  { name: "NBC News", url: "https://feeds.nbcnews.com/nbcnews/public/news", category: "Politics" },
-  { name: "ABC News", url: "https://abcnews.com/abcnews/usheadlines", category: "Politics" },
-  { name: "CBS News", url: "https://www.cbsnews.com/latest/rss/main", category: "Politics" },
-  { name: "NPR Politics", url: "https://feeds.npr.org/1014/rss.xml", category: "Politics" },
-  { name: "PBS NewsHour", url: "https://www.pbs.org/newshour/feeds/rss/headlines", category: "Politics" },
-  { name: "Fox News", url: "https://moxie.foxnews.com/google-publisher/latest.xml", category: "Politics" },
-  { name: "BBC US and Canada", url: "https://feeds.bbci.co.uk/news/world/us_and_canada/rss.xml", category: "Politics" },
-  { name: "Politico", url: "https://rss.politico.com/politics-news.xml", category: "Politics" },
-  { name: "The Hill", url: "https://thehill.com/feed/", category: "Politics" },
-  { name: "Axios", url: "https://api.axios.com/feed/", category: "Politics" },
-  { name: "ESPN", url: "https://www.espn.com/espn/rss/news", category: "Sports" },
-  { name: "Fox Sports", url: "https://feeds.foxnews.com/foxnews/sports", category: "Sports" },
-  { name: "Yahoo Sports", url: "https://sports.yahoo.com/rss/", category: "Sports" },
-  { name: "BBC Sport", url: "https://feeds.bbci.co.uk/sport/rss.xml", category: "Sports" },
-  { name: "CBS Sports", url: "https://www.cbssports.com/rss/headlines/", category: "Sports" },
-  { name: "Sky Sports", url: "https://www.skysports.com/rss/12040", category: "Sports" },
+  // United States: retained existing publishers and political coverage.
+  { name: "NPR", url: "https://feeds.npr.org/1001/rss.xml", category: "Politics", country: "United States" },
+  { name: "NBC News", url: "https://feeds.nbcnews.com/nbcnews/public/news", category: "Politics", country: "United States" },
+  { name: "ABC News", url: "https://abcnews.com/abcnews/usheadlines", category: "Politics", country: "United States" },
+  { name: "CBS News", url: "https://www.cbsnews.com/latest/rss/main", category: "Politics", country: "United States" },
+  { name: "NPR Politics", url: "https://feeds.npr.org/1014/rss.xml", category: "Politics", country: "United States" },
+  { name: "PBS NewsHour", url: "https://www.pbs.org/newshour/feeds/rss/headlines", category: "Politics", country: "United States" },
+  { name: "Fox News", url: "https://moxie.foxnews.com/google-publisher/latest.xml", category: "Politics", country: "United States" },
+  { name: "Politico", url: "https://rss.politico.com/politics-news.xml", category: "Politics", country: "United States" },
+  { name: "The Hill", url: "https://thehill.com/feed/", category: "Politics", country: "United States" },
+  { name: "Axios", url: "https://api.axios.com/feed/", category: "Politics", country: "United States" },
+
+  // International reporting from established public broadcasters and publishers.
+  { name: "BBC World", url: "https://feeds.bbci.co.uk/news/world/rss.xml", category: "World", country: "United Kingdom" },
+  { name: "BBC UK", url: "https://feeds.bbci.co.uk/news/uk/rss.xml", category: "World", country: "United Kingdom" },
+  { name: "The Guardian World", url: "https://www.theguardian.com/world/rss", category: "World", country: "United Kingdom" },
+  { name: "Sky News World", url: "https://feeds.skynews.com/feeds/rss/world.xml", category: "World", country: "United Kingdom" },
+  { name: "The Independent", url: "https://www.independent.co.uk/rss", category: "World", country: "United Kingdom" },
+  { name: "CBC News", url: "https://www.cbc.ca/webfeed/rss/rss-topstories", category: "World", country: "Canada" },
+  { name: "ABC News Australia", url: "https://www.abc.net.au/news/feed/45910/rss.xml", category: "World", country: "Australia" },
+  { name: "RNZ", url: "https://www.rnz.co.nz/rss/national.xml", category: "World", country: "New Zealand" },
+  { name: "RTÉ News", url: "https://www.rte.ie/feeds/rss/?index=/news/", category: "World", country: "Ireland" },
+  { name: "Deutsche Welle", url: "https://rss.dw.com/rdf/rss-en-all", category: "World", country: "Germany" },
+  { name: "France 24", url: "https://www.france24.com/en/rss", category: "World", country: "France" },
+  { name: "Euronews", url: "https://www.euronews.com/rss", category: "World", country: "European Union" },
+  { name: "Le Monde English", url: "https://www.lemonde.fr/en/rss/une.xml", category: "World", country: "France" },
+  { name: "Der Spiegel International", url: "https://www.spiegel.de/international/index.rss", category: "World", country: "Germany" },
+  { name: "Politico Europe", url: "https://www.politico.eu/feed/", category: "World", country: "European Union" },
+  { name: "NHK World", url: "https://www3.nhk.or.jp/nhkworld/en/news/feeds/", category: "World", country: "Japan" },
+  { name: "Yonhap English", url: "https://en.yna.co.kr/RSS/news.xml", category: "World", country: "South Korea" },
+  { name: "CNA", url: "https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml", category: "World", country: "Singapore" },
+  { name: "SWI swissinfo", url: "https://www.swissinfo.ch/eng/rss", category: "World", country: "Switzerland" },
+  { name: "Focus Taiwan", url: "https://focustaiwan.tw/rss", category: "World", country: "Taiwan" },
+  { name: "The New Zealand Herald", url: "https://www.nzherald.co.nz/arc/outboundfeeds/rss/", category: "World", country: "New Zealand" },
+
+  // Sports reporting across the US and international leagues.
+  { name: "ESPN", url: "https://www.espn.com/espn/rss/news", category: "Sports", country: "United States" },
+  { name: "Fox Sports", url: "https://feeds.foxnews.com/foxnews/sports", category: "Sports", country: "United States" },
+  { name: "Yahoo Sports", url: "https://sports.yahoo.com/rss/", category: "Sports", country: "United States" },
+  { name: "BBC Sport", url: "https://feeds.bbci.co.uk/sport/rss.xml", category: "Sports", country: "United Kingdom" },
+  { name: "CBS Sports", url: "https://www.cbssports.com/rss/headlines/", category: "Sports", country: "United States" },
+  { name: "Sky Sports", url: "https://www.skysports.com/rss/12040", category: "Sports", country: "United Kingdom" },
 ];
 
 function decodeXml(value = "") {
@@ -308,12 +333,14 @@ async function getHeadlines() {
   if (articles.length === 0) {
     throw new Error("No usable RSS stories were collected. Feed errors: " + (failures.join(" | ") || "Feeds returned no recent stories."));
   }
-  // Limit Gemini input to the 15 newest Politics and 15 newest Sports items.
+  // Keep the Gemini/free-tier workload bounded while drawing from the expanded
+  // international news pool and preserving a separate sports allocation.
   const recent = [...articles].sort((a, b) => (Date.parse(b.publishedAt || "") || 0) - (Date.parse(a.publishedAt || "") || 0));
-  const politics = recent.filter((item) => item.source_category === "Politics").slice(0, 15);
+  const generalNews = recent.filter((item) => item.source_category !== "Sports").slice(0, 15);
   const sports = recent.filter((item) => item.source_category === "Sports").slice(0, 15);
-  const selected = [...politics, ...sports].sort((a, b) => (Date.parse(b.publishedAt || "") || 0) - (Date.parse(a.publishedAt || "") || 0));
-  console.log("Gemini candidate limit: " + selected.length + " stories (maximum 15 Politics + 15 Sports).");
+  const selected = [...generalNews, ...sports].sort((a, b) => (Date.parse(b.publishedAt || "") || 0) - (Date.parse(a.publishedAt || "") || 0));
+  const countries = [...new Set(selected.map((item) => RSS_FEEDS.find((feed) => feed.name === item.source?.name)?.country).filter(Boolean))];
+  console.log("Gemini candidate limit: " + selected.length + " stories (maximum 15 international/general news + 15 sports) from " + countries.length + " countries/regions: " + countries.join(", ") + ".");
   const enriched = await enrichSourceArticles(selected);
   const withCoverage = enriched.map((article) => ({ ...article, related_coverage: relatedCoverageFor(article, selected) }));
   const fullTextCount = withCoverage.filter((article) => article.article_text).length;
