@@ -132,7 +132,7 @@ export function FootballPage({ onBack }: FootballPageProps) {
   // SEO — stable metadata, does not change per refresh.
   const seoTitle = 'Live Football Scores Today | Fixtures, Results & Match Updates';
   const seoDescription = 'Follow real-time football scores, live match updates, upcoming fixtures and recent results from major football competitions around the world.';
-  const canonicalUrl = `${SITE_CONFIG.url}/#/football`;
+  const canonicalUrl = `${SITE_CONFIG.url}/football`;
 
   const jsonLd = useMemo(() => ([
     ORGANIZATION_SCHEMA,
