@@ -10,7 +10,7 @@ on:
         default: false
 
   schedule:
-    - cron: "7 * * * *"
+    - cron: "*/20 * * * *"
       timezone: "Africa/Nairobi"
 
 permissions:
