@@ -23,7 +23,13 @@ export function Footer({ onHome }: FooterProps) {
           <div className="flex flex-col gap-5">
             <nav aria-label="Site information">
               <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-gray-500 mb-3">Information</h2>
-              <a href="/contact" className="text-sm text-gray-700 hover:text-red-700 underline underline-offset-4">Contact us</a>
+              <ul className="flex flex-wrap gap-x-4 gap-y-2 max-w-xl">
+                <li><a href="/about" className="text-sm text-gray-700 hover:text-red-700 underline underline-offset-4">About</a></li>
+                <li><a href="/contact" className="text-sm text-gray-700 hover:text-red-700 underline underline-offset-4">Contact</a></li>
+                <li><a href="/editorial-policy" className="text-sm text-gray-700 hover:text-red-700 underline underline-offset-4">Editorial policy</a></li>
+                <li><a href="/corrections" className="text-sm text-gray-700 hover:text-red-700 underline underline-offset-4">Corrections</a></li>
+                <li><a href="/privacy-policy" className="text-sm text-gray-700 hover:text-red-700 underline underline-offset-4">Privacy</a></li>
+              </ul>
             </nav>
             <nav aria-label="Social profiles">
               <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-gray-500 mb-3">Follow Us</h2>
