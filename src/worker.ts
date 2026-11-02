@@ -86,7 +86,8 @@ function injectArticleSeo(documentHtml: string, article: SeoArticle): string {
   ].join("\n");
   const body = '<main id="seo-article"><article><header><p>' + htmlEscape(article.category) +
     "</p><h1>" + htmlEscape(article.title) + "</h1><p>" + htmlEscape(description) +
-    '</p><time datetime="' + htmlEscape(article.created_at) + '">' + htmlEscape(publishedIso || article.created_at) +
+    '</p><p class="seo-byline">By <a href="/about">USA Daily News</a></p><time datetime="' + htmlEscape(article.created_at) + '">' +
+    htmlEscape(publishedIso ? published.toLocaleString("en-US", { dateStyle: "long", timeStyle: "short", timeZone: "UTC" }) + " UTC" : article.created_at) +
     "</time></header>" + (article.image_url && /^https?:\/\//i.test(article.image_url)
       ? '<figure><img src="' + htmlEscape(article.image_url) + '" alt="' + htmlEscape(article.title) + '" width="1600" height="900"></figure>' : "") +
     "<div>" + renderArticleMarkdown(article.content || "") + "</div>" +
