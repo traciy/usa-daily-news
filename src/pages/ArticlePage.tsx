@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ArrowLeft, ExternalLink, Share2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { createSeoDescription, useSeo } from '@/lib/seo';
+import { createSeoDescription, createSeoTitle, useSeo } from '@/lib/seo';
 import { useMarkdown } from '@/lib/markdown';
 import { categoryColor } from '@/lib/categories';
 import { formatTimeAgo } from '@/lib/date';
@@ -60,7 +60,7 @@ export function ArticlePage({ id, onBack }: ArticlePageProps) {
   const color = article ? categoryColor(article.category) : categoryColor('');
 
   const articleUrl = article ? `${SITE_CONFIG.url}/article/${article.id}` : SITE_CONFIG.url;
-  const seoDescription = article ? createSeoDescription(article.seo_description || article.content, article.title) : undefined;
+  const seoDescription = article ? createSeoDescription(article.seo_description && article.seo_description.length >= 60 ? article.seo_description : article.content, article.title) : undefined;
 
   const articleSchema = article
     ? {
@@ -90,7 +90,7 @@ export function ArticlePage({ id, onBack }: ArticlePageProps) {
     : null;
 
   useSeo({
-    title: article ? `${article.title} | USA Daily News` : 'USA Daily News',
+    title: article ? createSeoTitle(article.title) : 'USA Daily News',
     description: seoDescription,
     image: article?.image_url || undefined,
     type: 'article',
