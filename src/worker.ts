@@ -239,13 +239,13 @@ async function handleStaticSeoPage(request: Request, env: Env, path: string): Pr
     '<meta name="twitter:description" content="' + description + '">',
     '<meta name="twitter:image" content="' + SITE_URL + '/og-default.svg">',
     '<script type="application/ld+json">' + schema + '</script>'
-  ].join("\\n");
+  ].join("\n");
   html = html
-    .replace(/<title\\b[^>]*>[\\s\\S]*?<\\/title>/i, "")
-    .replace(/<meta\\b[^>]*\\bname=["']description["'][^>]*>/i, "")
-    .replace(/<meta\\b[^>]*\\bproperty=["']og:[^"']+["'][^>]*>/gi, "")
-    .replace(/<meta\\b[^>]*\\bname=["']twitter:[^"']+["'][^>]*>/gi, "")
-    .replace(/<link\\b[^>]*\\brel=["']canonical["'][^>]*>/i, "")
+    .replace(/<title\b[^>]*>[\s\\S]*?<\/title>/i, "")
+    .replace(/<meta\b[^>]*\bname=["']description["'][^>]*>/i, "")
+    .replace(/<meta\b[^>]*\bproperty=["']og:[^"']+["'][^>]*>/gi, "")
+    .replace(/<meta\b[^>]*\bname=["']twitter:[^"']+["'][^>]*>/gi, "")
+    .replace(/<link\b[^>]*\brel=["']canonical["'][^>]*>/i, "")
     .replace("</head>", tags + "\\n</head>");
   const body = '<main id="seo-static-content"><article><h1>' + htmlEscape(page.heading) + '</h1>' +
     page.paragraphs.map((paragraph) => "<p>" + htmlEscape(paragraph) + "</p>").join("") +
