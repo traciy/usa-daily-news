@@ -140,8 +140,6 @@ export function ArticlePage({ id, onBack }: ArticlePageProps) {
     );
   }
 
-  const fallback = `https://picsum.photos/seed/${article.id}/1600/900`;
-
   return (
     <article className="mx-auto max-w-3xl px-4 py-8" itemScope itemType="https://schema.org/NewsArticle">
       <button
@@ -192,20 +190,6 @@ export function ArticlePage({ id, onBack }: ArticlePageProps) {
             fetchPriority="high"
             decoding="async"
             className="w-full h-auto object-cover sm:rounded-sm"
-          />
-        </figure>
-      )}
-      {!article.image_url && (
-        <figure className="mt-6 -mx-4 sm:mx-0">
-          <img
-            src={fallback}
-            alt={article.title}
-            width={1600}
-            height={900}
-            loading="eager"
-            fetchPriority="high"
-            decoding="async"
-            className="w-full h-auto object-cover sm:rounded-sm opacity-90"
           />
         </figure>
       )}
