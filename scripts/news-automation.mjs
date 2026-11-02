@@ -691,7 +691,11 @@ async function main() {
     throw new Error(`Gemini failed after ${GEMINI_MAX_RETRIES} retries: ${lastGeminiError.message || lastGeminiError}`);
   }
 
+  const minimumArticles = positiveInteger(process.env.MIN_ARTICLES, 3);
   console.log(`Gemini generated ${generated.length} result(s); ${articles.length} article(s) passed validation.`);
+  if (articles.length < minimumArticles) {
+    throw new Error(`Only ${articles.length} article(s) passed validation; at least ${minimumArticles} are required. Nothing will be published this run.`);
+  }
   console.log("Article preview:");
   for (const [index, article] of articles.entries()) {
     console.log(`${index + 1}. [${article.category}] ${article.title}`);
