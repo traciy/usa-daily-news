@@ -74,7 +74,7 @@ export function ArticlePage({ id, onBack }: ArticlePageProps) {
         dateModified: article.created_at,
         inLanguage: 'en-US',
         isAccessibleForFree: true,
-        author: { '@type': 'Organization', name: SITE_CONFIG.name, url: SITE_CONFIG.url },
+        author: { '@type': 'Organization', name: SITE_CONFIG.name, url: SITE_CONFIG.url + '/about' },
         publisher: {
           '@type': 'Organization',
           name: SITE_CONFIG.name,
