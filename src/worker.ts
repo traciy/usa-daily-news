@@ -241,12 +241,12 @@ async function handleStaticSeoPage(request: Request, env: Env, path: string): Pr
     '<script type="application/ld+json">' + schema + '</script>'
   ].join("\n");
   html = html
-    .replace(/<title\b[^>]*>[\s\\S]*?<\/title>/i, "")
+    .replace(/<title\b[^>]*>[\s\S]*?<\/title>/i, "")
     .replace(/<meta\b[^>]*\bname=["']description["'][^>]*>/i, "")
     .replace(/<meta\b[^>]*\bproperty=["']og:[^"']+["'][^>]*>/gi, "")
     .replace(/<meta\b[^>]*\bname=["']twitter:[^"']+["'][^>]*>/gi, "")
     .replace(/<link\b[^>]*\brel=["']canonical["'][^>]*>/i, "")
-    .replace("</head>", tags + "\\n</head>");
+    .replace("</head>", tags + "\n</head>");
   const body = '<main id="seo-static-content"><article><h1>' + htmlEscape(page.heading) + '</h1>' +
     page.paragraphs.map((paragraph) => "<p>" + htmlEscape(paragraph) + "</p>").join("") +
     '<p><a href="/about">About</a> · <a href="/editorial-policy">Editorial policy</a> · <a href="/corrections">Corrections</a> · <a href="/privacy-policy">Privacy</a> · <a href="/contact">Contact</a></p></article></main>';
