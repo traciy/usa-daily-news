@@ -438,7 +438,9 @@ Review every numbered source candidate independently. Select and write up to ${A
 
 Editorial and evidence rules:
 - Use only facts explicitly supported by that candidate's own evidence. Do not use another candidate as corroboration or borrow facts from it.
-- Attribute the central report to the named publisher in the opening paragraph and use the exact supplied source_url.
+- Attribute the central report to the named publisher in the opening paragraph and use the exact supplied source_url. Keep that source link visible to readers.
+- Do not invent an author, reporter, eyewitness, exclusive access, interview, or original on-the-ground reporting. Do not imply USA Daily News independently witnessed or verified events unless the evidence says so.
+- Write in original wording; do not copy or closely paraphrase publisher sentences. Use direct quotations only when essential, accurately attributed, and supported by the evidence.
 - Write a complete, clear report whose length matches the amount and quality of verified evidence. Aim for about ${ARTICLE_WORDS} words when the source supports that much detail. A concise, complete report is better than a padded long article. Google does not require a preferred word count.
 - Do not invent or infer missing background to make an article longer. Never repeat the same point in different words. If the source supports only a short update, write a short update; omit it only when the evidence is too thin to explain what happened accurately and usefully.
 - Explain the confirmed event, the key people or organizations involved, relevant dates/locations, verified details, and any stated next steps or implications, but include each only when the candidate's evidence supports it.
@@ -448,6 +450,8 @@ Basic SEO and presentation:
 - Write a clear, accurate headline that naturally names the main subject and important development. Keep it readable; avoid clickbait and keyword stuffing.
 - Write a concise, natural meta description that accurately summarizes the article and includes the main subject when appropriate. Do not force a character count.
 - Use the main search phrase naturally where it fits, especially in the headline and opening, without repeating it unnaturally.
+- Avoid generic introductions, repeated conclusions, padded background, sensational language, and vague phrases that add no factual value.
+- Use an image only when the supplied source image is relevant to the exact story; otherwise use null.
 - Make the report easy to read and explain what happened near the beginning.
 
 Accuracy and safety:
@@ -509,6 +513,12 @@ ${retryFeedback ? "\nRETRY GUIDANCE FROM THE PREVIOUS ATTEMPT:\n" + retryFeedbac
   return parsed;
 }
 
+function normalizedParagraphs(markdown) {
+  return String(markdown || "").split(/\n{2,}/)
+    .map((part) => part.replace(/[#*_>]/g, " ").replace(/[^a-z0-9 ]/gi, " ").replace(/\s+/g, " ").trim().toLowerCase())
+    .filter((part) => part.length >= 80);
+}
+
 function validateAndNormalize(generated, sourceArticles) {
   const sourceByUrl = new Map(sourceArticles.map((article) => [normalizedUrl(article.url), article]));
   const allowedCategories = new Set(["Politics", "Tech", "Economy", "Culture", "Sports"]);
@@ -554,6 +564,8 @@ function validateAndNormalize(generated, sourceArticles) {
     const sourceName = String(original.source?.name || "").replace(/\s*\(.+\)\s*$/, "").trim().toLowerCase();
     const attributedInOpening = sourceName && content.slice(0, 700).toLowerCase().includes(sourceName);
     const duplicateCoverage = validated.some((existing) => titleSimilarity(existing.title, title) >= 0.7);
+    const paragraphs = normalizedParagraphs(content);
+    const repeatedParagraphs = paragraphs.length > 1 && new Set(paragraphs).size < paragraphs.length;
 
     const normalizedParagraphText = content.replace(/<[^>]*>/g, " ").trim();
     const wordCount = normalizedParagraphText.split(/\s+/).filter(Boolean).length;
@@ -567,10 +579,13 @@ function validateAndNormalize(generated, sourceArticles) {
 
     const qualityIssues = [];
     if (!title) qualityIssues.push("missing headline");
+    if (title.length > 120) qualityIssues.push("headline is too long");
+    if (/[!?]{2,}|\b(you won.t believe|shocking|must see|unbelievable)\b/i.test(title)) qualityIssues.push("headline uses clickbait wording");
     if (!content || content.length < 350) qualityIssues.push("article body is missing or too short");
     if (!seoDescription) qualityIssues.push("missing meta description");
     if (!category) qualityIssues.push("category is missing or unsupported");
     if (!hasSubstantialEvidence) qualityIssues.push("source evidence is below the 800-character threshold");
+    if (repeatedParagraphs) qualityIssues.push("article repeats one or more paragraphs");
     if (qualityIssues.length) {
       const reason = `${original.title}: ${qualityIssues.join("; ")}`;
       console.warn("Skipping an article that fails editorial/on-page checks (" + reason + ").");
