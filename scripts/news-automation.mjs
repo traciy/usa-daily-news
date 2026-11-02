@@ -4,10 +4,10 @@
  * Secrets are supplied by GitHub Actions, never stored in this file.
  */
 
-const NEWS_API_URL = "https://newsapi.org/v2/top-headlines?country=us&pageSize=20";
+const NEWS_API_BASE = "https://newsapi.org/v2/top-headlines?country=us";
 const MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
 const ARTICLE_COUNT = positiveInteger(process.env.ARTICLE_COUNT, 10);
-const ARTICLE_WORDS = positiveInteger(process.env.ARTICLE_WORDS, 2000);
+const ARTICLE_WORDS = positiveInteger(process.env.ARTICLE_WORDS, 1000);
 const PUBLISH_ENABLED = String(process.env.PUBLISH_ENABLED).toLowerCase() === "true";
 
 function positiveInteger(value, fallback) {
@@ -77,18 +77,33 @@ function parseModelJson(text) {
 }
 
 async function getHeadlines(newsApiKey) {
-  const response = await fetchWithRetry(
-    NEWS_API_URL,
-    { headers: { "X-Api-Key": newsApiKey, Accept: "application/json" } },
-    "NewsAPI headlines request",
-  );
-  const data = await response.json();
-  if (data.status !== "ok" || !Array.isArray(data.articles)) {
-    throw new Error(`NewsAPI returned an unexpected response: ${data.message || "No articles array"}`);
+  async function fetchCategory(category, pageSize) {
+    const url = `${NEWS_API_BASE}&category=${encodeURIComponent(category)}&pageSize=${pageSize}`;
+    const response = await fetchWithRetry(
+      url,
+      { headers: { "X-Api-Key": newsApiKey, Accept: "application/json" } },
+      `NewsAPI ${category} headlines request`,
+    );
+    const data = await response.json();
+    if (data.status !== "ok" || !Array.isArray(data.articles)) {
+      throw new Error(`NewsAPI returned an unexpected ${category} response: ${data.message || "No articles array"}`);
+    }
+    return data.articles.filter((article) => article?.title && article?.url);
   }
-  const articles = data.articles.filter((article) => article?.title && article?.url);
+
+  const [generalArticles, sportsArticles] = await Promise.all([
+    fetchCategory("general", 20),
+    fetchCategory("sports", 10),
+  ]);
+  const seen = new Set();
+  const articles = [...generalArticles, ...sportsArticles].filter((article) => {
+    const key = normalizedUrl(article.url);
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
   if (articles.length === 0) throw new Error("NewsAPI returned no usable headlines.");
-  console.log(`NewsAPI returned ${articles.length} usable headlines.`);
+  console.log(`NewsAPI returned ${articles.length} unique headlines (${generalArticles.length} general, ${sportsArticles.length} sports).`);
   return articles;
 }
 
@@ -147,7 +162,7 @@ ${JSON.stringify(sourceArticles.map((a) => ({
 
 function validateAndNormalize(generated, sourceArticles) {
   const sourceByUrl = new Map(sourceArticles.map((article) => [normalizedUrl(article.url), article]));
-  const allowedCategories = new Set(["Politics", "Tech", "Economy", "Culture"]);
+  const allowedCategories = new Set(["Politics", "Tech", "Economy", "Culture", "Sports"]);
   const seenSources = new Set();
   const validated = [];
 
