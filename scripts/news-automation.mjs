@@ -135,8 +135,8 @@ function extractArticleText(html) {
 async function enrichSourceArticles(articles) {
   const selected = [];
   for (const feed of RSS_FEEDS) {
-    // One full-text fetch per feed limits publisher requests and keeps free-tier usage lower.
-    selected.push(...articles.filter((item) => item.source?.name === feed.name).slice(0, 1));
+    // Try the two newest stories per feed. Publisher retrieval is separate from Gemini usage.
+    selected.push(...articles.filter((item) => item.source?.name === feed.name).slice(0, 2));
   }
   const enriched = await Promise.all(selected.map(async (article) => {
     try {
@@ -311,8 +311,18 @@ async function getHeadlines() {
   const enriched = await enrichSourceArticles(selected);
   const withCoverage = enriched.map((article) => ({ ...article, related_coverage: relatedCoverageFor(article, selected) }));
   const fullTextCount = withCoverage.filter((article) => article.article_text).length;
+  const evidenceEligible = withCoverage.filter((article) => {
+    const parts = [article.article_text, article.content, article.description]
+      .filter((part) => typeof part === "string" && part.trim().length > 0)
+      .map((part) => part.trim());
+    return [...new Set(parts)].join(" ").length >= 800;
+  });
   console.log("Publisher page enrichment: " + fullTextCount + " of " + withCoverage.length + " stories have full article text.");
-  return withCoverage;
+  console.log("Evidence-qualified stories sent to Gemini: " + evidenceEligible.length + " (minimum 800 distinct source characters).");
+  if (evidenceEligible.length === 0) {
+    throw new Error("No stories have enough source material (800 distinct characters). RSS feeds are returning summaries or publishers are blocking article retrieval; no weak articles will be generated.");
+  }
+  return evidenceEligible;
 }
 
 async function generateArticles(geminiApiKey, sourceArticles) {
@@ -406,7 +416,8 @@ function validateAndNormalize(generated, sourceArticles) {
     const uniqueEvidence = [...new Set(evidenceParts)];
     const evidenceLength = uniqueEvidence.join(" ").length;
     const evidenceText = sourceEvidenceText(original);
-    const hasSubstantialEvidence = typeof original.article_text === "string" && original.article_text.trim().length >= 800;
+    // Publisher article text is preferred; substantial RSS content is an acceptable fallback.
+    const hasSubstantialEvidence = evidenceLength >= 800;
     const generatedText = title + " " + content + " " + seoDescription;
     const heldForHumanReview = highImpactTopic(generatedText);
     const unsupportedClaim = hasUnsupportedHighImpactClaim(generatedText, evidenceText);
@@ -417,10 +428,6 @@ function validateAndNormalize(generated, sourceArticles) {
 
     if (!title || !content || !seoDescription || !category || !hasSubstantialEvidence || content.length < 350) {
       console.warn(`Skipping an article with missing fields, insufficient distinct source evidence, or invalid category. Source: ${original.title}`);
-      continue;
-    }
-    if (!hasSubstantialEvidence) {
-      console.warn("Skipping an article without at least 800 characters of retrieved publisher article text. Source: " + original.title);
       continue;
     }
     if (heldForHumanReview) {
