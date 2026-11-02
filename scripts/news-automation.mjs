@@ -703,8 +703,6 @@ async function main() {
     return;
   }
 
-  const supabaseUrl = requiredEnv("SUPABASE_FUNCTION_URL");
-  const bearerToken = requiredEnv("SUPABASE_BEARER_TOKEN");
   const count = await publishArticles(articles, supabaseUrl, bearerToken);
   console.log(`Finished successfully: ${count} article(s) sent to the website.`);
 }
