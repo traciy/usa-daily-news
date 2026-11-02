@@ -10,7 +10,7 @@ on:
         default: false
 
   schedule:
-    - cron: "7,27,47 * * * *"
+    - cron: "*/5 * * * *"
 
 permissions:
   contents: read
