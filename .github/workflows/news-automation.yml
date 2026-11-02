@@ -29,10 +29,11 @@ jobs:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       GEMINI_MODEL: gemini-3.5-flash-lite
       ARTICLE_COUNT: "10"
+      MIN_ARTICLES: "3"
       ARTICLE_WORDS: "250"
       SUPABASE_FUNCTION_URL: https://dyabpvcqedeioarkgjlz.supabase.co/functions/v1/api-articles
       SUPABASE_BEARER_TOKEN: ${{ secrets.SUPABASE_BEARER_TOKEN }}
-      PUBLISH_ENABLED: ${{ github.event_name == 'workflow_dispatch' && inputs.publish == true }}
+      PUBLISH_ENABLED: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.publish == true) }}
 
     steps:
       - name: Download repository code
