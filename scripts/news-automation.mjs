@@ -357,16 +357,20 @@ Review the numbered source candidates below independently. Select and write up t
 For every article you include:
 - Use only facts explicitly supported by that candidate's own evidence. The publisher name and source URL identify the evidence source.
 - Attribute the central report to the named publisher in the opening paragraph.
-- Write a complete, reader-friendly report of about ${ARTICLE_WORDS} words, normally in 5–7 substantial paragraphs.
-- Develop the story with the key verified facts, relevant details, timeline and implications that are explicitly supported by this candidate's evidence.
-- Do not stop after one or two paragraphs. Do not pad, repeat points, or invent background. If the evidence cannot support a complete report of at least 5 meaningful paragraphs, omit the candidate rather than manufacture detail.
+- Write a complete, reader-first report of about ${ARTICLE_WORDS} words, normally in 5–7 substantial paragraphs, with 2–4 useful Markdown H2 subheadings.
+- Develop the story with key verified facts, relevant details, timeline and implications explicitly supported by this candidate's evidence. Give readers information beyond a rewritten headline.
+- Do not stop after one or two paragraphs. Do not pad, repeat points, or invent background. If evidence cannot support a complete report of at least 5 meaningful paragraphs, omit the candidate rather than manufacture detail.
+- SEO: identify one natural primary search phrase that accurately describes this specific story. Use it naturally in the headline and near the start of the opening paragraph; use relevant names, places and related terms only where supported. Do not repeat keywords unnaturally or write for a keyword-density target.
+- Make the headline specific and descriptive, ideally about 45–65 characters when practical. Put the most important identifying subject/action early; avoid generic wording, sensationalism and clickbait.
+- Structure the article for scanning: start with a direct answer to what happened and why it matters; use descriptive H2 subheadings; keep paragraphs focused; explain relevant context and implications only when supported. Do not add a fabricated FAQ or unsupported advice.
+- Write a unique, accurate meta description of 120–160 characters that summarizes the actual article and naturally includes the primary search phrase. Do not simply repeat the headline.
 - Preserve uncertainty and attribution. Never invent quotes, names, statistics, dates, causes, motives, context or details.
 - Do not use another candidate as corroboration or borrow facts from it.
 - Omit a candidate if its evidence is too thin, contradictory, unclear, or does not support a useful report.
 - Hold for human review and omit any candidate whose central event involves death, serious injury, hospitalization, arrest, criminal charges, conviction, court ruling, election outcome, endorsement, layoffs, or financial distress.
 - Keep every number, percentage, amount and date traceable to that candidate's evidence.
 - Categorize as Politics, Tech, Economy, Culture, or Sports.
-- Write an accurate SEO description of about 150 characters.
+- Return content as Markdown with meaningful H2 subheadings (##). Return only the existing fields: title, content, category, source_url, image_url, seo_description.
 
 Return ONLY a valid JSON array. Each object must contain exactly these keys: title, content, category, source_url, image_url, seo_description.
 Use the exact source_url from the selected candidate. Use null for image_url when no image URL is supplied. If no candidate meets every requirement, return [].
@@ -466,9 +470,17 @@ function validateAndNormalize(generated, sourceArticles) {
       ? htmlParagraphs.length
       : content.split(/\n\s*\n/).filter((paragraph) => paragraph.replace(/<[^>]*>/g, "").trim().length >= 40).length;
     const wordCount = normalizedParagraphText.split(/\s+/).filter(Boolean).length;
+    const headingCount = (content.match(/^##\\s+.+$/gm) || []).length;
+    const descriptionLength = seoDescription.length;
+    const titleLength = title.length;
+    const primaryTerms = title.toLowerCase().replace(/[^a-z0-9 ]/g, " ").split(/\\s+/).filter((term) => term.length > 3);
+    const openingText = normalizedParagraphText.slice(0, 700).toLowerCase();
+    const primaryTermCoverage = primaryTerms.length
+      ? primaryTerms.filter((term) => openingText.includes(term)).length / primaryTerms.length
+      : 0;
 
-    if (!title || !content || !seoDescription || !category || !hasSubstantialEvidence || content.length < 350 || paragraphCount < 5 || wordCount < 350) {
-      console.warn(`Skipping an article with missing fields, insufficient evidence, invalid category, or insufficient length/paragraphs (${wordCount} words, ${paragraphCount} paragraphs). Source: ${original.title}`);
+    if (!title || !content || !seoDescription || !category || !hasSubstantialEvidence || content.length < 350 || paragraphCount < 5 || wordCount < 350 || headingCount < 2 || descriptionLength < 120 || descriptionLength > 160 || titleLength > 70 || primaryTermCoverage < 0.5) {
+      console.warn(`Skipping an article that fails evidence, length, structure, or on-page SEO checks (${wordCount} words, ${paragraphCount} paragraphs, ${headingCount} H2 headings, meta description ${descriptionLength} chars, title ${titleLength} chars, opening title-term coverage ${Math.round(primaryTermCoverage * 100)}%). Source: ${original.title}`);
       continue;
     }
     if (heldForHumanReview) {
