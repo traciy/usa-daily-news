@@ -122,7 +122,7 @@ export function WeatherPage({ onBack }: WeatherPageProps) {
   // Stable SEO metadata — does not change on every data refresh.
   const seoTitle = `Live Weather Forecast Today | Current Conditions & 7-Day Forecast`;
   const seoDescription = `Check current weather conditions, live temperatures, hourly forecasts and the 7-day weather forecast for ${locationName}. Get the latest weather updates.`;
-  const canonicalUrl = `${SITE_CONFIG.url}/#/weather`;
+  const canonicalUrl = `${SITE_CONFIG.url}/weather`;
 
   const jsonLd = useMemo(() => ([
     ORGANIZATION_SCHEMA,
