@@ -6,24 +6,27 @@ import { HomePage } from '@/pages/HomePage';
 import { ArticlePage } from '@/pages/ArticlePage';
 import { WeatherPage } from '@/pages/WeatherPage';
 import { FootballPage } from '@/pages/FootballPage';
+import { ContactPage } from '@/pages/ContactPage';
 import { trackPageView } from '@/lib/analytics';
 
 type Route =
   | { name: 'home' }
   | { name: 'article'; id: number }
   | { name: 'weather' }
-  | { name: 'football' };
+  | { name: 'football' }
+  | { name: 'contact' };
 
 function parsePath(): Route {
-  const path = window.location.pathname.replace(/\/+$/, '') || '/';
-  const article = /^\/article\/(\d+)$/.exec(path);
+  const path = window.location.pathname.replace(/\\/+$/, '') || '/';
+  const article = /^\\/article\\/(\\d+)$/.exec(path);
   if (article) return { name: 'article', id: Number(article[1]) };
   if (path === '/weather') return { name: 'weather' };
+  if (path === '/contact') return { name: 'contact' };
   if (path === '/football' || path === '/sports') return { name: 'football' };
 
   // Preserve old shared hash links while moving visitors to clean URLs.
-  const legacy = window.location.hash.replace(/^#\/?/, '');
-  const legacyArticle = /^article\/(\d+)$/.exec(legacy);
+  const legacy = window.location.hash.replace(/^#\\/?/, '');
+  const legacyArticle = /^article\\/(\\d+)$/.exec(legacy);
   if (legacyArticle) {
     const next = `/article/${legacyArticle[1]}`;
     window.history.replaceState({}, '', next);
@@ -67,6 +70,7 @@ function App() {
         {route.name === 'article' && <ArticlePage id={route.id} onBack={goHome} />}
         {route.name === 'weather' && <WeatherPage onBack={goHome} />}
         {route.name === 'football' && <FootballPage onBack={goHome} />}
+        {route.name === 'contact' && <ContactPage />}
       </main>
       <Footer onHome={goHome} />
       <PodcastPlayer variant="overlay" />
