@@ -56,7 +56,7 @@ function injectArticleSeo(documentHtml: string, article: SeoArticle): string {
     datePublished: publishedIso || article.created_at,
     dateModified: publishedIso || article.created_at,
     inLanguage: "en-US", isAccessibleForFree: true,
-    author: { "@type": "Organization", name: "USA Daily News", url: SITE_URL },
+    author: { "@type": "Organization", name: "USA Daily News", url: SITE_URL + "/about" },
     publisher: { "@type": "Organization", name: "USA Daily News", logo: { "@type": "ImageObject", url: SITE_URL + "/logo.svg" } },
     mainEntityOfPage: { "@type": "WebPage", "@id": canonical },
     articleSection: article.category, keywords: [article.category, "USA Daily News"], url: canonical,
