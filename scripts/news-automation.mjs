@@ -129,13 +129,14 @@ function extractArticleText(html) {
   return cleanFeedText(raw
     .replace(/<(script|style|nav|footer|header|aside|form)\b[^>]*>[\s\S]*?<\/\1>/gi, " ")
     .replace(/<!--([\s\S]*?)-->/g, " ")
-  ).slice(0, 30000);
+  ).slice(0, 6000);
 }
 
 async function enrichSourceArticles(articles) {
   const selected = [];
   for (const feed of RSS_FEEDS) {
-    selected.push(...articles.filter((item) => item.source?.name === feed.name).slice(0, 2));
+    // One full-text fetch per feed limits publisher requests and keeps free-tier usage lower.
+    selected.push(...articles.filter((item) => item.source?.name === feed.name).slice(0, 1));
   }
   const enriched = await Promise.all(selected.map(async (article) => {
     try {
