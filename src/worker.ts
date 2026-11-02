@@ -750,7 +750,10 @@ export default {
     if (url.pathname === "/sitemap.xml") {
       return handleSitemap(env);
     }
-    if (request.method === "GET" && STATIC_SEO_PAGES[url.pathname]) {\n      return handleStaticSeoPage(request, env, url.pathname);\n    }\n    if (url.pathname === "/" && request.method === "GET") {
+    if (request.method === "GET" && STATIC_SEO_PAGES[url.pathname]) {
+      return handleStaticSeoPage(request, env, url.pathname);
+    }
+    if (url.pathname === "/" && request.method === "GET") {
       return handleHomePage(request, env);
     }
     const articleMatch = url.pathname.match(/^\/article\/(\d+)\/?$/);
