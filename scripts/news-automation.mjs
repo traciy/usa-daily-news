@@ -175,6 +175,49 @@ function relatedCoverageFor(article, allArticles) {
     .map(({ other }) => ({ source: other.source?.name, title: other.title, summary: other.description, url: other.url }));
 }
 
+function sourceEvidenceText(article) {
+  return [article.title, article.description, article.content, article.article_text]
+    .filter(Boolean).join(" ").replace(/\\s+/g, " ").trim();
+}
+
+function hasUnsupportedHighImpactClaim(generatedText, evidenceText) {
+  const groups = [
+    ["death or fatality", /\\b(died|death|dead|killed|fatal|fatalities)\\b/i],
+    ["injury or hospitalization", /\\b(injured|wounded|hospitali[sz]ed|critical condition|surgery)\\b/i],
+    ["arrest or detention", /\\b(arrested|detained|taken into custody)\\b/i],
+    ["criminal charge or conviction", /\\b(charged|indicted|convicted|sentenced|acquitted)\\b/i],
+    ["court ruling", /\\b(ruled|ruling|throws? out|dismissed|overturned|blocked)\\b/i],
+    ["election result", /\\b(won|wins|defeated|elected|reelected|re- elected)\\b/i],
+    ["endorsement", /\\b(endorsed|endorsement|backs|backed)\\b/i],
+    ["job losses", /\\b(layoffs?|laid off|job cuts|cuts? jobs)\\b/i],
+    ["financial distress", /\\b(bankrupt|bankruptcy|insolvent|defaulted)\\b/i],
+  ];
+
+  for (const [label, pattern] of groups) {
+    if (pattern.test(generatedText) && !pattern.test(evidenceText)) return label;
+  }
+  return "";
+}
+
+function hasUnsupportedNumbers(generatedText, evidenceText) {
+  const normalizeNumber = (value) => value.replace(/,/g, "").replace(/\\.0+$/, "");
+  const evidenceNumbers = new Set(
+    (evidenceText.match(/\\b\\d[\\d,]*(?:\\.\\d+)?%?\\b|\\$\\s?\\d[\\d,]*(?:\\.\\d+)?/g) || [])
+      .map(normalizeNumber)
+  );
+  const generatedNumbers = (generatedText.match(/\\b\\d[\\d,]*(?:\\.\\d+)?%?\\b|\\$\\s?\\d[\\d,]*(?:\\.\\d+)?/g) || [])
+    .map(normalizeNumber);
+  return generatedNumbers.find((number) => !evidenceNumbers.has(number)) || "";
+}
+
+function titleSimilarity(first, second) {
+  const a = titleTokens(first);
+  const b = titleTokens(second);
+  if (!a.size || !b.size) return 0;
+  const intersection = [...a].filter((token) => b.has(token)).length;
+  return intersection / new Set([...a, ...b]).size;
+}
+
 function parseRssFeed(xml, feed) {
   const itemBlocks = [...xml.matchAll(/<(item|entry)\b[^>]*>([\s\S]*?)<\/\1\s*>/gi)];
   return itemBlocks.map((match) => {
@@ -251,8 +294,9 @@ async function generateArticles(geminiApiKey, sourceArticles) {
   const prompt = `You are the Chief Editor of USA Daily News. Look at the raw news articles provided below. Select up to ${ARTICLE_COUNT} genuinely newsworthy, distinct stories. Quality matters more than reaching the target. For each selected story:
 1. Rewrite the headline clearly and accurately; do not exaggerate the facts.
 2. Write only as much as the supplied evidence supports. There is no required word count. RSS summaries may support concise reports, but never pretend they contain details they do not. Do not pad, repeat points, or add generic background.
-3. FACT-CHECKING: Treat publisher article text as primary evidence. Use related coverage only as leads for comparison, not proof that reports are independent or that a claim is confirmed. Attribute claims to their supplied publisher. Do not present an uncorroborated allegation, prediction, rumor, or developing claim as established fact. Never invent quotes, statistics, dates, causes, motives, names, or background details.
-4. Keep the article faithful to the source headline and central event. Do not combine unrelated stories or turn opinion into fact. If sources conflict, explain the disagreement and attribute each account.
+3. FACT-CHECKING: Treat the selected story's own publisher text, RSS content, description and headline as the only evidence for its claims. Use related coverage only as leads for comparison, never as proof or as a source of extra facts. Attribute important claims to the named publisher, preferably in the opening paragraph. Do not present an allegation, prediction, rumor or developing claim as established fact. Never invent quotes, statistics, dates, causes, motives, names, background details or context.
+4. HIGH-IMPACT CLAIMS: Be especially conservative with deaths, injuries, hospitalizations, arrests, criminal charges, convictions, court rulings, election results, endorsements, layoffs and financial distress. Include these only when the selected story's own supplied evidence explicitly states them. Do not upgrade words such as "may", "could", "alleged" or "expected" into certainty. Keep every number, percentage, amount and date traceable to the selected story's own evidence.
+5. Keep the article faithful to the source headline and central event. Do not combine unrelated stories or turn opinion into fact. If sources conflict, explain the disagreement and attribute each account.
 5. Categorize it (Politics, Tech, Economy, Culture, or Sports).
 6. Generate a clear SEO description of about 150 characters.
 7. Write for readers, not search rankings. Add useful explanation only when supported by the supplied material. Avoid keyword stuffing, clickbait, generic filler, and lightly reworded feed snippets. If the source is too thin to provide real reader value, omit it.
@@ -331,9 +375,32 @@ function validateAndNormalize(generated, sourceArticles) {
     const requestedCategory = typeof article.category === "string" ? article.category.trim() : "";
     const category = [...allowedCategories].find((allowed) => allowed.toLowerCase() === requestedCategory.toLowerCase());
 
-    const hasSubstantialEvidence = [original.article_text, original.content, original.description].filter(Boolean).join(" ").trim().length >= 500;
+    const evidenceParts = [original.article_text, original.content, original.description]
+      .filter((part) => typeof part === "string" && part.trim().length > 0)
+      .map((part) => part.trim());
+    const uniqueEvidence = [...new Set(evidenceParts)];
+    const evidenceLength = uniqueEvidence.join(" ").length;
+    const evidenceText = sourceEvidenceText(original);
+    const hasSubstantialEvidence = evidenceLength >= 500;
+    const generatedText = title + " " + content + " " + seoDescription;
+    const unsupportedClaim = hasUnsupportedHighImpactClaim(generatedText, evidenceText);
+    const unsupportedNumber = hasUnsupportedNumbers(generatedText, evidenceText);
+    const duplicateCoverage = validated.some((existing) => titleSimilarity(existing.title, title) >= 0.7);
+
     if (!title || !content || !seoDescription || !category || !hasSubstantialEvidence || content.length < 350) {
-      console.warn(`Skipping an article with missing fields, insufficient source evidence, or invalid category. Source: ${original.title}`);
+      console.warn(`Skipping an article with missing fields, insufficient distinct source evidence, or invalid category. Source: ${original.title}`);
+      continue;
+    }
+    if (unsupportedClaim) {
+      console.warn(`Skipping an article with a high-impact claim not found in its own source evidence (${unsupportedClaim}). Source: ${original.title}`);
+      continue;
+    }
+    if (unsupportedNumber) {
+      console.warn(`Skipping an article containing a number not found in its own source evidence (${unsupportedNumber}). Source: ${original.title}`);
+      continue;
+    }
+    if (duplicateCoverage) {
+      console.warn(`Skipping likely duplicate coverage based on headline similarity. Source: ${original.title}`);
       continue;
     }
 
