@@ -291,7 +291,7 @@ async function handleSitemap(env: Env): Promise<Response> {
     return `<url><loc>${xmlEscape(`${SITE_URL}/article/${article.id}`)}</loc>${lastmodTag}</url>`;
   }).join("");
 
-  const staticUrls = ["/", "/football", "/weather"]
+  const staticUrls = ["/", "/football", "/weather", "/about", "/contact", "/editorial-policy", "/corrections", "/privacy-policy"]
     .map((path) => `<url><loc>${SITE_URL}${path}</loc></url>`)
     .join("");
 
