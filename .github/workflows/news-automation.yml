@@ -26,7 +26,6 @@ jobs:
     timeout-minutes: 45
 
     env:
-      NEWSAPI_API_KEY: ${{ secrets.NEWSAPI_API_KEY }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       GEMINI_MODEL: gemini-3.5-flash-lite
       ARTICLE_COUNT: "10"
