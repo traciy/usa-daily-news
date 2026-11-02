@@ -124,8 +124,8 @@ function renderHomepage(articles: SeoArticle[]): string {
     '<header><h1>Latest US News, Politics, Technology, Economy &amp; Culture</h1>' +
     '<p>Read the latest news and developing stories from across the United States.</p></header>' +
     '<nav aria-label="News sections"><a href="/">Latest News</a> · ' +
-    '<a href="/?category=politics">Politics</a> · <a href="/?category=tech">Technology</a> · ' +
-    '<a href="/?category=economy">Economy</a> · <a href="/?category=culture">Culture</a> · ' +
+    '<a href="/politics">Politics</a> · <a href="/tech">Technology</a> · ' +
+    '<a href="/economy">Economy</a> · <a href="/culture">Culture</a> · ' +
     '<a href="/football">Sports</a> · <a href="/weather">Weather</a></nav>' +
     '<section aria-labelledby="seo-latest-heading"><h2 id="seo-latest-heading">Latest Stories</h2>' +
     '<div class="seo-home-stories">' + cards + '</div></section></main>';
