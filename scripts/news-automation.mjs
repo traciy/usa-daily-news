@@ -312,7 +312,12 @@ function selectBalancedByCountry(items, limit) {
     groups.get(country).push(item);
   }
   for (const group of groups.values()) {
-    group.sort((a, b) => (Date.parse(b.publishedAt || "") || 0) - (Date.parse(a.publishedAt || "") || 0));
+    group.sort((a, b) => {
+      const evidenceA = [a.article_text, a.content, a.description].filter(Boolean).join(" ").length;
+      const evidenceB = [b.article_text, b.content, b.description].filter(Boolean).join(" ").length;
+      // Prefer candidates with substantial primary-source material; use recency as the tie-breaker.
+      return evidenceB - evidenceA || (Date.parse(b.publishedAt || "") || 0) - (Date.parse(a.publishedAt || "") || 0);
+    });
   }
   const countries = [...groups.keys()].sort((a, b) => {
     const timeA = Date.parse(groups.get(a)[0]?.publishedAt || "") || 0;
