@@ -9,9 +9,10 @@ import { FootballPage } from '@/pages/FootballPage';
 import { ContactPage } from '@/pages/ContactPage';
 import { AboutPage, EditorialPolicyPage, CorrectionsPolicyPage, PrivacyPolicyPage } from '@/pages/TrustPages';
 import { trackPageView } from '@/lib/analytics';
+import type { Category } from '@/lib/categories';
 
 type Route =
-  | { name: 'home' }
+  | { name: 'home'; category?: Category }
   | { name: 'article'; id: number }
   | { name: 'weather' }
   | { name: 'football' }
@@ -25,6 +26,10 @@ function parsePath(): Route {
   const path = window.location.pathname.replace(/\/+$/, '') || '/';
   const article = /^\/article\/(\d+)$/.exec(path);
   if (article) return { name: 'article', id: Number(article[1]) };
+  if (path === '/politics') return { name: 'home', category: 'Politics' };
+  if (path === '/tech') return { name: 'home', category: 'Tech' };
+  if (path === '/economy') return { name: 'home', category: 'Economy' };
+  if (path === '/culture') return { name: 'home', category: 'Culture' };
   if (path === '/weather') return { name: 'weather' };
   if (path === '/contact') return { name: 'contact' };
   if (path === '/about') return { name: 'about' };
@@ -74,7 +79,7 @@ function App() {
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans text-gray-900">
       <Header onHome={goHome} />
       <main className="flex-1">
-        {route.name === 'home' && <HomePage onOpenArticle={openArticle} onNavigate={navigate} />}
+        {route.name === 'home' && <HomePage key={route.category ?? 'all'} initialCategory={route.category} onOpenArticle={openArticle} onNavigate={navigate} />}
         {route.name === 'article' && <ArticlePage id={route.id} onBack={goHome} />}
         {route.name === 'weather' && <WeatherPage onBack={goHome} />}
         {route.name === 'football' && <FootballPage onBack={goHome} />}
