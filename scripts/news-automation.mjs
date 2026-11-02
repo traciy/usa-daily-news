@@ -331,7 +331,7 @@ async function getHeadlines() {
   return evidenceEligible;
 }
 
-async function generateArticles(geminiApiKey, sourceArticles) {
+async function generateArticles(geminiApiKey, sourceArticles, retryFeedback = "") {
   // Send one compact, deduplicated evidence packet. Repeating the same RSS
   // text in description/content/article_text wastes free-tier input tokens.
   const candidates = sourceArticles.map((article, index) => {
@@ -370,7 +370,8 @@ Return ONLY a valid JSON array. Each object must contain exactly these keys: tit
 Use the exact source_url from the selected candidate. Use null for image_url when no image URL is supplied. If no candidate meets every requirement, return [].
 
 SOURCE CANDIDATES:
-${JSON.stringify(candidates)}`;
+${JSON.stringify(candidates)}
+${retryFeedback ? "\nRETRY GUIDANCE FROM THE PREVIOUS ATTEMPT:\n" + retryFeedback + "\nReassess the full candidate list and return a corrected JSON array. Do not repeat the previous mistake." : ""}`;
 
   const response = await fetchWithRetry(
     `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(MODEL)}:generateContent`,
@@ -389,6 +390,7 @@ ${JSON.stringify(candidates)}`;
       }),
     },
     "Gemini article generation",
+    1,
   );
 
   const data = await response.json();
@@ -527,8 +529,35 @@ async function publishArticles(articles, supabaseUrl, bearerToken) {
 async function main() {
   const geminiApiKey = requiredEnv("GEMINI_API_KEY");
   const sourceArticles = await getHeadlines();
-  const generated = await generateArticles(geminiApiKey, sourceArticles);
-  const articles = validateAndNormalize(generated, sourceArticles);
+  const GEMINI_MAX_RETRIES = 6;
+  let generated;
+  let articles;
+  let lastGeminiError;
+  let retryFeedback = "";
+
+  // Six retries means up to seven total attempts (the first request plus six retries).
+  // Each attempt includes generation AND local editorial validation.
+  for (let attempt = 1; attempt <= GEMINI_MAX_RETRIES + 1; attempt += 1) {
+    try {
+      console.log(`Gemini attempt ${attempt}/${GEMINI_MAX_RETRIES + 1}.`);
+      generated = await generateArticles(geminiApiKey, sourceArticles, retryFeedback);
+      articles = validateAndNormalize(generated, sourceArticles);
+      lastGeminiError = null;
+      break;
+    } catch (error) {
+      lastGeminiError = error;
+      retryFeedback = String(error?.message || error).slice(0, 1200);
+      if (attempt > GEMINI_MAX_RETRIES) break;
+      const delayMs = Math.min(30000, 2000 * (2 ** (attempt - 1)));
+      console.warn(`Gemini attempt ${attempt} failed: ${retryFeedback}`);
+      console.warn(`Retrying Gemini in ${Math.round(delayMs / 1000)} seconds (retry ${attempt} of ${GEMINI_MAX_RETRIES}).`);
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+
+  if (lastGeminiError) {
+    throw new Error(`Gemini failed after ${GEMINI_MAX_RETRIES} retries: ${lastGeminiError.message || lastGeminiError}`);
+  }
 
   console.log(`Gemini generated ${generated.length} result(s); ${articles.length} article(s) passed validation.`);
   console.log("Article preview:");
