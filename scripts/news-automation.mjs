@@ -183,15 +183,15 @@ function sourceEvidenceText(article) {
 
 function highImpactTopic(generatedText) {
   const groups = [
-    ["death or fatality", /\\b(died|death|dead|killed|kills|fatal|fatalities)\\b/i],
-    ["injury or hospitalization", /\\b(injured|wounded|hospitali[sz]ed|critical condition|surgery)\\b/i],
-    ["arrest or detention", /\\b(arrested|detained|taken into custody)\\b/i],
-    ["criminal charge or conviction", /\\b(charged|indicted|convicted|sentenced|acquitted)\\b/i],
-    ["court ruling", /\\b(ruled|ruling|throws? out|dismissed|overturned|blocked)\\b/i],
-    ["election result", /\\b(won|wins|defeated|elected|reelected|re-elected)\\b/i],
-    ["endorsement", /\\b(endorsed|endorsement|backs|backed)\\b/i],
-    ["job losses", /\\b(layoffs?|laid off|job cuts|cuts? jobs)\\b/i],
-    ["financial distress", /\\b(bankrupt|bankruptcy|insolvent|defaulted)\\b/i],
+    ["death or fatality", /\b(died|death|dead|killed|kills|fatal|fatalities)\b/i],
+    ["injury or hospitalization", /\b(injured|wounded|hospitali[sz]ed|critical condition|surgery)\b/i],
+    ["arrest or detention", /\b(arrested|detained|taken into custody)\b/i],
+    ["criminal charge or conviction", /\b(charged|indicted|convicted|sentenced|acquitted)\b/i],
+    ["court ruling", /\b(ruled|ruling|throws? out|dismissed|overturned|blocked)\b/i],
+    ["election result", /\b(won|wins|defeated|elected|reelected|re-elected)\b/i],
+    ["endorsement", /\b(endorsed|endorsement|backs|backed)\b/i],
+    ["job losses", /\b(layoffs?|laid off|job cuts|cuts? jobs)\b/i],
+    ["financial distress", /\b(bankrupt|bankruptcy|insolvent|defaulted)\b/i],
   ];
   for (const [label, pattern] of groups) {
     if (pattern.test(generatedText)) return label;
@@ -302,8 +302,14 @@ async function getHeadlines() {
   if (articles.length === 0) {
     throw new Error("No usable RSS stories were collected. Feed errors: " + (failures.join(" | ") || "Feeds returned no recent stories."));
   }
-  const enriched = await enrichSourceArticles(articles);
-  const withCoverage = enriched.map((article) => ({ ...article, related_coverage: relatedCoverageFor(article, articles) }));
+  // Limit Gemini input to the 15 newest Politics and 15 newest Sports items.
+  const recent = [...articles].sort((a, b) => (Date.parse(b.publishedAt || "") || 0) - (Date.parse(a.publishedAt || "") || 0));
+  const politics = recent.filter((item) => item.source_category === "Politics").slice(0, 15);
+  const sports = recent.filter((item) => item.source_category === "Sports").slice(0, 15);
+  const selected = [...politics, ...sports].sort((a, b) => (Date.parse(b.publishedAt || "") || 0) - (Date.parse(a.publishedAt || "") || 0));
+  console.log("Gemini candidate limit: " + selected.length + " stories (maximum 15 Politics + 15 Sports).");
+  const enriched = await enrichSourceArticles(selected);
+  const withCoverage = enriched.map((article) => ({ ...article, related_coverage: relatedCoverageFor(article, selected) }));
   const fullTextCount = withCoverage.filter((article) => article.article_text).length;
   console.log("Publisher page enrichment: " + fullTextCount + " of " + withCoverage.length + " stories have full article text.");
   return withCoverage;
@@ -314,7 +320,7 @@ async function generateArticles(geminiApiKey, sourceArticles) {
 1. Rewrite the headline clearly and accurately; do not exaggerate the facts.
 2. Write only as much as the supplied evidence supports. There is no required word count. RSS summaries may support concise reports, but never pretend they contain details they do not. Do not pad, repeat points, or add generic background.
 3. FACT-CHECKING: Treat the selected story's own publisher text, RSS content, description and headline as the only evidence for its claims. Use related coverage only as leads for comparison, never as proof or as a source of extra facts. Attribute important claims to the named publisher, preferably in the opening paragraph. Do not present an allegation, prediction, rumor or developing claim as established fact. Never invent quotes, statistics, dates, causes, motives, names, background details or context.
-4. HIGH-IMPACT CLAIMS: Be especially conservative with deaths, injuries, hospitalizations, arrests, criminal charges, convictions, court rulings, election results, endorsements, layoffs and financial distress. Include these only when the selected story's own supplied evidence explicitly states them. Do not upgrade words such as "may", "could", "alleged" or "expected" into certainty. Keep every number, percentage, amount and date traceable to the selected story's own evidence.
+4. HIGH-IMPACT CLAIMS: Be especially conservative with deaths, injuries, hospitalizations, arrests, criminal charges, convictions, court rulings, election results, endorsements, layoffs and financial distress. Do not automatically publish stories involving deaths, injuries, hospitalizations, arrests, criminal charges, convictions, court rulings, election outcomes, endorsements, layoffs or financial distress. Omit these from the JSON output for human editorial review, even if a source reports them. Do not upgrade words such as "may", "could", "alleged" or "expected" into certainty. Keep every number, percentage, amount and date traceable to the selected story's own evidence.
 5. Keep the article faithful to the source headline and central event. Do not combine unrelated stories or turn opinion into fact. If sources conflict, explain the disagreement and attribute each account.
 6. Categorize it (Politics, Tech, Economy, Culture, or Sports).
 7. Generate a clear SEO description of about 150 characters without adding new claims.
