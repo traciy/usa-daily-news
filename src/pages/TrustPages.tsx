@@ -1,9 +1,10 @@
 import { useSeo } from '@/lib/seo';
+import type { ReactNode } from 'react';
 
 const CONTACT_EMAIL = 'info.luwigang254@gmail.com';
 
 function PageShell({ eyebrow, title, description, url, children }: {
-  eyebrow: string; title: string; description: string; url: string; children: React.ReactNode;
+  eyebrow: string; title: string; description: string; url: string; children: ReactNode;
 }) {
   useSeo({ title, description, url });
   return (
