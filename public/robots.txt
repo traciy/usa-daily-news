@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://usa-daily-news.info-luwigang254.workers.dev/sitemap.xml
+Sitemap: https://usa-daily-news.info-luwigang254.workers.dev/sitemap.xml\n\n# Public RSS feed\n# https://usa-daily-news.info-luwigang254.workers.dev/feed.xml\n
