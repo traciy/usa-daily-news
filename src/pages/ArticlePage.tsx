@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { useSeo } from '@/lib/seo';
 import { useMarkdown } from '@/lib/markdown';
 import { categoryColor } from '@/lib/categories';
-import { formatDate, formatTimeAgo } from '@/lib/date';
+import { formatTimeAgo } from '@/lib/date';
 import { SITE_CONFIG } from '@/lib/seo-config';
 import type { Article } from '@/types/article';
 
