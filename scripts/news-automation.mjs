@@ -78,12 +78,18 @@ function parseModelJson(text) {
 const RSS_FEEDS = [
   { name: "NPR", url: "https://feeds.npr.org/1001/rss.xml", category: "Politics" },
   { name: "NBC News", url: "https://feeds.nbcnews.com/nbcnews/public/news", category: "Politics" },
-  { name: "ABC News", url: "https://abcnews.go.com/abcnews/topstories", category: "Politics" },
+  { name: "ABC News", url: "https://abcnews.com/abcnews/usheadlines", category: "Politics" },
   { name: "CBS News", url: "https://www.cbsnews.com/latest/rss/main", category: "Politics" },
+  { name: "NPR Politics", url: "https://feeds.npr.org/1014/rss.xml", category: "Politics" },
+  { name: "PBS NewsHour", url: "https://www.pbs.org/newshour/feeds/rss/headlines", category: "Politics" },
+  { name: "Fox News", url: "https://moxie.foxnews.com/google-publisher/latest.xml", category: "Politics" },
+  { name: "BBC US and Canada", url: "https://feeds.bbci.co.uk/news/world/us_and_canada/rss.xml", category: "Politics" },
   { name: "Politico", url: "https://rss.politico.com/politics-news.xml", category: "Politics" },
   { name: "The Hill", url: "https://thehill.com/feed/", category: "Politics" },
   { name: "Axios", url: "https://api.axios.com/feed/", category: "Politics" },
-  { name: "ESPN (via Google News)", url: "https://news.google.com/rss/search?q=site%3Aespn.com&hl=en-US&gl=US&ceid=US:en", category: "Sports" },
+  { name: "ESPN", url: "https://www.espn.com/espn/rss/news", category: "Sports" },
+  { name: "Fox Sports", url: "https://feeds.foxnews.com/foxnews/sports", category: "Sports" },
+  { name: "Yahoo Sports", url: "https://sports.yahoo.com/rss/", category: "Sports" },
   { name: "BBC Sport", url: "https://feeds.bbci.co.uk/sport/rss.xml", category: "Sports" },
   { name: "CBS Sports", url: "https://www.cbssports.com/rss/headlines/", category: "Sports" },
   { name: "Sky Sports", url: "https://www.skysports.com/rss/12040", category: "Sports" },
@@ -135,8 +141,8 @@ function extractArticleText(html) {
 async function enrichSourceArticles(articles) {
   const selected = [];
   for (const feed of RSS_FEEDS) {
-    // Try the three newest stories per feed to improve evidence coverage. This adds publisher-page requests, not Gemini calls.
-    selected.push(...articles.filter((item) => item.source?.name === feed.name).slice(0, 3));
+    // Try the two newest stories per feed to diversify publishers while keeping page requests bounded.
+    selected.push(...articles.filter((item) => item.source?.name === feed.name).slice(0, 2));
   }
   const enriched = await Promise.all(selected.map(async (article) => {
     try {
