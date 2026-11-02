@@ -1,3 +1,4 @@
+# Redeploy Worker so the five-minute cron can authenticate to GitHub Actions.
 name: Deploy USA Daily News to Cloudflare
 
 on:
