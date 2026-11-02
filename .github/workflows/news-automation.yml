@@ -1,6 +1,8 @@
 name: USA Daily News Automation
 
 on:
+  schedule:
+    - cron: "*/5 * * * *"
   workflow_dispatch:
     inputs:
       publish:
