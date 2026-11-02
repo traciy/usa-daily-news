@@ -165,7 +165,11 @@ export function ArticlePage({ id, onBack }: ArticlePageProps) {
 
       <div className="mt-4 flex items-center justify-between border-b border-gray-200 pb-4">
         <div className="text-sm text-gray-500">
-          <time dateTime={article.created_at} itemProp="datePublished">{formatDate(article.created_at)}</time>
+          <time dateTime={article.created_at} itemProp="datePublished">
+            {new Date(article.created_at).toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short', timeZone: 'UTC' })} UTC
+          </time>
+          <span className="mx-2">·</span>
+          <span>By <a href="/about" className="underline underline-offset-2">USA Daily News</a></span>
           <span className="mx-2">·</span>
           <span>{formatTimeAgo(article.created_at)}</span>
         </div>
