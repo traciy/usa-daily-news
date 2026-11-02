@@ -9,7 +9,7 @@ interface Env {
   GH_DISPATCH_TOKEN?: string;
 }
 
-const SITE_URL = "https://usa-daily-news.info-luwigang254.workers.dev";
+const SITE_URL = "https://usadailynews.space";
 
 interface SeoArticle {
   id: number; title: string; content: string; category: string;
@@ -596,6 +596,10 @@ async function handleFootballRequest(request: Request): Promise<Response> {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+    if (url.hostname === "usa-daily-news.info-luwigang254.workers.dev" || url.hostname === "www.usadailynews.space") {
+      const destination = new URL(url.pathname + url.search, SITE_URL);
+      return Response.redirect(destination.toString(), 301);
+    }
     if (url.pathname === "/api/football") {
       return handleFootballRequest(request);
     }
