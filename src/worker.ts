@@ -52,14 +52,14 @@ function injectArticleSeo(documentHtml: string, article: SeoArticle): string {
   const publishedIso = Number.isNaN(published.getTime()) ? "" : published.toISOString();
   const schema = {
     "@context": "https://schema.org", "@type": "NewsArticle",
-    headline: article.title, description, image: [image],
+    headline: article.title, description, image: [image],\n    articleBody: article.content.replace(/[#*_>]/g, " ").replace(/\\s+/g, " ").trim(),\n    citation: article.source_url && /^https?:\\/\\//i.test(article.source_url) ? article.source_url : undefined,
     datePublished: publishedIso || article.created_at,
     dateModified: publishedIso || article.created_at,
     inLanguage: "en-US", isAccessibleForFree: true,
     author: { "@type": "Organization", name: "USA Daily News", url: SITE_URL },
     publisher: { "@type": "Organization", name: "USA Daily News", logo: { "@type": "ImageObject", url: SITE_URL + "/logo.svg" } },
     mainEntityOfPage: { "@type": "WebPage", "@id": canonical },
-    articleSection: article.category, url: canonical,
+    articleSection: article.category, keywords: [article.category, "USA Daily News"], url: canonical,
   };
   const schemaJson = JSON.stringify(schema).replace(/</g, "\\u003c");
   let html = documentHtml
@@ -461,6 +461,36 @@ async function handleSitemap(env: Env): Promise<Response> {
   });
 }
 
+
+async function handleNewsSitemap(env: Env): Promise<Response> {
+  if (!env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) return new Response("News sitemap is temporarily unavailable.", { status: 503 });
+  try {
+    const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+    const endpoint = new URL(env.SUPABASE_URL.replace(/\/$/, "") + "/rest/v1/articles");
+    endpoint.searchParams.set("select", "id,title,created_at");
+    endpoint.searchParams.set("created_at", "gte." + cutoff);
+    endpoint.searchParams.set("order", "created_at.desc");
+    endpoint.searchParams.set("limit", "1000");
+    const response = await fetch(endpoint.toString(), {
+      headers: { apikey: env.SUPABASE_ANON_KEY, Authorization: "Bearer " + env.SUPABASE_ANON_KEY, Accept: "application/json" },
+      cf: { cacheTtl: 120, cacheEverything: true },
+    } as RequestInit & { cf: { cacheTtl: number; cacheEverything: boolean } });
+    if (!response.ok) return new Response("News sitemap could not load recent articles.", { status: 502 });
+    const articles = await response.json() as Array<{ id: number; title: string; created_at: string }>;
+    const entries = articles.filter((article) => article.id && article.title && Number.isFinite(Date.parse(article.created_at))).map((article) => {
+      const date = new Date(article.created_at).toISOString();
+      return "<url><loc>" + xmlEscape(SITE_URL + "/article/" + Number(article.id)) + "</loc>" +
+        "<news:news><news:publication><news:name>USA Daily News</news:name><news:language>en</news:language></news:publication>" +
+        "<news:publication_date>" + date + "</news:publication_date><news:title>" + xmlEscape(article.title) + "</news:title></news:news></url>";
+    }).join("");
+    const xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+      '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">' + entries + "</urlset>";
+    return new Response(xml, { headers: { "Content-Type": "application/xml; charset=utf-8", "Cache-Control": "public, max-age=120, s-maxage=120" } });
+  } catch (error) {
+    console.error("News sitemap generation failed:", error);
+    return new Response("News sitemap is temporarily unavailable.", { status: 502 });
+  }
+}
 
 function rssCdata(value: string): string {
   return value.replace(/\]\]>/g, "]]]]><![CDATA[>");
