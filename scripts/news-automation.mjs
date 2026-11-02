@@ -357,7 +357,9 @@ Review the numbered source candidates below independently. Select and write up t
 For every article you include:
 - Use only facts explicitly supported by that candidate's own evidence. The publisher name and source URL identify the evidence source.
 - Attribute the central report to the named publisher in the opening paragraph.
-- Write a clear, accurate headline and a useful, concise report. Do not pad or invent background.
+- Write a complete, reader-friendly report of about ${ARTICLE_WORDS} words, normally in 5–7 substantial paragraphs.
+- Develop the story with the key verified facts, relevant details, timeline and implications that are explicitly supported by this candidate's evidence.
+- Do not stop after one or two paragraphs. Do not pad, repeat points, or invent background. If the evidence cannot support a complete report of at least 5 meaningful paragraphs, omit the candidate rather than manufacture detail.
 - Preserve uncertainty and attribution. Never invent quotes, names, statistics, dates, causes, motives, context or details.
 - Do not use another candidate as corroboration or borrow facts from it.
 - Omit a candidate if its evidence is too thin, contradictory, unclear, or does not support a useful report.
@@ -458,8 +460,16 @@ function validateAndNormalize(generated, sourceArticles) {
     const attributedInOpening = sourceName && content.slice(0, 700).toLowerCase().includes(sourceName);
     const duplicateCoverage = validated.some((existing) => titleSimilarity(existing.title, title) >= 0.7);
 
-    if (!title || !content || !seoDescription || !category || !hasSubstantialEvidence || content.length < 350) {
-      console.warn(`Skipping an article with missing fields, insufficient distinct source evidence, or invalid category. Source: ${original.title}`);
+    const normalizedParagraphText = content
+      .replace(/<\\/p>\\s*<p[^>]*>/gi, "\\n\\n")
+      .replace(/<br\\s*\\/?\\s*>/gi, "\\n")
+      .replace(/<[^>]*>/g, "")
+      .trim();
+    const paragraphCount = normalizedParagraphText.split(/\\n\\s*\\n|(?<=[.!?])\\s+(?=[A-Z0-9])/).filter((paragraph) => paragraph.trim().length >= 40).length;
+    const wordCount = normalizedParagraphText.split(/\\s+/).filter(Boolean).length;
+
+    if (!title || !content || !seoDescription || !category || !hasSubstantialEvidence || content.length < 350 || paragraphCount < 5 || wordCount < 350) {
+      console.warn(`Skipping an article with missing fields, insufficient evidence, invalid category, or insufficient length/paragraphs (${wordCount} words, ${paragraphCount} paragraphs). Source: ${original.title}`);
       continue;
     }
     if (heldForHumanReview) {
