@@ -457,7 +457,7 @@ Editorial and evidence rules:
 - Use natural paragraphs with clear transitions. Do not follow a fixed paragraph count. H2 subheadings are optional; use concise descriptive headings only when they genuinely improve navigation, especially for longer reports. Do not add headings merely to satisfy a count.
 
 Basic SEO and presentation:
-- Write a clear, accurate headline that naturally names the main subject and important development. Keep it readable; avoid clickbait and keyword stuffing.
+- Write a clear, accurate headline that naturally names the main subject and important development. Keep it to 110 characters or fewer; avoid clickbait and keyword stuffing.
 - Write a concise, natural meta description that accurately summarizes the article and includes the main subject when appropriate. Do not force a character count.
 - Use the main search phrase naturally where it fits, especially in the headline and opening, without repeating it unnaturally.
 - Avoid generic introductions, repeated conclusions, padded background, sensational language, and vague phrases that add no factual value.
@@ -589,7 +589,7 @@ function validateAndNormalize(generated, sourceArticles) {
 
     const qualityIssues = [];
     if (!title) qualityIssues.push("missing headline");
-    if (title.length > 120) qualityIssues.push("headline is too long");
+    if (title.length > 110) qualityIssues.push("headline exceeds Google's 110-character News headline guidance");
     if (/[!?]{2,}|\b(you won.t believe|shocking|must see|unbelievable)\b/i.test(title)) qualityIssues.push("headline uses clickbait wording");
     if (!content || content.length < 350) qualityIssues.push("article body is missing or too short");
     if (!seoDescription) qualityIssues.push("missing meta description");
