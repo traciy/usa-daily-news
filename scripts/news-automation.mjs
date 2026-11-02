@@ -83,7 +83,10 @@ const RSS_FEEDS = [
   { name: "Politico", url: "https://rss.politico.com/politics-news.xml", category: "Politics" },
   { name: "The Hill", url: "https://thehill.com/feed/", category: "Politics" },
   { name: "Axios", url: "https://api.axios.com/feed/", category: "Politics" },
-  { name: "ESPN", url: "https://www.espn.com/espn/rss/news", category: "Sports" },
+  { name: "ESPN (via Google News)", url: "https://news.google.com/rss/search?q=site%3Aespn.com&hl=en-US&gl=US&ceid=US:en", category: "Sports" },
+  { name: "BBC Sport", url: "https://feeds.bbci.co.uk/sport/rss.xml", category: "Sports" },
+  { name: "CBS Sports", url: "https://www.cbssports.com/rss/headlines/", category: "Sports" },
+  { name: "Sky Sports", url: "https://www.skysports.com/rss/12040", category: "Sports" },
 ];
 
 function decodeXml(value = "") {
@@ -108,6 +111,68 @@ function getXmlTag(block, tagNames) {
     if (match) return match[1].trim();
   }
   return "";
+}
+
+function extractArticleText(html) {
+  const jsonLdBodies = [...html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)]
+    .map((match) => match[1])
+    .flatMap((raw) => {
+      try {
+        const parsed = JSON.parse(raw);
+        const objects = Array.isArray(parsed) ? parsed : [parsed, ...(parsed["@graph"] || [])];
+        return objects.map((item) => item?.articleBody || "").filter(Boolean);
+      } catch { return []; }
+    });
+  const articleBody = jsonLdBodies.join(" ");
+  const articleHtml = html.match(/<article\b[^>]*>([\s\S]*?)<\/article>/i)?.[1] || "";
+  const raw = articleBody || articleHtml || html;
+  return cleanFeedText(raw
+    .replace(/<(script|style|nav|footer|header|aside|form)\b[^>]*>[\s\S]*?<\/\1>/gi, " ")
+    .replace(/<!--([\s\S]*?)-->/g, " ")
+  ).slice(0, 30000);
+}
+
+async function enrichSourceArticles(articles) {
+  const selected = [];
+  for (const feed of RSS_FEEDS) {
+    selected.push(...articles.filter((item) => item.source?.name === feed.name).slice(0, 2));
+  }
+  const enriched = await Promise.all(selected.map(async (article) => {
+    try {
+      const response = await fetchWithRetry(article.url, {
+        headers: { Accept: "text/html,application/xhtml+xml", "User-Agent": "Mozilla/5.0 (compatible; USADailyNewsBot/1.0)" },
+        signal: AbortSignal.timeout(10000),
+      }, "Publisher article page", 1);
+      const html = (await response.text()).slice(0, 1000000);
+      const articleText = extractArticleText(html);
+      return { ...article, article_text: articleText.length >= 500 ? articleText : "" };
+    } catch (error) {
+      console.warn("Could not retrieve full article text for " + article.source?.name + ": " + (error?.message || error));
+      return { ...article, article_text: "" };
+    }
+  }));
+  const byUrl = new Map(enriched.map((item) => [normalizedUrl(item.url), item]));
+  return articles.map((item) => byUrl.get(normalizedUrl(item.url)) || item);
+}
+
+function titleTokens(value) {
+  return new Set(String(value || "").toLowerCase().replace(/[^a-z0-9 ]/g, " ").split(/\s+/).filter((word) => word.length > 3));
+}
+
+function relatedCoverageFor(article, allArticles) {
+  const own = titleTokens(article.title);
+  if (!own.size) return [];
+  return allArticles
+    .filter((other) => other.url !== article.url && other.source?.name !== article.source?.name)
+    .map((other) => {
+      const tokens = titleTokens(other.title);
+      const overlap = [...own].filter((token) => tokens.has(token)).length / own.size;
+      return { other, overlap };
+    })
+    .filter((item) => item.overlap >= 0.35)
+    .sort((a, b) => b.overlap - a.overlap)
+    .slice(0, 3)
+    .map(({ other }) => ({ source: other.source?.name, title: other.title, summary: other.description, url: other.url }));
 }
 
 function parseRssFeed(xml, feed) {
@@ -175,16 +240,22 @@ async function getHeadlines() {
   if (articles.length === 0) {
     throw new Error("No usable RSS stories were collected. Feed errors: " + (failures.join(" | ") || "Feeds returned no recent stories."));
   }
-  return articles;
+  const enriched = await enrichSourceArticles(articles);
+  const withCoverage = enriched.map((article) => ({ ...article, related_coverage: relatedCoverageFor(article, articles) }));
+  const fullTextCount = withCoverage.filter((article) => article.article_text).length;
+  console.log("Publisher page enrichment: " + fullTextCount + " of " + withCoverage.length + " stories have full article text.");
+  return withCoverage;
 }
 
 async function generateArticles(geminiApiKey, sourceArticles) {
   const prompt = `You are the Chief Editor of USA Daily News. Look at the raw news articles provided below. Select the ${ARTICLE_COUNT} top most impactful stories. For each story:
 1. Rewrite the headline clearly and accurately; do not exaggerate the facts.
-2. Write an original report of approximately ${ARTICLE_WORDS} words using only facts supported by the supplied source material. Do not pad the article or invent quotes, statistics, dates, causes, motives, or background details. If the source material is too thin to support a useful report, return fewer articles rather than guessing.
+2. Write an original report of up to approximately ${ARTICLE_WORDS} words using the full publisher article text when supplied. RSS summaries alone are not enough for a long report: if full text is unavailable or evidence is too thin, return fewer articles. Never pad to reach a word count.
+3. FACT-CHECKING: Treat publisher article text as primary evidence. Compare it with related coverage from independent feeds when supplied. Use corroborated facts confidently; when only one publisher reports a claim, attribute it clearly. Do not present an uncorroborated allegation, prediction, rumor, or developing claim as established fact. Never invent quotes, statistics, dates, causes, motives, names, or background details.
+4. Keep the article faithful to the source headline and central event. Do not combine unrelated stories or turn opinion into fact. If sources conflict, explain the disagreement and attribute each account.
 3. Categorize it (Politics, Tech, Economy, Culture, or Sports).
 4. Generate a clear SEO description of about 150 characters.
-5. Keep the article neutral, specific, readable, and useful. Attribute information to the supplied source where appropriate.
+7. Keep the article neutral, specific, readable, and useful. Attribute information to the supplied source where appropriate.
 
 Output the result strictly as a clean JSON array matching these keys: title, content, category, source_url, image_url, seo_description.
 
@@ -199,6 +270,8 @@ ${JSON.stringify(sourceArticles.map((a) => ({
   publishedAt: a.publishedAt,
   url: a.url,
   urlToImage: a.urlToImage,
+  article_text: a.article_text,
+  related_coverage: a.related_coverage,
 })))}`;
 
   const response = await fetchWithRetry(
@@ -258,8 +331,9 @@ function validateAndNormalize(generated, sourceArticles) {
     const requestedCategory = typeof article.category === "string" ? article.category.trim() : "";
     const category = [...allowedCategories].find((allowed) => allowed.toLowerCase() === requestedCategory.toLowerCase());
 
-    if (!title || !content || !seoDescription || !category) {
-      console.warn(`Skipping an article with missing fields or invalid category. Source: ${original.title}`);
+    const evidenceText = original.article_text || original.content || original.description || "";
+    if (!title || !content || !seoDescription || !category || evidenceText.length < 500 || content.length < 500) {
+      console.warn(`Skipping an article with missing fields, insufficient source evidence, or invalid category. Source: ${original.title}`);
       continue;
     }
 
