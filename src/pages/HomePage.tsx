@@ -11,6 +11,7 @@ import { CategoryFilter } from '@/components/CategoryFilter';
 interface HomePageProps {
   onOpenArticle: (id: number) => void;
   onNavigate: (path: string) => void;
+  initialCategory?: Category;
 }
 
 const FAQ_ENTRIES = [
@@ -31,17 +32,22 @@ const FAQ_ENTRIES = [
   },
 ];
 
-export function HomePage({ onOpenArticle, onNavigate }: HomePageProps) {
+export function HomePage({ onOpenArticle, onNavigate, initialCategory }: HomePageProps) {
+  const [active, setActive] = useState<Category>(initialCategory ?? 'All');
+  const categoryDescriptions: Record<Category, string> = {
+    All: 'Digital news coverage and source-attributed summaries across US and international affairs, politics, business, technology, culture, weather and sports.',
+    Politics: 'Read politics news, government coverage, policy developments and election updates from USA Daily News.',
+    Tech: 'Read technology news, AI developments, innovation and digital industry coverage from USA Daily News.',
+    Economy: 'Read business and economy news, markets, jobs, finance and economic policy coverage from USA Daily News.',
+    Culture: 'Read culture news, entertainment, arts, society and lifestyle coverage from USA Daily News.',
+  };
   useSeo({
-    title: 'USA Daily News — Latest News, Politics, Business & Sports',
-    description:
-      'Digital news coverage and source-attributed summaries across US and international affairs, politics, business, technology, culture, weather and sports.',
+    title: active === 'All' ? 'USA Daily News — Latest News, Politics, Business & Sports' : `${active} News | USA Daily News`,
+    description: categoryDescriptions[active],
     type: 'website',
-    url: SITE_CONFIG.url,
-    jsonLd: [ORGANIZATION_SCHEMA, WEBSITE_SCHEMA, FAQ_SCHEMA],
+    url: SITE_CONFIG.url + (window.location.pathname === '/' ? '/' : window.location.pathname),
+    jsonLd: [ORGANIZATION_SCHEMA, WEBSITE_SCHEMA],
   });
-
-  const [active, setActive] = useState<Category>('All');
   const [articles, setArticles] = useState<ArticleSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
