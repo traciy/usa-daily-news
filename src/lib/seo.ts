@@ -33,6 +33,15 @@ export function createSeoDescription(content?: string | null, fallbackTitle?: st
   const shortened = source.slice(0, MAX_DESC - 3).replace(/\s+\S*$/, "").trim();
   return shortened ? shortened + "…" : source.slice(0, MAX_DESC - 3).trimEnd() + "…";
 }
+export function createSeoTitle(headline: string): string {
+  const suffix = " | USA Daily News";
+  const maxHeadline = MAX_TITLE - suffix.length;
+  const cleanHeadline = headline.length > maxHeadline
+    ? headline.slice(0, maxHeadline - 1).trimEnd() + "…"
+    : headline;
+  return cleanHeadline + suffix;
+}
+
 function clamp(value: string, max: number): string {
   return value.length > max ? `${value.slice(0, max - 1).trimEnd()}…` : value;
 }
