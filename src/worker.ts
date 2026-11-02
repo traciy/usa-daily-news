@@ -727,6 +727,16 @@ async function handleFootballRequest(request: Request): Promise<Response> {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+    if (url.pathname.length > 1 && url.pathname.endsWith("/")) {
+      const clean = new URL(url);
+      clean.pathname = clean.pathname.replace(/\\/+$/, "");
+      return Response.redirect(clean.toString(), 301);
+    }
+    if (url.pathname === "/sports") {
+      const destination = new URL(url);
+      destination.pathname = "/football";
+      return Response.redirect(destination.toString(), 301);
+    }
     if (url.hostname === "usa-daily-news.info-luwigang254.workers.dev" || url.hostname === "www.usadailynews.space") {
       const destination = new URL(url.pathname + url.search, SITE_URL);
       return Response.redirect(destination.toString(), 301);
