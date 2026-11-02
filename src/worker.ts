@@ -307,16 +307,16 @@ async function handleSitemap(env: Env): Promise<Response> {
 
 
 function rssCdata(value: string): string {
-  return value.replace(/\\]\\]>/g, "]]]]><![CDATA[>");
+  return value.replace(/\]\]>/g, "]]]]><![CDATA[>");
 }
 
 function rssPlainText(value: string): string {
   return value
     .replace(/<[^>]*>/g, " ")
-    .replace(/!\\[[^\\]]*\\]\\([^)]*\\)/g, " ")
-    .replace(/\\[([^\\]]+)\\]\\([^)]*\\)/g, "$1")
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
     .replace(/[#*_>`]/g, " ")
-    .replace(/\\s+/g, " ")
+    .replace(/\s+/g, " ")
     .trim();
 }
 
@@ -329,7 +329,7 @@ async function handleRssFeed(env: Env): Promise<Response> {
   }
 
   try {
-    const endpoint = new URL(env.SUPABASE_URL.replace(/\\/$/, "") + "/rest/v1/articles");
+    const endpoint = new URL(env.SUPABASE_URL.replace(/\/$/, "") + "/rest/v1/articles");
     endpoint.searchParams.set("select", "id,title,content,category,image_url,seo_description,created_at,source_url");
     endpoint.searchParams.set("order", "created_at.desc");
     endpoint.searchParams.set("limit", "50");
@@ -358,10 +358,10 @@ async function handleRssFeed(env: Env): Promise<Response> {
       const pubDate = Number.isNaN(published.getTime()) ? "" : "<pubDate>" + published.toUTCString() + "</pubDate>";
       const description = article.seo_description || rssPlainText(article.content || "").slice(0, 500);
       const content = article.content || description;
-      const source = article.source_url && /^https?:\\/\\//i.test(article.source_url)
+      const source = article.source_url && /^https?:\/\//i.test(article.source_url)
         ? '<p>Original source: <a href="' + xmlEscape(article.source_url) + '">' + xmlEscape(article.source_url) + "</a></p>"
         : "";
-      const image = article.image_url && /^https?:\\/\\//i.test(article.image_url)
+      const image = article.image_url && /^https?:\/\//i.test(article.image_url)
         ? '<p><img src="' + xmlEscape(article.image_url) + '" alt="' + xmlEscape(article.title) + '"></p>'
         : "";
       const htmlContent = image + "<p>" + xmlEscape(description) + "</p><pre>" + xmlEscape(content) + "</pre>" + source;
@@ -373,7 +373,7 @@ async function handleRssFeed(env: Env): Promise<Response> {
         "<category>" + xmlEscape(article.category || "News") + "</category>" +
         "<description><![CDATA[" + rssCdata(description) + "]]></description>" +
         "<content:encoded><![CDATA[" + rssCdata(htmlContent) + "]]></content:encoded>" +
-        (article.image_url && /^https?:\\/\\//i.test(article.image_url)
+        (article.image_url && /^https?:\/\//i.test(article.image_url)
           ? '<enclosure url="' + xmlEscape(article.image_url) + '" type="image/jpeg"/>'
           : "") +
         "</item>";
