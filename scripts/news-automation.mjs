@@ -340,6 +340,16 @@ function selectBalancedByCountry(items, limit) {
   return selected;
 }
 
+function selectUsPublisherFirst(items, limit) {
+  const usPublishers = items.filter((item) => item.source?.country === "United States");
+  const otherPublishers = items.filter((item) => item.source?.country !== "United States");
+  const preferredUsCount = Math.min(usPublishers.length, Math.ceil(limit * 0.7));
+  const usSelection = selectBalancedByCountry(usPublishers, preferredUsCount);
+  const internationalSelection = selectBalancedByCountry(otherPublishers, limit - usSelection.length);
+  return [...usSelection, ...internationalSelection]
+    .sort((a, b) => (Date.parse(b.publishedAt || "") || 0) - (Date.parse(a.publishedAt || "") || 0));
+}
+
 async function getHeadlines(publishedArticles = []) {
   const publishedUrls = new Set(publishedArticles.map((item) => normalizedUrl(item.source_url)).filter(Boolean));
   const publishedTitles = publishedArticles.map((item) => String(item.title || "")).filter(Boolean);
@@ -401,7 +411,7 @@ async function getHeadlines(publishedArticles = []) {
     if (publishedUrls.has(normalizedUrl(article.url))) return false;
     return !publishedTitles.some((title) => titleSimilarity(title, article.title) >= 0.65);
   });
-  const evidenceEligible = selectBalancedByCountry(notPreviouslyPublished, 10);
+  const evidenceEligible = selectUsPublisherFirst(notPreviouslyPublished, 10);
   console.log("Previously published stories skipped: " + (evidenceQualified.length - notPreviouslyPublished.length) + ".");
   const evidenceCountries = [...new Set(evidenceEligible.map((article) => article.source?.country).filter(Boolean))];
   console.log("Evidence-qualified country coverage: " + evidenceCountries.length + " countries/regions: " + evidenceCountries.join(", "));
