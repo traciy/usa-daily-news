@@ -248,14 +248,14 @@ async function getHeadlines() {
 }
 
 async function generateArticles(geminiApiKey, sourceArticles) {
-  const prompt = `You are the Chief Editor of USA Daily News. Look at the raw news articles provided below. Select the ${ARTICLE_COUNT} top most impactful stories. For each story:
+  const prompt = `You are the Chief Editor of USA Daily News. Look at the raw news articles provided below. Select up to ${ARTICLE_COUNT} genuinely newsworthy, distinct stories. Quality matters more than reaching the target. For each selected story:
 1. Rewrite the headline clearly and accurately; do not exaggerate the facts.
-2. Write an original report of up to approximately ${ARTICLE_WORDS} words using the full publisher article text when supplied. RSS summaries alone are not enough for a long report: if full text is unavailable or evidence is too thin, return fewer articles. Never pad to reach a word count.
-3. FACT-CHECKING: Treat publisher article text as primary evidence. Compare it with related coverage from independent feeds when supplied. Use corroborated facts confidently; when only one publisher reports a claim, attribute it clearly. Do not present an uncorroborated allegation, prediction, rumor, or developing claim as established fact. Never invent quotes, statistics, dates, causes, motives, names, or background details.
+2. Write only as much as the supplied evidence supports. There is no required word count. RSS summaries may support concise reports, but never pretend they contain details they do not. Do not pad, repeat points, or add generic background.
+3. FACT-CHECKING: Treat publisher article text as primary evidence. Use related coverage only as leads for comparison, not proof that reports are independent or that a claim is confirmed. Attribute claims to their supplied publisher. Do not present an uncorroborated allegation, prediction, rumor, or developing claim as established fact. Never invent quotes, statistics, dates, causes, motives, names, or background details.
 4. Keep the article faithful to the source headline and central event. Do not combine unrelated stories or turn opinion into fact. If sources conflict, explain the disagreement and attribute each account.
 5. Categorize it (Politics, Tech, Economy, Culture, or Sports).
 6. Generate a clear SEO description of about 150 characters.
-7. Keep the article neutral, specific, readable, and useful. Attribute information to the supplied source where appropriate.
+7. Write for readers, not search rankings. Add useful explanation only when supported by the supplied material. Avoid keyword stuffing, clickbait, generic filler, and lightly reworded feed snippets. If the source is too thin to provide real reader value, omit it.
 
 Output the result strictly as a clean JSON array matching these keys: title, content, category, source_url, image_url, seo_description.
 
@@ -331,8 +331,8 @@ function validateAndNormalize(generated, sourceArticles) {
     const requestedCategory = typeof article.category === "string" ? article.category.trim() : "";
     const category = [...allowedCategories].find((allowed) => allowed.toLowerCase() === requestedCategory.toLowerCase());
 
-    const hasSubstantialEvidence = (original.article_text || "").length >= 700 || (original.content || "").length >= 1500;
-    if (!title || !content || !seoDescription || !category || !hasSubstantialEvidence || content.length < 500) {
+    const hasSubstantialEvidence = [original.article_text, original.content, original.description].filter(Boolean).join(" ").trim().length >= 500;
+    if (!title || !content || !seoDescription || !category || !hasSubstantialEvidence || content.length < 350) {
       console.warn(`Skipping an article with missing fields, insufficient source evidence, or invalid category. Source: ${original.title}`);
       continue;
     }
