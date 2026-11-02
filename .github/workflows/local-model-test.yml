@@ -1,0 +1,50 @@
+name: Test Local AI Backup (No API Key)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-local-model:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Download llama.cpp CPU runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fL --retry 3 "https://github.com/ggml-org/llama.cpp/releases/download/b12032/llama-b12032-bin-ubuntu-x64.tar.gz" -o llama-cpp.tar.gz
+          mkdir llama-cpp
+          tar -xzf llama-cpp.tar.gz -C llama-cpp
+          LLAMA_CLI="$(find llama-cpp -type f -name llama-cli -print -quit)"
+          test -n "$LLAMA_CLI"
+          chmod +x "$LLAMA_CLI"
+          echo "LLAMA_CLI=$LLAMA_CLI" >> "$GITHUB_ENV"
+
+      - name: Run a no-key Qwen test
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$LLAMA_CLI" \
+            -hf "Qwen/Qwen2.5-0.5B-Instruct-GGUF:Q4_K_M" \
+            --ctx-size 4096 \
+            --threads 2 \
+            --temp 0.2 \
+            --top-p 0.8 \
+            -n 1200 \
+            --simple-io \
+            --no-display-prompt \
+            -p 'You are a careful news editor. Write one factual sample news article using ONLY this source material: "The city transport authority announced on Tuesday that it will begin a six-month pilot of 20 electric buses on two routes. The authority said the pilot will measure operating costs, reliability and passenger feedback. No fare changes were announced." Do not add facts. Write about 350 words only if the source supports that length; otherwise clearly say the evidence is too limited and do not pad. Return JSON only with keys title, content, seo_description. Include clear paragraphs and useful Markdown H2 headings if there is enough evidence. This is a quality test, not a publishable news story.' \
+            2>&1 | tee local-model-test-output.txt
+
+      - name: Summarize test output
+        if: always()
+        shell: bash
+        run: |
+          if [ -f local-model-test-output.txt ]; then
+            echo "Local model test output was captured. Review the preceding step for model response and errors."
+          else
+            echo "The local model did not produce an output file."
+          fi
