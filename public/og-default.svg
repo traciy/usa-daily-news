@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+<title id="title">USA Daily News</title><desc id="desc">News, context and developing stories.</desc>
+<rect width="1200" height="630" fill="#f8fafc"/><rect x="0" y="0" width="22" height="630" fill="#991b1b"/>
+<text x="90" y="205" font-family="Georgia,serif" font-size="34" fill="#991b1b" letter-spacing="8">NEWS • CONTEXT • COVERAGE</text>
+<text x="84" y="330" font-family="Georgia,serif" font-size="92" font-weight="700" fill="#111827">USA Daily News</text>
+<path d="M90 380H1080" stroke="#991b1b" stroke-width="5"/>
+<text x="90" y="455" font-family="Arial,sans-serif" font-size="34" fill="#374151">Politics · Business · Technology · Culture · Sports</text>
+<text x="90" y="535" font-family="Arial,sans-serif" font-size="24" fill="#6b7280">usadailynews.space</text></svg>
