@@ -305,6 +305,110 @@ async function handleSitemap(env: Env): Promise<Response> {
   });
 }
 
+
+function rssCdata(value: string): string {
+  return value.replace(/\\]\\]>/g, "]]]]><![CDATA[>");
+}
+
+function rssPlainText(value: string): string {
+  return value
+    .replace(/<[^>]*>/g, " ")
+    .replace(/!\\[[^\\]]*\\]\\([^)]*\\)/g, " ")
+    .replace(/\\[([^\\]]+)\\]\\([^)]*\\)/g, "$1")
+    .replace(/[#*_>`]/g, " ")
+    .replace(/\\s+/g, " ")
+    .trim();
+}
+
+async function handleRssFeed(env: Env): Promise<Response> {
+  if (!env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) {
+    return new Response("RSS feed is temporarily unavailable.", {
+      status: 503,
+      headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" },
+    });
+  }
+
+  try {
+    const endpoint = new URL(env.SUPABASE_URL.replace(/\\/$/, "") + "/rest/v1/articles");
+    endpoint.searchParams.set("select", "id,title,content,category,image_url,seo_description,created_at,source_url");
+    endpoint.searchParams.set("order", "created_at.desc");
+    endpoint.searchParams.set("limit", "50");
+
+    const response = await fetch(endpoint.toString(), {
+      headers: {
+        apikey: env.SUPABASE_ANON_KEY,
+        Authorization: "Bearer " + env.SUPABASE_ANON_KEY,
+        Accept: "application/json",
+      },
+      cf: { cacheTtl: 120, cacheEverything: true },
+    } as RequestInit & { cf: { cacheTtl: number; cacheEverything: boolean } });
+
+    if (!response.ok) {
+      console.error("RSS feed Supabase request failed:", response.status);
+      return new Response("RSS feed is temporarily unavailable.", {
+        status: 502,
+        headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" },
+      });
+    }
+
+    const articles = await response.json() as SeoArticle[];
+    const items = articles.filter((article) => Number.isFinite(Number(article.id)) && article.title).map((article) => {
+      const link = SITE_URL + "/article/" + Number(article.id);
+      const published = new Date(article.created_at);
+      const pubDate = Number.isNaN(published.getTime()) ? "" : "<pubDate>" + published.toUTCString() + "</pubDate>";
+      const description = article.seo_description || rssPlainText(article.content || "").slice(0, 500);
+      const content = article.content || description;
+      const source = article.source_url && /^https?:\\/\\//i.test(article.source_url)
+        ? '<p>Original source: <a href="' + xmlEscape(article.source_url) + '">' + xmlEscape(article.source_url) + "</a></p>"
+        : "";
+      const image = article.image_url && /^https?:\\/\\//i.test(article.image_url)
+        ? '<p><img src="' + xmlEscape(article.image_url) + '" alt="' + xmlEscape(article.title) + '"></p>'
+        : "";
+      const htmlContent = image + "<p>" + xmlEscape(description) + "</p><pre>" + xmlEscape(content) + "</pre>" + source;
+      return "<item>" +
+        "<title>" + xmlEscape(article.title) + "</title>" +
+        "<link>" + xmlEscape(link) + "</link>" +
+        "<guid isPermaLink=\"true\">" + xmlEscape(link) + "</guid>" +
+        pubDate +
+        "<category>" + xmlEscape(article.category || "News") + "</category>" +
+        "<description><![CDATA[" + rssCdata(description) + "]]></description>" +
+        "<content:encoded><![CDATA[" + rssCdata(htmlContent) + "]]></content:encoded>" +
+        (article.image_url && /^https?:\\/\\//i.test(article.image_url)
+          ? '<enclosure url="' + xmlEscape(article.image_url) + '" type="image/jpeg"/>'
+          : "") +
+        "</item>";
+    }).join("");
+
+    const updated = articles[0]?.created_at ? new Date(articles[0].created_at).toUTCString() : new Date().toUTCString();
+    const xml = '<?xml version="1.0" encoding="UTF-8"?>' +
+      '<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">' +
+      "<channel>" +
+      "<title>USA Daily News</title>" +
+      "<link>" + SITE_URL + "</link>" +
+      "<description>Latest US and international news, politics, business, technology, culture and sports from USA Daily News.</description>" +
+      "<language>en-us</language>" +
+      "<lastBuildDate>" + updated + "</lastBuildDate>" +
+      '<atom:link href="' + SITE_URL + '/feed.xml" rel="self" type="application/rss+xml"/>' +
+      "<image><url>" + SITE_URL + "/og-default.png</url><title>USA Daily News</title><link>" + SITE_URL + "</link></image>" +
+      items +
+      "</channel></rss>";
+
+    return new Response(xml, {
+      headers: {
+        "Content-Type": "application/rss+xml; charset=utf-8",
+        "Cache-Control": "public, max-age=120, s-maxage=120",
+        "X-Content-Type-Options": "nosniff",
+      },
+    });
+  } catch (error) {
+    console.error("RSS feed generation failed:", error);
+    return new Response("RSS feed is temporarily unavailable.", {
+      status: 502,
+      headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" },
+    });
+  }
+}
+
 const ESPN_BASE = "https://site.api.espn.com/apis/site/v2/sports/soccer";
 const TIMEOUT_MS = 12_000;
 
@@ -494,7 +598,7 @@ export default {
     if (url.pathname === "/api/football") {
       return handleFootballRequest(request);
     }
-    if (url.pathname === "/sitemap.xml") {
+    if (url.pathname === "/feed.xml" || url.pathname === "/rss.xml") {\n      return handleRssFeed(env);\n    }\n    if (url.pathname === "/sitemap.xml") {
       return handleSitemap(env);
     }
     if (url.pathname === "/" && request.method === "GET") {
