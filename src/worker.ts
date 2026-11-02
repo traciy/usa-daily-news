@@ -44,9 +44,25 @@ function renderArticleMarkdown(markdown: string): string {
     return "<p>" + inline(lines.join(" ")) + "</p>";
   }).join("\n");
 }
+function articleSeoDescription(article: SeoArticle): string {
+  const clean = (article.seo_description || article.content || "")
+    .replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+    .replace(/https?:\/\/\S+/g, "")
+    .replace(/[#*_>\`]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const sentence = clean.match(/^.{35,}?([.!?](?=\s|$)|$)/)?.[0]?.trim() || clean;
+  const source = sentence.length >= 45 ? sentence : clean;
+  if (source.length <= 155) return source;
+  const shortened = source.slice(0, 152).replace(/\s+\S*$/, "").trim();
+  return shortened ? shortened + "…" : source.slice(0, 152).trimEnd() + "…";
+}
+
 function injectArticleSeo(documentHtml: string, article: SeoArticle): string {
   const canonical = SITE_URL + "/article/" + article.id;
-  const description = (article.seo_description || article.content.replace(/[#*_>\[\]()]/g, " ").replace(/\s+/g, " ").trim()).slice(0, 155);
+  const description = articleSeoDescription(article);
+  const pageTitle = article.title + " | USA Daily News";
   const image = article.image_url && /^https?:\/\//i.test(article.image_url) ? article.image_url : SITE_URL + "/og-default.svg";
   const published = new Date(article.created_at);
   const publishedIso = Number.isNaN(published.getTime()) ? "" : published.toISOString();
@@ -54,6 +70,7 @@ function injectArticleSeo(documentHtml: string, article: SeoArticle): string {
     "@context": "https://schema.org", "@type": "NewsArticle",
     headline: article.title, description, image: [image],
     articleBody: article.content.replace(/[#*_>]/g, " ").replace(/\s+/g, " ").trim(),
+    wordCount: article.content.trim().split(/\s+/).filter(Boolean).length,
     citation: article.source_url && /^https?:\/\//i.test(article.source_url) ? article.source_url : undefined,
     datePublished: publishedIso || article.created_at,
     dateModified: publishedIso || article.created_at,
@@ -67,24 +84,28 @@ function injectArticleSeo(documentHtml: string, article: SeoArticle): string {
   let html = documentHtml
     .replace(/<title\b[^>]*>[\s\S]*?<\/title>/i, "")
     .replace(/<meta\b[^>]*\bname=["']description["'][^>]*>/i, "")
+    .replace(/<meta\b[^>]*\bname=["']robots["'][^>]*>/i, "")
     .replace(/<meta\b[^>]*\bname=["']twitter:(?:card|title|description|image)["'][^>]*>/gi, "")
-    .replace(/<meta\b[^>]*\bproperty=["'](?:og:title|og:description|og:type|og:url|og:image|article:published_time|article:section)["'][^>]*>/gi, "")
+    .replace(/<meta\b[^>]*\bproperty=["'](?:og:title|og:description|og:type|og:url|og:image|og:site_name|article:published_time|article:section)["'][^>]*>/gi, "")
     .replace(/<link\b[^>]*\brel=["']canonical["'][^>]*>/i, "");
   const tags = [
-    "<title>" + htmlEscape(article.title) + " | USA Daily News</title>",
+    "<title>" + htmlEscape(pageTitle) + "</title>",
     '<meta name="description" content="' + htmlEscape(description) + '">',
+    '<meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">',
     '<link rel="canonical" href="' + htmlEscape(canonical) + '">',
     '<meta property="og:type" content="article">',
+    '<meta property="og:site_name" content="USA Daily News">',
     '<meta property="og:title" content="' + htmlEscape(article.title) + '">',
     '<meta property="og:description" content="' + htmlEscape(description) + '">',
     '<meta property="og:url" content="' + htmlEscape(canonical) + '">',
     '<meta property="og:image" content="' + htmlEscape(image) + '">',
+    '<meta property="article:section" content="' + htmlEscape(article.category) + '">',
     '<meta name="twitter:card" content="summary_large_image">',
     '<meta name="twitter:title" content="' + htmlEscape(article.title) + '">',
     '<meta name="twitter:description" content="' + htmlEscape(description) + '">',
     '<meta name="twitter:image" content="' + htmlEscape(image) + '">',
     publishedIso ? '<meta property="article:published_time" content="' + publishedIso + '">' : "",
-    '<script type="application/ld+json">' + schemaJson + "</script>",
+    '<script type="application/ld+json" data-server-article-jsonld="true">' + schemaJson + "</script>",
   ].join("\n");
   const body = '<main id="seo-article"><article><header><p>' + htmlEscape(article.category) +
     "</p><h1>" + htmlEscape(article.title) + "</h1><p>" + htmlEscape(description) +
