@@ -15,39 +15,40 @@ export function CategoryFilter({ active, onSelect, onNavigate }: CategoryFilterP
             const isActive = c === active;
             return (
               <li key={c}>
-                <button
-                  onClick={() => {
+                <a
+                  href={c === 'All' ? '/' : '/' + (c === 'Tech' ? 'tech' : c.toLowerCase())}
+                  onClick={(event) => {
+                    event.preventDefault();
                     onSelect(c);
-                    const slug = c === 'Tech' ? 'tech' : c.toLowerCase();
-                    onNavigate(c === 'All' ? '/' : '/' + slug);
+                    onNavigate(c === 'All' ? '/' : '/' + (c === 'Tech' ? 'tech' : c.toLowerCase()));
                   }}
                   className={`px-4 py-1.5 text-sm font-medium rounded-full whitespace-nowrap transition-colors ${
                     isActive
                       ? 'bg-gray-900 text-white'
                       : 'text-gray-700 hover:bg-gray-100'
                   }`}
-                  aria-pressed={isActive}
+                  aria-current={isActive ? 'page' : undefined}
                 >
                   {c}
-                </button>
+                </a>
               </li>
             );
           })}
           <li>
-            <button
-              onClick={() => onNavigate('/football')}
+            <a
+              href="/football"
               className="px-4 py-1.5 text-sm font-medium rounded-full whitespace-nowrap text-gray-700 hover:bg-gray-100 transition-colors"
             >
               Sports
-            </button>
+            </a>
           </li>
           <li>
-            <button
-              onClick={() => onNavigate('/weather')}
+            <a
+              href="/weather"
               className="px-4 py-1.5 text-sm font-medium rounded-full whitespace-nowrap text-gray-700 hover:bg-gray-100 transition-colors"
             >
               Weather
-            </button>
+            </a>
           </li>
         </ul>
       </div>
