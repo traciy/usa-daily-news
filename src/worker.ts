@@ -6,6 +6,7 @@ interface Env {
   // read-only site access; never use a service-role key here.
   SUPABASE_URL?: string;
   SUPABASE_ANON_KEY?: string;
+  GH_DISPATCH_TOKEN?: string;
 }
 
 const SITE_URL = "https://usa-daily-news.info-luwigang254.workers.dev";
@@ -612,5 +613,52 @@ export default {
       return handleArticlePage(request, env, articleMatch[1]);
     }
     return env.ASSETS.fetch(request);
+  },
+
+  // Cloudflare's scheduler is independent of GitHub Actions cron.
+  async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    ctx.waitUntil((async () => {
+      if (!env.GH_DISPATCH_TOKEN) {
+        console.error("GH_DISPATCH_TOKEN is missing. Add it as a Worker secret to enable scheduled publishing.");
+        return;
+      }
+
+      const repo = "traciy/usa-daily-news";
+      const workflowId = "389035432";
+      const headers = {
+        Authorization: "Bearer " + env.GH_DISPATCH_TOKEN,
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+      };
+
+      const runsResponse = await fetch(
+        "https://api.github.com/repos/" + repo + "/actions/workflows/" + workflowId + "/runs?per_page=10",
+        { headers }
+      );
+      if (!runsResponse.ok) {
+        throw new Error("GitHub run check failed: HTTP " + runsResponse.status);
+      }
+      const runsData = await runsResponse.json() as { workflow_runs?: Array<{ status?: string; id?: number }> };
+      const active = (runsData.workflow_runs || []).find((run) =>
+        ["queued", "in_progress", "waiting", "pending"].includes(run.status || "")
+      );
+      if (active) {
+        console.log("News automation already active (run " + active.id + "); skipping this tick.");
+        return;
+      }
+
+      const dispatchResponse = await fetch(
+        "https://api.github.com/repos/" + repo + "/actions/workflows/" + workflowId + "/dispatches",
+        {
+          method: "POST",
+          headers: { ...headers, "Content-Type": "application/json" },
+          body: JSON.stringify({ ref: "main", inputs: { publish: "true" } }),
+        }
+      );
+      if (!dispatchResponse.ok) {
+        throw new Error("GitHub workflow dispatch failed: HTTP " + dispatchResponse.status + " " + await dispatchResponse.text());
+      }
+      console.log("Cloudflare Cron successfully dispatched the news automation.");
+    })());
   },
 };
