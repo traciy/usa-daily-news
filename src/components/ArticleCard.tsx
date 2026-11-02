@@ -19,7 +19,7 @@ export function ArticleCard({ article, variant = 'default' }: ArticleCardProps) 
         className="group block bg-white rounded-sm overflow-hidden shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
         <div className="aspect-[16/9] overflow-hidden bg-gray-100">
           <img src={article.image_url || fallback} alt={article.title} width={1200} height={675}
-            loading="lazy" decoding="async"
+            loading="eager" fetchPriority="high" decoding="async"
             className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500" />
         </div>
         <div className="p-5 sm:p-7">
