@@ -21,19 +21,18 @@ const MAX_TITLE = 60;
 
 export function createSeoDescription(content?: string | null, fallbackTitle?: string): string {
   const clean = (content || "")
-    .replace(/!\\[([^\\]]*)\\]\\([^)]*\\)/g, "$1")
-    .replace(/\\[([^\\]]+)\\]\\([^)]*\\)/g, "$1")
-    .replace(/https?:\\/\\/\\S+/g, "")
-    .replace(/[#*_>`]/g, " ")
-    .replace(/\\s+/g, " ")
+    .replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+    .replace(/https?:\/\/\S+/g, "")
+    .replace(/[#*_>\`]/g, " ")
+    .replace(/\s+/g, " ")
     .trim();
-  const sentence = clean.match(/^.{35,}?([.!?](?=\\s|$)|$)/)?.[0]?.trim() || clean;
+  const sentence = clean.match(/^.{35,}?([.!?](?=\s|$)|$)/)?.[0]?.trim() || clean;
   const source = sentence.length >= 45 ? sentence : clean;
   if (source.length <= MAX_DESC) return source || fallbackTitle || SITE_CONFIG.description;
-  const shortened = source.slice(0, MAX_DESC - 3).replace(/\\s+\\S*$/, "").trim();
+  const shortened = source.slice(0, MAX_DESC - 3).replace(/\s+\S*$/, "").trim();
   return shortened ? shortened + "…" : source.slice(0, MAX_DESC - 3).trimEnd() + "…";
 }
-
 function clamp(value: string, max: number): string {
   return value.length > max ? `${value.slice(0, max - 1).trimEnd()}…` : value;
 }
