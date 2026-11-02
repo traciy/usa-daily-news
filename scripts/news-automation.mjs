@@ -188,7 +188,7 @@ function highImpactTopic(generatedText) {
     ["arrest or detention", /\b(arrested|detained|taken into custody)\b/i],
     ["criminal charge or conviction", /\b(charged|indicted|convicted|sentenced|acquitted)\b/i],
     ["court ruling", /\b(ruled|ruling|throws? out|dismissed|overturned|blocked)\b/i],
-    ["election result", /\b(won|wins|defeated|elected|reelected|re-elected)\b/i],
+    ["election result", /\b(elected|reelected|re-elected|election winner|wins? the election|wins? the race)\b/i],
     ["endorsement", /\b(endorsed|endorsement|backs|backed)\b/i],
     ["job losses", /\b(layoffs?|laid off|job cuts|cuts? jobs)\b/i],
     ["financial distress", /\b(bankrupt|bankruptcy|insolvent|defaulted)\b/i],
@@ -411,7 +411,7 @@ function validateAndNormalize(generated, sourceArticles) {
     const heldForHumanReview = highImpactTopic(generatedText);
     const unsupportedClaim = hasUnsupportedHighImpactClaim(generatedText, evidenceText);
     const unsupportedNumber = hasUnsupportedNumbers(generatedText, evidenceText);
-    const sourceName = String(original.source?.name || "").trim().toLowerCase();
+    const sourceName = String(original.source?.name || "").replace(/\s*\(.+\)\s*$/, "").trim().toLowerCase();
     const attributedInOpening = sourceName && content.slice(0, 700).toLowerCase().includes(sourceName);
     const duplicateCoverage = validated.some((existing) => titleSimilarity(existing.title, title) >= 0.7);
 
