@@ -7,6 +7,7 @@ import { ArticlePage } from '@/pages/ArticlePage';
 import { WeatherPage } from '@/pages/WeatherPage';
 import { FootballPage } from '@/pages/FootballPage';
 import { ContactPage } from '@/pages/ContactPage';
+import { AboutPage, EditorialPolicyPage, CorrectionsPolicyPage, PrivacyPolicyPage } from '@/pages/TrustPages';
 import { trackPageView } from '@/lib/analytics';
 
 type Route =
@@ -14,7 +15,11 @@ type Route =
   | { name: 'article'; id: number }
   | { name: 'weather' }
   | { name: 'football' }
-  | { name: 'contact' };
+  | { name: 'contact' }
+  | { name: 'about' }
+  | { name: 'editorial' }
+  | { name: 'corrections' }
+  | { name: 'privacy' };
 
 function parsePath(): Route {
   const path = window.location.pathname.replace(/\/+$/, '') || '/';
@@ -22,6 +27,10 @@ function parsePath(): Route {
   if (article) return { name: 'article', id: Number(article[1]) };
   if (path === '/weather') return { name: 'weather' };
   if (path === '/contact') return { name: 'contact' };
+  if (path === '/about') return { name: 'about' };
+  if (path === '/editorial-policy') return { name: 'editorial' };
+  if (path === '/corrections') return { name: 'corrections' };
+  if (path === '/privacy-policy') return { name: 'privacy' };
   if (path === '/football' || path === '/sports') return { name: 'football' };
 
   const legacy = window.location.hash.replace(/^#\/?/, '');
@@ -70,6 +79,10 @@ function App() {
         {route.name === 'weather' && <WeatherPage onBack={goHome} />}
         {route.name === 'football' && <FootballPage onBack={goHome} />}
         {route.name === 'contact' && <ContactPage />}
+        {route.name === 'about' && <AboutPage />}
+        {route.name === 'editorial' && <EditorialPolicyPage />}
+        {route.name === 'corrections' && <CorrectionsPolicyPage />}
+        {route.name === 'privacy' && <PrivacyPolicyPage />}
       </main>
       <Footer onHome={goHome} />
       <PodcastPlayer variant="overlay" />
