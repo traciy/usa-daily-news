@@ -406,14 +406,29 @@ function validateAndNormalize(generated, sourceArticles) {
     const uniqueEvidence = [...new Set(evidenceParts)];
     const evidenceLength = uniqueEvidence.join(" ").length;
     const evidenceText = sourceEvidenceText(original);
-    const hasSubstantialEvidence = evidenceLength >= 500;
+    const hasSubstantialEvidence = typeof original.article_text === "string" && original.article_text.trim().length >= 800;
     const generatedText = title + " " + content + " " + seoDescription;
+    const heldForHumanReview = highImpactTopic(generatedText);
     const unsupportedClaim = hasUnsupportedHighImpactClaim(generatedText, evidenceText);
     const unsupportedNumber = hasUnsupportedNumbers(generatedText, evidenceText);
+    const sourceName = String(original.source?.name || "").trim().toLowerCase();
+    const attributedInOpening = sourceName && content.slice(0, 700).toLowerCase().includes(sourceName);
     const duplicateCoverage = validated.some((existing) => titleSimilarity(existing.title, title) >= 0.7);
 
     if (!title || !content || !seoDescription || !category || !hasSubstantialEvidence || content.length < 350) {
       console.warn(`Skipping an article with missing fields, insufficient distinct source evidence, or invalid category. Source: ${original.title}`);
+      continue;
+    }
+    if (!hasSubstantialEvidence) {
+      console.warn("Skipping an article without at least 800 characters of retrieved publisher article text. Source: " + original.title);
+      continue;
+    }
+    if (heldForHumanReview) {
+      console.warn("Holding a high-impact story for human editorial review (" + heldForHumanReview + "). Source: " + original.title);
+      continue;
+    }
+    if (!attributedInOpening) {
+      console.warn("Skipping an article that does not identify its publisher in the opening 700 characters. Source: " + original.title);
       continue;
     }
     if (unsupportedClaim) {
