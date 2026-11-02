@@ -1,10 +1,9 @@
 /**
  * Replaces the uploaded n8n flow:
- * NewsAPI US headlines -> Gemini -> JSON validation -> Supabase Edge Function.
+ * Publisher RSS feeds -> Gemini -> JSON validation -> Supabase Edge Function.
  * Secrets are supplied by GitHub Actions, never stored in this file.
  */
 
-const NEWS_API_BASE = "https://newsapi.org/v2/top-headlines?country=us";
 const MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
 const ARTICLE_COUNT = positiveInteger(process.env.ARTICLE_COUNT, 10);
 const ARTICLE_WORDS = positiveInteger(process.env.ARTICLE_WORDS, 1000);
@@ -149,7 +148,7 @@ async function getHeadlines() {
         "User-Agent": "USA-Daily-News-Bot/1.0 (+https://usa-daily-news.info-luwigang254.workers.dev)",
       },
       signal: AbortSignal.timeout(15000),
-    }, feed.name + " RSS feed", 2);
+    }, feed.name + " RSS feed", 1);
     const xml = await response.text();
     if (!/<(rss|feed|rdf:RDF)\b/i.test(xml)) throw new Error(feed.name + " did not return recognizable RSS/XML.");
     const articles = parseRssFeed(xml, feed).slice(0, 15);
