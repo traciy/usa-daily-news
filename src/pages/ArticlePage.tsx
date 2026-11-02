@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ArrowLeft, ExternalLink, Share2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { useSeo } from '@/lib/seo';
+import { createSeoDescription, useSeo } from '@/lib/seo';
 import { useMarkdown } from '@/lib/markdown';
 import { categoryColor } from '@/lib/categories';
 import { formatTimeAgo } from '@/lib/date';
@@ -60,6 +60,7 @@ export function ArticlePage({ id, onBack }: ArticlePageProps) {
   const color = article ? categoryColor(article.category) : categoryColor('');
 
   const articleUrl = article ? `${SITE_CONFIG.url}/article/${article.id}` : SITE_CONFIG.url;
+  const seoDescription = article ? createSeoDescription(article.seo_description || article.content, article.title) : undefined;
 
   const articleSchema = article
     ? {
@@ -68,7 +69,7 @@ export function ArticlePage({ id, onBack }: ArticlePageProps) {
         headline: article.title,
         articleBody: article.content.replace(/[#*_>]/g, ' ').replace(/\s+/g, ' ').trim(),
         citation: article.source_url && /^https?:\/\//i.test(article.source_url) ? article.source_url : undefined,
-        description: article.seo_description || article.title,
+        description: seoDescription,
         image: article.image_url || [SITE_CONFIG.ogImage],
         datePublished: article.created_at,
         dateModified: article.created_at,
@@ -89,8 +90,8 @@ export function ArticlePage({ id, onBack }: ArticlePageProps) {
     : null;
 
   useSeo({
-    title: article ? article.title : 'USA Daily News',
-    description: article?.seo_description || article?.title || undefined,
+    title: article ? `${article.title} | USA Daily News` : 'USA Daily News',
+    description: seoDescription,
     image: article?.image_url || undefined,
     type: 'article',
     url: articleUrl,
