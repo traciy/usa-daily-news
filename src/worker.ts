@@ -52,7 +52,9 @@ function injectArticleSeo(documentHtml: string, article: SeoArticle): string {
   const publishedIso = Number.isNaN(published.getTime()) ? "" : published.toISOString();
   const schema = {
     "@context": "https://schema.org", "@type": "NewsArticle",
-    headline: article.title, description, image: [image],\n    articleBody: article.content.replace(/[#*_>]/g, " ").replace(/\\s+/g, " ").trim(),\n    citation: article.source_url && /^https?:\\/\\//i.test(article.source_url) ? article.source_url : undefined,
+    headline: article.title, description, image: [image],
+    articleBody: article.content.replace(/[#*_>]/g, " ").replace(/\s+/g, " ").trim(),
+    citation: article.source_url && /^https?:\/\//i.test(article.source_url) ? article.source_url : undefined,
     datePublished: publishedIso || article.created_at,
     dateModified: publishedIso || article.created_at,
     inLanguage: "en-US", isAccessibleForFree: true,
