@@ -104,12 +104,13 @@ const RSS_FEEDS = [
   { name: "Le Monde English", url: "https://www.lemonde.fr/en/rss/une.xml", category: "World", country: "France" },
   { name: "Der Spiegel International", url: "https://www.spiegel.de/international/index.rss", category: "World", country: "Germany" },
   { name: "Politico Europe", url: "https://www.politico.eu/feed/", category: "World", country: "European Union" },
-  { name: "NHK World", url: "https://www3.nhk.or.jp/nhkworld/en/news/feeds/", category: "World", country: "Japan" },
-  { name: "Yonhap English", url: "https://en.yna.co.kr/RSS/news.xml", category: "World", country: "South Korea" },
+  { name: "NHK World", url: "https://www3.nhk.or.jp/rj/podcast/rss/english.xml", category: "World", country: "Japan" },
+  { name: "The Japan Times", url: "https://www.japantimes.co.jp/feed/topstories/", category: "World", country: "Japan" },
+  { name: "Kyodo News", url: "https://english.kyodonews.net/rss/all.xml", category: "World", country: "Japan" },
   { name: "CNA", url: "https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml", category: "World", country: "Singapore" },
-  { name: "SWI swissinfo", url: "https://www.swissinfo.ch/eng/rss", category: "World", country: "Switzerland" },
-  { name: "Focus Taiwan", url: "https://focustaiwan.tw/rss", category: "World", country: "Taiwan" },
-  { name: "The New Zealand Herald", url: "https://www.nzherald.co.nz/arc/outboundfeeds/rss/", category: "World", country: "New Zealand" },
+  { name: "tagesschau", url: "https://www.tagesschau.de/index~rss2.xml", category: "World", country: "Germany" },
+  { name: "ANSA English", url: "https://www.ansa.it/english/news/english_rss.xml", category: "World", country: "Italy" },
+  { name: "El País English", url: "https://feeds.elpais.com/mrss-s/pages/ep/site/english.elpais.com/section/english.elpais.com/rss", category: "World", country: "Spain" },
 
   // Sports reporting across the US and international leagues.
   { name: "ESPN", url: "https://www.espn.com/espn/rss/news", category: "Sports", country: "United States" },
