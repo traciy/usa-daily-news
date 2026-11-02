@@ -660,6 +660,20 @@ async function main() {
   const publishedData = await publishedResponse.json();
   const publishedArticles = Array.isArray(publishedData?.articles) ? publishedData.articles : [];
   console.log("Loaded " + publishedArticles.length + " previously published articles for duplicate protection.");
+  // The workflow checks every 10 minutes. If at least three articles were
+  // published in the last 15 minutes, skip this check so the next run is
+  // effectively 20 minutes after that productive batch. With only 1-2,
+  // continue at the next 10-minute check.
+  const recentCutoff = Date.now() - 15 * 60 * 1000;
+  const recentPublishedCount = publishedArticles.filter((article) => {
+    const createdAt = Date.parse(article.created_at || "");
+    return Number.isFinite(createdAt) && createdAt >= recentCutoff;
+  }).length;
+  if (recentPublishedCount >= 3) {
+    console.log("At least three articles were published in the last 15 minutes. Skipping this 10-minute check; the next run will retry on the normal 20-minute rhythm.");
+    return;
+  }
+  console.log("Recent published count: " + recentPublishedCount + ". Continuing with the 10-minute retry cadence.");
   const sourceArticles = await getHeadlines(publishedArticles);
   const GEMINI_MAX_RETRIES = 6;
   let generated;
@@ -691,7 +705,7 @@ async function main() {
     throw new Error(`Gemini failed after ${GEMINI_MAX_RETRIES} retries: ${lastGeminiError.message || lastGeminiError}`);
   }
 
-  const minimumArticles = positiveInteger(process.env.MIN_ARTICLES, 3);
+  const minimumArticles = positiveInteger(process.env.MIN_ARTICLES, 1);
   console.log(`Gemini generated ${generated.length} result(s); ${articles.length} article(s) passed validation.`);
   if (articles.length < minimumArticles) {
     throw new Error(`Only ${articles.length} article(s) passed validation; at least ${minimumArticles} are required. Nothing will be published this run.`);
