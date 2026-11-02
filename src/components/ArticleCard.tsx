@@ -11,16 +11,15 @@ interface ArticleCardProps {
 export function ArticleCard({ article, variant = 'default' }: ArticleCardProps) {
   const color = categoryColor(article.category);
   const articleHref = `/article/${article.id}`;
-  const fallback = `https://picsum.photos/seed/${article.id}/1200/700`;
 
   if (variant === 'feature') {
     return (
       <a href={articleHref} aria-label={`Read story: ${article.title}`}
         className="group block bg-white rounded-sm overflow-hidden shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
         <div className="aspect-[16/9] overflow-hidden bg-gray-100">
-          <img src={article.image_url || fallback} alt={article.title} width={1200} height={675}
+          {article.image_url ? <img src={article.image_url} alt={article.title} width={1200} height={675}
             loading="eager" fetchPriority="high" decoding="async"
-            className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500" />
+            className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500" /> : <div className="flex h-full items-center justify-center bg-gray-100 text-sm font-serif text-gray-400">USA Daily News</div>}
         </div>
         <div className="p-5 sm:p-7">
           <span className={`inline-block text-xs font-semibold uppercase tracking-wider px-2 py-0.5 rounded ${color.bg} ${color.text}`}>{article.category}</span>
@@ -39,9 +38,9 @@ export function ArticleCard({ article, variant = 'default' }: ArticleCardProps) 
     return (
       <a href={articleHref} aria-label={`Read story: ${article.title}`} className="group flex gap-3 py-3 border-b border-gray-200">
         <div className="w-20 h-20 shrink-0 overflow-hidden bg-gray-100 rounded-sm">
-          <img src={article.image_url || `https://picsum.photos/seed/${article.id}/200/200`} alt={article.title}
+          {article.image_url ? <img src={article.image_url} alt={article.title}
             width={200} height={200} loading="lazy" decoding="async"
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform" /> : <div className="flex h-full items-center justify-center bg-gray-100 text-[9px] font-semibold text-gray-400">USA NEWS</div>}
         </div>
         <div className="min-w-0 flex-1">
           <span className={`inline-block text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded ${color.bg} ${color.text}`}>{article.category}</span>
@@ -56,9 +55,9 @@ export function ArticleCard({ article, variant = 'default' }: ArticleCardProps) 
     <a href={articleHref} aria-label={`Read story: ${article.title}`}
       className="group flex flex-col bg-white rounded-sm overflow-hidden shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
       <div className="aspect-[16/10] overflow-hidden bg-gray-100">
-        <img src={article.image_url || fallback} alt={article.title} width={1200} height={750}
+        {article.image_url ? <img src={article.image_url} alt={article.title} width={1200} height={750}
           loading="lazy" decoding="async"
-          className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500" />
+          className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500" /> : <div className="flex h-full items-center justify-center bg-gray-100 text-sm font-serif text-gray-400">USA Daily News</div>}
       </div>
       <div className="p-4 flex flex-col flex-1">
         <span className={`inline-block self-start text-xs font-semibold uppercase tracking-wider px-2 py-0.5 rounded ${color.bg} ${color.text}`}>{article.category}</span>
