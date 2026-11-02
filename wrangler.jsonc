@@ -10,5 +10,8 @@
         "/*"
       ]
   },
-  "main": "src/worker.ts"
+  "main": "src/worker.ts",
+  "triggers": {
+    "crons": ["*/5 * * * *"]
+  }
 }
