@@ -273,7 +273,7 @@ async function handleStaticSeoPage(request: Request, env: Env, path: string): Pr
     .replace("</head>", tags + "\n</head>");
   const body = '<main id="seo-static-content"><article><h1>' + htmlEscape(page.heading) + '</h1>' +
     page.paragraphs.map((paragraph) => "<p>" + htmlEscape(paragraph) + "</p>").join("") +
-    '<p><a href="/about">About</a> · <a href="/editorial-policy">Editorial policy</a> · <a href="/corrections">Corrections</a> · <a href="/privacy-policy">Privacy</a> · <a href="/contact">Contact</a></p></article></main>';
+    '<nav aria-label="News sections"><a href="/">Latest news</a> · <a href="/politics">Politics</a> · <a href="/tech">Technology</a> · <a href="/economy">Economy</a> · <a href="/culture">Culture</a> · <a href="/football">Sports</a> · <a href="/weather">Weather</a></nav><p><a href="/about">About</a> · <a href="/editorial-policy">Editorial policy</a> · <a href="/corrections">Corrections</a> · <a href="/privacy-policy">Privacy</a> · <a href="/contact">Contact</a></p></article></main>';
   html = html.replace('<div id="root"></div>', '<div id="root">' + body + '</div>');
   return new Response(html, {
     status: 200,
