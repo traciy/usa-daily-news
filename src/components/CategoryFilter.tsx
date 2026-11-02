@@ -16,7 +16,11 @@ export function CategoryFilter({ active, onSelect, onNavigate }: CategoryFilterP
             return (
               <li key={c}>
                 <button
-                  onClick={() => onSelect(c)}
+                  onClick={() => {
+                    onSelect(c);
+                    const slug = c === 'Tech' ? 'tech' : c.toLowerCase();
+                    onNavigate(c === 'All' ? '/' : '/' + slug);
+                  }}
                   className={`px-4 py-1.5 text-sm font-medium rounded-full whitespace-nowrap transition-colors ${
                     isActive
                       ? 'bg-gray-900 text-white'
