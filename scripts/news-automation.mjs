@@ -187,9 +187,9 @@ function highImpactTopic(generatedText) {
     ["injury or hospitalization", /\b(injured|wounded|hospitali[sz]ed|critical condition|surgery)\b/i],
     ["arrest or detention", /\b(arrested|detained|taken into custody)\b/i],
     ["criminal charge or conviction", /\b(charged|indicted|convicted|sentenced|acquitted)\b/i],
-    ["court ruling", /\b(ruled|ruling|throws? out|dismissed|overturned|blocked)\b/i],
+    ["court ruling", /\b(court ruling|judge (?:rules?|ruled)|court (?:rules?|ruled)|court blocked|throws? out (?:the )?(?:case|lawsuit|challenge)|dismissed (?:the )?(?:case|lawsuit|charges)|overturned (?:the )?(?:ruling|decision|verdict)|injunction)\b/i],
     ["election result", /\b(elected|reelected|re-elected|election winner|wins? the election|wins? the race)\b/i],
-    ["endorsement", /\b(endorsed|endorsement|backs|backed)\b/i],
+    ["endorsement", /\b(endorsed|endorsement|endorses)\b/i],
     ["job losses", /\b(layoffs?|laid off|job cuts|cuts? jobs)\b/i],
     ["financial distress", /\b(bankrupt|bankruptcy|insolvent|defaulted)\b/i],
   ];
