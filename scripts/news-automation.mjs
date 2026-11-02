@@ -297,9 +297,9 @@ async function generateArticles(geminiApiKey, sourceArticles) {
 3. FACT-CHECKING: Treat the selected story's own publisher text, RSS content, description and headline as the only evidence for its claims. Use related coverage only as leads for comparison, never as proof or as a source of extra facts. Attribute important claims to the named publisher, preferably in the opening paragraph. Do not present an allegation, prediction, rumor or developing claim as established fact. Never invent quotes, statistics, dates, causes, motives, names, background details or context.
 4. HIGH-IMPACT CLAIMS: Be especially conservative with deaths, injuries, hospitalizations, arrests, criminal charges, convictions, court rulings, election results, endorsements, layoffs and financial distress. Include these only when the selected story's own supplied evidence explicitly states them. Do not upgrade words such as "may", "could", "alleged" or "expected" into certainty. Keep every number, percentage, amount and date traceable to the selected story's own evidence.
 5. Keep the article faithful to the source headline and central event. Do not combine unrelated stories or turn opinion into fact. If sources conflict, explain the disagreement and attribute each account.
-5. Categorize it (Politics, Tech, Economy, Culture, or Sports).
-6. Generate a clear SEO description of about 150 characters.
-7. Write for readers, not search rankings. Add useful explanation only when supported by the supplied material. Avoid keyword stuffing, clickbait, generic filler, and lightly reworded feed snippets. If the source is too thin to provide real reader value, omit it.
+6. Categorize it (Politics, Tech, Economy, Culture, or Sports).
+7. Generate a clear SEO description of about 150 characters without adding new claims.
+8. Write for readers, not search rankings. Add useful explanation only when supported by the supplied material. Avoid keyword stuffing, clickbait, generic filler, and lightly reworded feed snippets. If the source is too thin to provide real reader value, omit it.
 
 Output the result strictly as a clean JSON array matching these keys: title, content, category, source_url, image_url, seo_description.
 
