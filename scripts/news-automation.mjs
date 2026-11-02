@@ -135,8 +135,8 @@ function extractArticleText(html) {
 async function enrichSourceArticles(articles) {
   const selected = [];
   for (const feed of RSS_FEEDS) {
-    // Try the two newest stories per feed. Publisher retrieval is separate from Gemini usage.
-    selected.push(...articles.filter((item) => item.source?.name === feed.name).slice(0, 2));
+    // Try the three newest stories per feed to improve evidence coverage. This adds publisher-page requests, not Gemini calls.
+    selected.push(...articles.filter((item) => item.source?.name === feed.name).slice(0, 3));
   }
   const enriched = await Promise.all(selected.map(async (article) => {
     try {
