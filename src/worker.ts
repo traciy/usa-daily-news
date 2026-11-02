@@ -47,7 +47,7 @@ function renderArticleMarkdown(markdown: string): string {
 function injectArticleSeo(documentHtml: string, article: SeoArticle): string {
   const canonical = SITE_URL + "/article/" + article.id;
   const description = (article.seo_description || article.content.replace(/[#*_>\[\]()]/g, " ").replace(/\s+/g, " ").trim()).slice(0, 155);
-  const image = article.image_url && /^https?:\/\//i.test(article.image_url) ? article.image_url : SITE_URL + "/og-default.png";
+  const image = article.image_url && /^https?:\/\//i.test(article.image_url) ? article.image_url : SITE_URL + "/og-default.svg";
   const published = new Date(article.created_at);
   const publishedIso = Number.isNaN(published.getTime()) ? "" : published.toISOString();
   const schema = {
@@ -57,7 +57,7 @@ function injectArticleSeo(documentHtml: string, article: SeoArticle): string {
     dateModified: publishedIso || article.created_at,
     inLanguage: "en-US", isAccessibleForFree: true,
     author: { "@type": "Organization", name: "USA Daily News", url: SITE_URL },
-    publisher: { "@type": "Organization", name: "USA Daily News", logo: { "@type": "ImageObject", url: SITE_URL + "/logo.png" } },
+    publisher: { "@type": "Organization", name: "USA Daily News", logo: { "@type": "ImageObject", url: SITE_URL + "/logo.svg" } },
     mainEntityOfPage: { "@type": "WebPage", "@id": canonical },
     articleSection: article.category, url: canonical,
   };
@@ -129,6 +129,137 @@ function renderHomepage(articles: SeoArticle[]): string {
     '<a href="/football">Sports</a> · <a href="/weather">Weather</a></nav>' +
     '<section aria-labelledby="seo-latest-heading"><h2 id="seo-latest-heading">Latest Stories</h2>' +
     '<div class="seo-home-stories">' + cards + '</div></section></main>';
+}
+
+
+interface StaticSeoPage {
+  title: string;
+  description: string;
+  heading: string;
+  paragraphs: string[];
+}
+const STATIC_SEO_PAGES: Record<string, StaticSeoPage> = {
+  "/about": {
+    title: "About USA Daily News",
+    description: "Learn about USA Daily News, our coverage, how we use sources and automated tools, and how to contact us.",
+    heading: "About USA Daily News",
+    paragraphs: [
+      "USA Daily News is a digital publication covering news and developing stories across the United States and around the world, including politics, business, technology, culture, weather and sports.",
+      "Digital tools and AI-assisted processes may help discover, organize and prepare news summaries. Articles may summarize reporting published by other outlets. Where source information is available, we identify and link to the original report.",
+      "We do not claim that every item is original, independent reporting produced by an on-the-ground newsroom. Contact us if you identify an error or missing attribution."
+    ]
+  },
+  "/editorial-policy": {
+    title: "Editorial Policy | USA Daily News",
+    description: "USA Daily News standards for sourcing, AI-assisted content, accuracy, attribution and updates.",
+    heading: "Editorial Policy",
+    paragraphs: [
+      "USA Daily News aims to publish clear, useful news summaries and make the source of reported information as transparent as possible.",
+      "Automated systems and AI-assisted tools may be used to identify, organize, summarize and prepare content. These tools can make mistakes. Not every detail is independently verified by a human editor.",
+      "When articles summarize another publisher's reporting, we aim to identify and link to that source. Developing stories may change as new information becomes available."
+    ]
+  },
+  "/corrections": {
+    title: "Corrections Policy | USA Daily News",
+    description: "How to report an error and how USA Daily News reviews and corrects inaccurate or incomplete information.",
+    heading: "Corrections Policy",
+    paragraphs: [
+      "If you believe an article contains a factual error, misleading wording or incorrect attribution, email info.luwigang254@gmail.com.",
+      "Include the article URL, the exact statement you believe is incorrect, what you believe the correct information should be, and links to reliable supporting sources or documents.",
+      "We assess correction reports against available evidence. If a material error is confirmed, we may correct the article, clarify wording, update attribution or remove content when appropriate."
+    ]
+  },
+  "/privacy-policy": {
+    title: "Privacy Policy | USA Daily News",
+    description: "How USA Daily News handles information when you visit the website, use analytics or contact us.",
+    heading: "Privacy Policy",
+    paragraphs: [
+      "USA Daily News uses Google Analytics to understand visits and page usage. Analytics technologies may collect pages viewed, device and browser details, interaction data and approximate location derived from network information.",
+      "The website is delivered using Cloudflare and stores article content using Supabase. These service providers may process technical information needed to deliver, secure and operate the website.",
+      "If you email us, we receive the information you choose to include and use it to respond, review news tips or assess correction requests. External websites linked from our articles have their own privacy practices."
+    ]
+  },
+  "/contact": {
+    title: "Contact USA Daily News",
+    description: "Contact USA Daily News with news tips, corrections, feedback and general enquiries.",
+    heading: "Contact USA Daily News",
+    paragraphs: [
+      "Have a question, news tip, correction or feedback about something published on this site? Email info.luwigang254@gmail.com.",
+      "For a correction request, include the article URL, the specific detail you believe is inaccurate and a link or document that can help us review it."
+    ]
+  },
+  "/football": {
+    title: "Football & Sports News | USA Daily News",
+    description: "Follow football fixtures, scores and sports coverage from USA Daily News.",
+    heading: "Football & Sports",
+    paragraphs: [
+      "Follow football fixtures, live scores and results across major European competitions, alongside sports coverage from USA Daily News.",
+      "Match information is supplied by external sports data services and may be delayed or subject to correction."
+    ]
+  },
+  "/weather": {
+    title: "Weather News & Forecasts | USA Daily News",
+    description: "Weather coverage and forecast information from USA Daily News.",
+    heading: "Weather",
+    paragraphs: [
+      "Explore weather coverage and forecast information on USA Daily News.",
+      "Weather conditions can change quickly. Check official local weather services for warnings and decisions that affect safety."
+    ]
+  }
+};
+
+async function handleStaticSeoPage(request: Request, env: Env, path: string): Promise<Response> {
+  const page = STATIC_SEO_PAGES[path];
+  if (!page) return env.ASSETS.fetch(request);
+  const asset = await env.ASSETS.fetch(request);
+  if (!asset.ok) return asset;
+  let html = await asset.text();
+  const canonical = SITE_URL + path;
+  const description = htmlEscape(page.description);
+  const schema = JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    name: page.title,
+    description: page.description,
+    url: canonical,
+    isPartOf: { "@type": "WebSite", name: "USA Daily News", url: SITE_URL },
+    publisher: { "@type": "NewsMediaOrganization", name: "USA Daily News", url: SITE_URL, logo: { "@type": "ImageObject", url: SITE_URL + "/logo.svg" } }
+  }).replace(/</g, "\\u003c");
+  const tags = [
+    "<title>" + htmlEscape(page.title) + "</title>",
+    '<meta name="description" content="' + description + '">',
+    '<link rel="canonical" href="' + canonical + '">',
+    '<meta property="og:type" content="website">',
+    '<meta property="og:title" content="' + htmlEscape(page.title) + '">',
+    '<meta property="og:description" content="' + description + '">',
+    '<meta property="og:url" content="' + canonical + '">',
+    '<meta property="og:image" content="' + SITE_URL + '/og-default.svg">',
+    '<meta name="twitter:card" content="summary_large_image">',
+    '<meta name="twitter:title" content="' + htmlEscape(page.title) + '">',
+    '<meta name="twitter:description" content="' + description + '">',
+    '<meta name="twitter:image" content="' + SITE_URL + '/og-default.svg">',
+    '<script type="application/ld+json">' + schema + '</script>'
+  ].join("\\n");
+  html = html
+    .replace(/<title\\b[^>]*>[\\s\\S]*?<\\/title>/i, "")
+    .replace(/<meta\\b[^>]*\\bname=["']description["'][^>]*>/i, "")
+    .replace(/<meta\\b[^>]*\\bproperty=["']og:[^"']+["'][^>]*>/gi, "")
+    .replace(/<meta\\b[^>]*\\bname=["']twitter:[^"']+["'][^>]*>/gi, "")
+    .replace(/<link\\b[^>]*\\brel=["']canonical["'][^>]*>/i, "")
+    .replace("</head>", tags + "\\n</head>");
+  const body = '<main id="seo-static-content"><article><h1>' + htmlEscape(page.heading) + '</h1>' +
+    page.paragraphs.map((paragraph) => "<p>" + htmlEscape(paragraph) + "</p>").join("") +
+    '<p><a href="/about">About</a> · <a href="/editorial-policy">Editorial policy</a> · <a href="/corrections">Corrections</a> · <a href="/privacy-policy">Privacy</a> · <a href="/contact">Contact</a></p></article></main>';
+  html = html.replace('<div id="root"></div>', '<div id="root">' + body + '</div>');
+  return new Response(html, {
+    status: 200,
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "public, max-age=0, s-maxage=300",
+      "X-Content-Type-Options": "nosniff",
+      "X-SEO-Page": path
+    }
+  });
 }
 
 async function handleHomePage(request: Request, env: Env): Promise<Response> {
@@ -390,7 +521,7 @@ async function handleRssFeed(env: Env): Promise<Response> {
       "<language>en-us</language>" +
       "<lastBuildDate>" + updated + "</lastBuildDate>" +
       '<atom:link href="' + SITE_URL + '/feed.xml" rel="self" type="application/rss+xml"/>' +
-      "<image><url>" + SITE_URL + "/og-default.png</url><title>USA Daily News</title><link>" + SITE_URL + "</link></image>" +
+      "<image><url>" + SITE_URL + "/og-default.svg</url><title>USA Daily News</title><link>" + SITE_URL + "</link></image>" +
       items +
       "</channel></rss>";
 
@@ -609,7 +740,7 @@ export default {
     if (url.pathname === "/sitemap.xml") {
       return handleSitemap(env);
     }
-    if (url.pathname === "/" && request.method === "GET") {
+    if (request.method === "GET" && STATIC_SEO_PAGES[url.pathname]) {\n      return handleStaticSeoPage(request, env, url.pathname);\n    }\n    if (url.pathname === "/" && request.method === "GET") {
       return handleHomePage(request, env);
     }
     const articleMatch = url.pathname.match(/^\/article\/(\d+)\/?$/);
