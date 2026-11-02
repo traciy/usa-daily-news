@@ -172,8 +172,8 @@ function extractArticleText(html) {
 async function enrichSourceArticles(articles) {
   const selected = [];
   for (const feed of RSS_FEEDS) {
-    // Try the two newest stories per feed to diversify publishers while keeping page requests bounded.
-    selected.push(...articles.filter((item) => item.source?.name === feed.name).slice(0, 2));
+    // Try up to ten newest stories per feed, subject to the overall balanced candidate limits below.
+    selected.push(...articles.filter((item) => item.source?.name === feed.name).slice(0, 10));
   }
   const enriched = await Promise.all(selected.map(async (article) => {
     try {
