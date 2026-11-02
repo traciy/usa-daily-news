@@ -600,7 +600,8 @@ export default {
     }
     if (url.pathname === "/feed.xml" || url.pathname === "/rss.xml") {
       return handleRssFeed(env);
-    }\n    if (url.pathname === "/sitemap.xml") {
+    }
+    if (url.pathname === "/sitemap.xml") {
       return handleSitemap(env);
     }
     if (url.pathname === "/" && request.method === "GET") {
