@@ -13,68 +13,30 @@ export function Footer({ onHome }: FooterProps) {
           <div>
             <button onClick={onHome} className="text-left" aria-label="USA Daily News home">
               <span className="text-xl font-serif font-bold text-gray-900">USA Daily News</span>
-              <p className="text-xs text-gray-500 mt-1">Independent American journalism.</p>
+              <p className="text-xs text-gray-500 mt-1">News, context and developing stories.</p>
             </button>
             <p className="mt-4 text-sm text-gray-600 max-w-xs leading-relaxed">
-              Covering Politics, Tech, Economy, and Culture with clarity and coverage you can trust.
+              Coverage of news, politics, technology, the economy, culture, weather and sports.
             </p>
           </div>
 
-          <nav aria-label="Social profiles">
-            <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-gray-500 mb-3">
-              Follow Us
-            </h2>
-            <ul className="flex items-center gap-4">
-              <li>
-                <a
-                  href={SITE_CONFIG.sameAs[0]}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="USA Daily News on Twitter"
-                  className="text-gray-600 hover:text-gray-900 transition-colors"
-                >
-                  <Twitter className="h-5 w-5" />
-                </a>
-              </li>
-              <li>
-                <a
-                  href={SITE_CONFIG.sameAs[1]}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="USA Daily News on Facebook"
-                  className="text-gray-600 hover:text-gray-900 transition-colors"
-                >
-                  <Facebook className="h-5 w-5" />
-                </a>
-              </li>
-              <li>
-                <a
-                  href={SITE_CONFIG.sameAs[2]}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="USA Daily News on YouTube"
-                  className="text-gray-600 hover:text-gray-900 transition-colors"
-                >
-                  <Youtube className="h-5 w-5" />
-                </a>
-              </li>
-              <li>
-                <a
-                  href={SITE_CONFIG.sameAs[3]}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="USA Daily News on LinkedIn"
-                  className="text-gray-600 hover:text-gray-900 transition-colors"
-                >
-                  <Linkedin className="h-5 w-5" />
-                </a>
-              </li>
-            </ul>
-          </nav>
+          <div className="flex flex-col gap-5">
+            <nav aria-label="Site information">
+              <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-gray-500 mb-3">Information</h2>
+              <a href="/contact" className="text-sm text-gray-700 hover:text-red-700 underline underline-offset-4">Contact us</a>
+            </nav>
+            <nav aria-label="Social profiles">
+              <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-gray-500 mb-3">Follow Us</h2>
+              <ul className="flex items-center gap-4">
+                <li><a href={SITE_CONFIG.sameAs[0]} target="_blank" rel="noopener noreferrer" aria-label="USA Daily News on Twitter" className="text-gray-600 hover:text-gray-900 transition-colors"><Twitter className="h-5 w-5" /></a></li>
+                <li><a href={SITE_CONFIG.sameAs[1]} target="_blank" rel="noopener noreferrer" aria-label="USA Daily News on Facebook" className="text-gray-600 hover:text-gray-900 transition-colors"><Facebook className="h-5 w-5" /></a></li>
+                <li><a href={SITE_CONFIG.sameAs[2]} target="_blank" rel="noopener noreferrer" aria-label="USA Daily News on YouTube" className="text-gray-600 hover:text-gray-900 transition-colors"><Youtube className="h-5 w-5" /></a></li>
+                <li><a href={SITE_CONFIG.sameAs[3]} target="_blank" rel="noopener noreferrer" aria-label="USA Daily News on LinkedIn" className="text-gray-600 hover:text-gray-900 transition-colors"><Linkedin className="h-5 w-5" /></a></li>
+              </ul>
+            </nav>
+          </div>
         </div>
-        <p className="mt-8 text-xs text-gray-400">
-          &copy; {new Date().getFullYear()} USA Daily News. All rights reserved.
-        </p>
+        <p className="mt-8 text-xs text-gray-400">&copy; {new Date().getFullYear()} USA Daily News. All rights reserved.</p>
       </div>
     </footer>
   );
