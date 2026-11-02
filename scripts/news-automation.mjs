@@ -322,7 +322,7 @@ async function getHeadlines() {
       .filter((part) => typeof part === "string" && part.trim().length > 0)
       .map((part) => part.trim());
     return [...new Set(parts)].join(" ").length >= 800;
-  });
+  }).slice(0, 10); // Keep the Gemini task focused; quality checks still decide what can publish.
   console.log("Publisher page enrichment: " + fullTextCount + " of " + withCoverage.length + " stories have full article text.");
   console.log("Evidence-qualified stories sent to Gemini: " + evidenceEligible.length + " (minimum 800 distinct source characters).");
   if (evidenceEligible.length === 0) {
@@ -357,9 +357,10 @@ Review the numbered source candidates below independently. Select and write up t
 For every article you include:
 - Use only facts explicitly supported by that candidate's own evidence. The publisher name and source URL identify the evidence source.
 - Attribute the central report to the named publisher in the opening paragraph.
-- Write a complete, reader-first report of about ${ARTICLE_WORDS} words, normally in 5–7 substantial paragraphs, with 2–4 useful Markdown H2 subheadings.
+- Write a complete, reader-first report of about ${ARTICLE_WORDS} words (never fewer than 350 words), normally in 5–7 substantial paragraphs, with exactly 2 useful Markdown H2 subheadings.
+- For each selected candidate, produce a full article independently. Do not compress several stories into short summaries to fit the response.
 - Develop the story with key verified facts, relevant details, timeline and implications explicitly supported by this candidate's evidence. Give readers information beyond a rewritten headline.
-- Do not stop after one or two paragraphs. Do not pad, repeat points, or invent background. If evidence cannot support a complete report of at least 5 meaningful paragraphs, omit the candidate rather than manufacture detail.
+- Do not stop after one or two paragraphs. Do not pad, repeat points, or invent background. If evidence cannot support a complete report of at least 350 words and 5 meaningful paragraphs, omit the candidate rather than manufacture detail.
 - SEO: identify one natural primary search phrase that accurately describes this specific story. Use it naturally in the headline and near the start of the opening paragraph; use relevant names, places and related terms only where supported. Do not repeat keywords unnaturally or write for a keyword-density target.
 - Make the headline specific and descriptive, ideally about 45–65 characters when practical. Put the most important identifying subject/action early; avoid generic wording, sensationalism and clickbait.
 - Structure the article for scanning: start with a direct answer to what happened and why it matters; use descriptive H2 subheadings; keep paragraphs focused; explain relevant context and implications only when supported. Do not add a fabricated FAQ or unsupported advice.
@@ -373,6 +374,7 @@ For every article you include:
 - Return content as Markdown with meaningful H2 subheadings (##). Return only the existing fields: title, content, category, source_url, image_url, seo_description.
 
 Return ONLY a valid JSON array. Each object must contain exactly these keys: title, content, category, source_url, image_url, seo_description.
+Before returning, check every article yourself: at least 350 words, 5 substantial paragraphs, exactly 2 lines beginning with "## ", and a 120–160 character meta description. Correct any draft that fails.
 Use the exact source_url from the selected candidate. Use null for image_url when no image URL is supplied. If no candidate meets every requirement, return [].
 
 SOURCE CANDIDATES:
