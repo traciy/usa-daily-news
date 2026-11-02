@@ -98,8 +98,8 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    if (req.method !== "POST") {
-      return json(405, { error: "Method not allowed. Use POST." });
+    if (req.method !== "GET" && req.method !== "POST") {
+      return json(405, { error: "Method not allowed. Use GET or POST." });
     }
 
     // --- Authenticate via shared bearer token ---
@@ -117,6 +117,15 @@ Deno.serve(async (req: Request) => {
       return json(401, { error: "Unauthorized." });
     }
 
+    if (req.method === "GET") {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL");
+      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      if (!supabaseUrl || !serviceRoleKey) return json(500, { error: "Server misconfigured." });
+      const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } });
+      const { data, error } = await supabase.from("articles").select("title, source_url").order("created_at", { ascending: false }).limit(1000);
+      if (error) return json(500, { error: "Published article lookup failed.", details: error.message });
+      return json(200, { success: true, articles: data || [] });
+    }
     // --- Parse body ---
     let body: unknown;
     try {
