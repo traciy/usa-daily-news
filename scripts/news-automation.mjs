@@ -121,8 +121,7 @@ function parseRssFeed(xml, feed) {
     const href = rawLink.match(/\bhref=["']([^"']+)["']/i)?.[1];
     const link = decodeXml(rawLink.replace(/<[^>]+>/g, "").trim() || href || "");
     const rawDate = getXmlTag(block, ["pubDate", "published", "updated", "dc:date"]);
-    const imageTag = getXmlTag(block, ["media:content", "media:thumbnail", "enclosure"]);
-    const image = imageTag.match(/\burl=["']([^"']+)["']/i)?.[1] || null;
+    const image = block.match(/<(?:media:content|media:thumbnail|enclosure)\b[^>]*\burl=["']([^"']+)["']/i)?.[1] || null;
     let publishedAt = null;
     if (rawDate) {
       const parsedDate = Date.parse(cleanFeedText(rawDate));
