@@ -332,32 +332,45 @@ async function getHeadlines() {
 }
 
 async function generateArticles(geminiApiKey, sourceArticles) {
-  const prompt = `You are the Chief Editor of USA Daily News. Look at the raw news articles provided below. Select up to ${ARTICLE_COUNT} genuinely newsworthy, distinct stories. Quality matters more than reaching the target. For each selected story:
-1. Rewrite the headline clearly and accurately; do not exaggerate the facts.
-2. Write only as much as the supplied evidence supports. There is no required word count. RSS summaries may support concise reports, but never pretend they contain details they do not. Do not pad, repeat points, or add generic background.
-3. FACT-CHECKING: Treat the selected story's own publisher text, RSS content, description and headline as the only evidence for its claims. Use related coverage only as leads for comparison, never as proof or as a source of extra facts. Attribute important claims to the named publisher, preferably in the opening paragraph. Do not present an allegation, prediction, rumor or developing claim as established fact. Never invent quotes, statistics, dates, causes, motives, names, background details or context.
-4. HIGH-IMPACT CLAIMS: Be especially conservative with deaths, injuries, hospitalizations, arrests, criminal charges, convictions, court rulings, election results, endorsements, layoffs and financial distress. Do not automatically publish stories involving deaths, injuries, hospitalizations, arrests, criminal charges, convictions, court rulings, election outcomes, endorsements, layoffs or financial distress. Omit these from the JSON output for human editorial review, even if a source reports them. Do not upgrade words such as "may", "could", "alleged" or "expected" into certainty. Keep every number, percentage, amount and date traceable to the selected story's own evidence.
-5. Keep the article faithful to the source headline and central event. Do not combine unrelated stories or turn opinion into fact. If sources conflict, explain the disagreement and attribute each account.
-6. Categorize it (Politics, Tech, Economy, Culture, or Sports).
-7. Generate a clear SEO description of about 150 characters without adding new claims.
-8. Write for readers, not search rankings. Add useful explanation only when supported by the supplied material. Avoid keyword stuffing, clickbait, generic filler, and lightly reworded feed snippets. If the source is too thin to provide real reader value, omit it.
+  // Send one compact, deduplicated evidence packet. Repeating the same RSS
+  // text in description/content/article_text wastes free-tier input tokens.
+  const candidates = sourceArticles.map((article, index) => {
+    const evidenceParts = [article.article_text, article.content, article.description]
+      .filter((part) => typeof part === "string" && part.trim())
+      .map((part) => part.trim());
+    const uniqueEvidence = [...new Set(evidenceParts)];
+    const evidence = uniqueEvidence.join("\n").slice(0, 4500);
+    return {
+      id: index + 1,
+      publisher: article.source?.name || "Unknown publisher",
+      category: article.source_category,
+      headline: article.title,
+      published_at: article.publishedAt,
+      source_url: article.url,
+      evidence,
+    };
+  });
 
-Output the result strictly as a clean JSON array matching these keys: title, content, category, source_url, image_url, seo_description.
+  const prompt = `You are an evidence-led editor for USA Daily News.
+Review the numbered source candidates below independently. Select and write up to ${ARTICLE_COUNT} distinct stories that can provide genuine reader value. You are allowed to return fewer than the target. Do not return an empty array merely because some candidates are unsuitable: assess every candidate and include each suitable one.
 
-Here is the raw news data:
-${JSON.stringify(sourceArticles.map((a) => ({
-  title: a.title,
-  description: a.description,
-  content: a.content,
-  source_name: a.source?.name,
-  source_category: a.source_category,
-  author: a.author,
-  publishedAt: a.publishedAt,
-  url: a.url,
-  urlToImage: a.urlToImage,
-  article_text: a.article_text,
-  related_coverage: a.related_coverage,
-})))}`;
+For every article you include:
+- Use only facts explicitly supported by that candidate's own evidence. The publisher name and source URL identify the evidence source.
+- Attribute the central report to the named publisher in the opening paragraph.
+- Write a clear, accurate headline and a useful, concise report. Do not pad or invent background.
+- Preserve uncertainty and attribution. Never invent quotes, names, statistics, dates, causes, motives, context or details.
+- Do not use another candidate as corroboration or borrow facts from it.
+- Omit a candidate if its evidence is too thin, contradictory, unclear, or does not support a useful report.
+- Hold for human review and omit any candidate whose central event involves death, serious injury, hospitalization, arrest, criminal charges, conviction, court ruling, election outcome, endorsement, layoffs, or financial distress.
+- Keep every number, percentage, amount and date traceable to that candidate's evidence.
+- Categorize as Politics, Tech, Economy, Culture, or Sports.
+- Write an accurate SEO description of about 150 characters.
+
+Return ONLY a valid JSON array. Each object must contain exactly these keys: title, content, category, source_url, image_url, seo_description.
+Use the exact source_url from the selected candidate. Use null for image_url when no image URL is supplied. If no candidate meets every requirement, return [].
+
+SOURCE CANDIDATES:
+${JSON.stringify(candidates)}`;
 
   const response = await fetchWithRetry(
     `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(MODEL)}:generateContent`,
@@ -371,7 +384,7 @@ ${JSON.stringify(sourceArticles.map((a) => ({
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         generationConfig: {
           responseMimeType: "application/json",
-          maxOutputTokens: 60000,
+          maxOutputTokens: 30000,
         },
       }),
     },
@@ -387,7 +400,18 @@ ${JSON.stringify(sourceArticles.map((a) => ({
   }
 
   const parsed = parseModelJson(text);
-  if (parsed.length === 0) {   console.error("Gemini diagnostic:", JSON.stringify({     model: MODEL,     finishReason: data?.candidates?.[0]?.finishReason,     promptFeedback: data?.promptFeedback,     candidateCount: data?.candidates?.length ?? 0,     responseTextLength: text.length,     responsePreview: text.slice(0, 500)   }, null, 2));    throw new Error("Gemini returned an empty article list. See diagnostic above."); }
+  if (parsed.length === 0) {
+    console.error("Gemini diagnostic:", JSON.stringify({
+      model: MODEL,
+      finishReason: data?.candidates?.[0]?.finishReason,
+      promptFeedback: data?.promptFeedback,
+      candidateCount: data?.candidates?.length ?? 0,
+      responseTextLength: text.length,
+      responsePreview: text.slice(0, 500),
+      candidateCountSent: candidates.length,
+    }, null, 2));
+    throw new Error("Gemini found no publishable stories in the supplied evidence. No articles were published.");
+  }
   return parsed;
 }
 
