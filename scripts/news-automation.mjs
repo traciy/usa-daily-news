@@ -470,10 +470,10 @@ function validateAndNormalize(generated, sourceArticles) {
       ? htmlParagraphs.length
       : content.split(/\n\s*\n/).filter((paragraph) => paragraph.replace(/<[^>]*>/g, "").trim().length >= 40).length;
     const wordCount = normalizedParagraphText.split(/\s+/).filter(Boolean).length;
-    const headingCount = (content.match(/^##\\s+.+$/gm) || []).length;
+    const headingCount = (content.match(/^##\s+.+$/gm) || []).length;
     const descriptionLength = seoDescription.length;
     const titleLength = title.length;
-    const primaryTerms = title.toLowerCase().replace(/[^a-z0-9 ]/g, " ").split(/\\s+/).filter((term) => term.length > 3);
+    const primaryTerms = title.toLowerCase().replace(/[^a-z0-9 ]/g, " ").split(/\s+/).filter((term) => term.length > 3);
     const openingText = normalizedParagraphText.slice(0, 700).toLowerCase();
     const primaryTermCoverage = primaryTerms.length
       ? primaryTerms.filter((term) => openingText.includes(term)).length / primaryTerms.length
