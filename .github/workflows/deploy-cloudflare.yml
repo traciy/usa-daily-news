@@ -23,6 +23,7 @@ jobs:
       FOOTBALL_DATA_API_KEY: ${{ secrets.FOOTBALL_DATA_API_KEY }}
       VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
       VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      GH_DISPATCH_TOKEN: ${{ secrets.GH_DISPATCH_TOKEN }}
 
     steps:
       - name: Check out repository
@@ -56,7 +57,7 @@ jobs:
       - name: Prepare Worker secrets for deployment
         shell: bash
         run: |
-          node -e 'const fs=require("fs"); fs.writeFileSync("/tmp/worker-secrets.json", JSON.stringify({SUPABASE_URL:process.env.VITE_SUPABASE_URL,SUPABASE_ANON_KEY:process.env.VITE_SUPABASE_ANON_KEY,FOOTBALL_DATA_API_KEY:process.env.FOOTBALL_DATA_API_KEY}));'
+          node -e 'const fs=require("fs"); const secrets={SUPABASE_URL:process.env.VITE_SUPABASE_URL,SUPABASE_ANON_KEY:process.env.VITE_SUPABASE_ANON_KEY,FOOTBALL_DATA_API_KEY:process.env.FOOTBALL_DATA_API_KEY}; if(process.env.GH_DISPATCH_TOKEN) secrets.GH_DISPATCH_TOKEN=process.env.GH_DISPATCH_TOKEN; fs.writeFileSync("/tmp/worker-secrets.json",JSON.stringify(secrets));'
 
       - name: Deploy website, Worker, and secrets together
         run: npx --yes wrangler@4.156.0 deploy --config wrangler.jsonc --secrets-file /tmp/worker-secrets.json
