@@ -804,6 +804,9 @@ export default {
     if (url.pathname === "/sitemap.xml") {
       return handleSitemap(env);
     }
+    if (url.pathname === "/news-sitemap.xml") {
+      return handleNewsSitemap(env);
+    }
     if (request.method === "GET" && STATIC_SEO_PAGES[url.pathname]) {
       return handleStaticSeoPage(request, env, url.pathname);
     }
