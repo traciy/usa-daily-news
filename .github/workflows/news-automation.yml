@@ -10,7 +10,7 @@ on:
         default: false
 
   schedule:
-    - cron: "*/20 * * * *"
+    - cron: "*/10 * * * *"
       timezone: "Africa/Nairobi"
 
 permissions:
@@ -29,7 +29,7 @@ jobs:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       GEMINI_MODEL: gemini-3.5-flash-lite
       ARTICLE_COUNT: "10"
-      MIN_ARTICLES: "3"
+      MIN_ARTICLES: "1"
       ARTICLE_WORDS: "250"
       SUPABASE_FUNCTION_URL: https://dyabpvcqedeioarkgjlz.supabase.co/functions/v1/api-articles
       SUPABASE_BEARER_TOKEN: ${{ secrets.SUPABASE_BEARER_TOKEN }}
