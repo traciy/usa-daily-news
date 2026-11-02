@@ -340,7 +340,9 @@ function selectBalancedByCountry(items, limit) {
   return selected;
 }
 
-async function getHeadlines() {
+async function getHeadlines(publishedArticles = []) {
+  const publishedUrls = new Set(publishedArticles.map((item) => normalizedUrl(item.source_url)).filter(Boolean));
+  const publishedTitles = publishedArticles.map((item) => String(item.title || "")).filter(Boolean);
   const results = await Promise.allSettled(RSS_FEEDS.map(async (feed) => {
     const response = await fetchWithRetry(feed.url, {
       headers: {
@@ -395,7 +397,12 @@ async function getHeadlines() {
     return [...new Set(parts)].join(" ").length >= 800;
   });
   // Balance again after enrichment so accessible publishers do not create a new country bias.
-  const evidenceEligible = selectBalancedByCountry(evidenceQualified, 10);
+  const notPreviouslyPublished = evidenceQualified.filter((article) => {
+    if (publishedUrls.has(normalizedUrl(article.url))) return false;
+    return !publishedTitles.some((title) => titleSimilarity(title, article.title) >= 0.65);
+  });
+  const evidenceEligible = selectBalancedByCountry(notPreviouslyPublished, 10);
+  console.log("Previously published stories skipped: " + (evidenceQualified.length - notPreviouslyPublished.length) + ".");
   const evidenceCountries = [...new Set(evidenceEligible.map((article) => article.source?.country).filter(Boolean))];
   console.log("Evidence-qualified country coverage: " + evidenceCountries.length + " countries/regions: " + evidenceCountries.join(", "));
   console.log("Publisher page enrichment: " + fullTextCount + " of " + withCoverage.length + " stories have full article text.");
@@ -437,11 +444,11 @@ Editorial and evidence rules:
 - Explain the confirmed event, the key people or organizations involved, relevant dates/locations, verified details, and any stated next steps or implications, but include each only when the candidate's evidence supports it.
 - Use natural paragraphs with clear transitions. Do not follow a fixed paragraph count. H2 subheadings are optional; use concise descriptive headings only when they genuinely improve navigation, especially for longer reports. Do not add headings merely to satisfy a count.
 
-Search and presentation:
-- Identify the main subject and likely search intent. Use the most natural specific search phrase in the headline and naturally in the opening paragraph when it fits. Include important names, organizations and locations only when supported by the source.
-- Write a unique, accurate, descriptive headline. Put the main subject and development early. Keep it concise (usually around 45–70 characters where practical), specific and compelling without clickbait or exaggeration.
-- Write a unique, useful meta description of 120–160 characters summarizing the actual report. Include the main subject naturally; do not stuff keywords or simply repeat the headline. Do not promise details absent from the article.
-- Make the report easy to scan, answer what happened near the beginning, explain unfamiliar terms where the evidence allows, and avoid fabricated FAQs, generic filler and unsupported advice.
+Basic SEO and presentation:
+- Write a clear, accurate headline that naturally names the main subject and important development. Keep it readable; avoid clickbait and keyword stuffing.
+- Write a concise, natural meta description that accurately summarizes the article and includes the main subject when appropriate. Do not force a character count.
+- Use the main search phrase naturally where it fits, especially in the headline and opening, without repeating it unnaturally.
+- Make the report easy to read and explain what happened near the beginning.
 
 Accuracy and safety:
 - Preserve uncertainty and attribution. Never invent quotes, names, statistics, dates, causes, motives, reactions, context or details.
@@ -561,13 +568,9 @@ function validateAndNormalize(generated, sourceArticles) {
     const qualityIssues = [];
     if (!title) qualityIssues.push("missing headline");
     if (!content || content.length < 350) qualityIssues.push("article body is missing or too short");
-    if (wordCount < 120) qualityIssues.push(`only ${wordCount} words; at least 120 are required for a complete report`);
     if (!seoDescription) qualityIssues.push("missing meta description");
-    if (descriptionLength > 0 && (descriptionLength < 120 || descriptionLength > 160)) qualityIssues.push(`meta description is ${descriptionLength} characters; use 120–160`);
     if (!category) qualityIssues.push("category is missing or unsupported");
     if (!hasSubstantialEvidence) qualityIssues.push("source evidence is below the 800-character threshold");
-    if (titleLength > 70) qualityIssues.push(`headline is ${titleLength} characters; make it more concise`);
-    if (primaryTermCoverage < 0.5) qualityIssues.push("the opening does not clearly include enough of the headline's main subject/terms");
     if (qualityIssues.length) {
       const reason = `${original.title}: ${qualityIssues.join("; ")}`;
       console.warn("Skipping an article that fails editorial/on-page checks (" + reason + ").");
@@ -651,7 +654,13 @@ async function publishArticles(articles, supabaseUrl, bearerToken) {
 
 async function main() {
   const geminiApiKey = requiredEnv("GEMINI_API_KEY");
-  const sourceArticles = await getHeadlines();
+  const supabaseUrl = requiredEnv("SUPABASE_FUNCTION_URL");
+  const bearerToken = requiredEnv("SUPABASE_BEARER_TOKEN");
+  const publishedResponse = await fetchWithRetry(supabaseUrl, { method: "GET", headers: { Authorization: "Bearer " + bearerToken, Accept: "application/json" } }, "Previously published article lookup");
+  const publishedData = await publishedResponse.json();
+  const publishedArticles = Array.isArray(publishedData?.articles) ? publishedData.articles : [];
+  console.log("Loaded " + publishedArticles.length + " previously published articles for duplicate protection.");
+  const sourceArticles = await getHeadlines(publishedArticles);
   const GEMINI_MAX_RETRIES = 6;
   let generated;
   let articles;
