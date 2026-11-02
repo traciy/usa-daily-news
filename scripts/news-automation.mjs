@@ -181,6 +181,24 @@ function sourceEvidenceText(article) {
     .filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
 }
 
+function highImpactTopic(generatedText) {
+  const groups = [
+    ["death or fatality", /\\b(died|death|dead|killed|kills|fatal|fatalities)\\b/i],
+    ["injury or hospitalization", /\\b(injured|wounded|hospitali[sz]ed|critical condition|surgery)\\b/i],
+    ["arrest or detention", /\\b(arrested|detained|taken into custody)\\b/i],
+    ["criminal charge or conviction", /\\b(charged|indicted|convicted|sentenced|acquitted)\\b/i],
+    ["court ruling", /\\b(ruled|ruling|throws? out|dismissed|overturned|blocked)\\b/i],
+    ["election result", /\\b(won|wins|defeated|elected|reelected|re-elected)\\b/i],
+    ["endorsement", /\\b(endorsed|endorsement|backs|backed)\\b/i],
+    ["job losses", /\\b(layoffs?|laid off|job cuts|cuts? jobs)\\b/i],
+    ["financial distress", /\\b(bankrupt|bankruptcy|insolvent|defaulted)\\b/i],
+  ];
+  for (const [label, pattern] of groups) {
+    if (pattern.test(generatedText)) return label;
+  }
+  return "";
+}
+
 function hasUnsupportedHighImpactClaim(generatedText, evidenceText) {
   const groups = [
     ["death or fatality", /\b(died|death|dead|killed|fatal|fatalities)\b/i],
