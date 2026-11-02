@@ -253,8 +253,8 @@ async function generateArticles(geminiApiKey, sourceArticles) {
 2. Write an original report of up to approximately ${ARTICLE_WORDS} words using the full publisher article text when supplied. RSS summaries alone are not enough for a long report: if full text is unavailable or evidence is too thin, return fewer articles. Never pad to reach a word count.
 3. FACT-CHECKING: Treat publisher article text as primary evidence. Compare it with related coverage from independent feeds when supplied. Use corroborated facts confidently; when only one publisher reports a claim, attribute it clearly. Do not present an uncorroborated allegation, prediction, rumor, or developing claim as established fact. Never invent quotes, statistics, dates, causes, motives, names, or background details.
 4. Keep the article faithful to the source headline and central event. Do not combine unrelated stories or turn opinion into fact. If sources conflict, explain the disagreement and attribute each account.
-3. Categorize it (Politics, Tech, Economy, Culture, or Sports).
-4. Generate a clear SEO description of about 150 characters.
+5. Categorize it (Politics, Tech, Economy, Culture, or Sports).
+6. Generate a clear SEO description of about 150 characters.
 7. Keep the article neutral, specific, readable, and useful. Attribute information to the supplied source where appropriate.
 
 Output the result strictly as a clean JSON array matching these keys: title, content, category, source_url, image_url, seo_description.
@@ -331,8 +331,8 @@ function validateAndNormalize(generated, sourceArticles) {
     const requestedCategory = typeof article.category === "string" ? article.category.trim() : "";
     const category = [...allowedCategories].find((allowed) => allowed.toLowerCase() === requestedCategory.toLowerCase());
 
-    const evidenceText = original.article_text || original.content || original.description || "";
-    if (!title || !content || !seoDescription || !category || evidenceText.length < 500 || content.length < 500) {
+    const hasSubstantialEvidence = original.article_text.length >= 700 || original.content.length >= 1500;
+    if (!title || !content || !seoDescription || !category || !hasSubstantialEvidence || content.length < 500) {
       console.warn(`Skipping an article with missing fields, insufficient source evidence, or invalid category. Source: ${original.title}`);
       continue;
     }
