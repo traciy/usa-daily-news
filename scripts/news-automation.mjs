@@ -76,10 +76,10 @@ function parseModelJson(text) {
 }
 
 const RSS_FEEDS = [
-  // United States: retained existing publishers and political coverage.
+  // United States.
   { name: "NPR", url: "https://feeds.npr.org/1001/rss.xml", category: "Politics", country: "United States" },
   { name: "NBC News", url: "https://feeds.nbcnews.com/nbcnews/public/news", category: "Politics", country: "United States" },
-  { name: "ABC News", url: "https://abcnews.com/abcnews/usheadlines", category: "Politics", country: "United States" },
+  { name: "ABC News", url: "https://abcnews.go.com/abcnews/topstories", category: "Politics", country: "United States" },
   { name: "CBS News", url: "https://www.cbsnews.com/latest/rss/main", category: "Politics", country: "United States" },
   { name: "NPR Politics", url: "https://feeds.npr.org/1014/rss.xml", category: "Politics", country: "United States" },
   { name: "PBS NewsHour", url: "https://www.pbs.org/newshour/feeds/rss/headlines", category: "Politics", country: "United States" },
@@ -87,38 +87,43 @@ const RSS_FEEDS = [
   { name: "Politico", url: "https://rss.politico.com/politics-news.xml", category: "Politics", country: "United States" },
   { name: "The Hill", url: "https://thehill.com/feed/", category: "Politics", country: "United States" },
   { name: "Axios", url: "https://api.axios.com/feed/", category: "Politics", country: "United States" },
-
-  // International reporting from established public broadcasters and publishers.
+  { name: "New York Times World", url: "https://rss.nytimes.com/services/xml/rss/nyt/World.xml", category: "World", country: "United States" },
+  { name: "Associated Press via Flipboard", url: "https://flipboard.com/@associatedpress/top-stories-u7govdf1z.rss", category: "World", country: "United States" },
+  // United Kingdom and Ireland.
   { name: "BBC World", url: "https://feeds.bbci.co.uk/news/world/rss.xml", category: "World", country: "United Kingdom" },
   { name: "BBC UK", url: "https://feeds.bbci.co.uk/news/uk/rss.xml", category: "World", country: "United Kingdom" },
   { name: "The Guardian World", url: "https://www.theguardian.com/world/rss", category: "World", country: "United Kingdom" },
   { name: "Sky News World", url: "https://feeds.skynews.com/feeds/rss/world.xml", category: "World", country: "United Kingdom" },
-  { name: "The Independent", url: "https://www.independent.co.uk/rss", category: "World", country: "United Kingdom" },
-  { name: "CBC News", url: "https://www.cbc.ca/webfeed/rss/rss-topstories", category: "World", country: "Canada" },
-  { name: "ABC News Australia", url: "https://www.abc.net.au/news/feed/45910/rss.xml", category: "World", country: "Australia" },
-  { name: "RNZ", url: "https://www.rnz.co.nz/rss/national.xml", category: "World", country: "New Zealand" },
+  { name: "The Independent", url: "https://www.independent.co.uk/news/rss", category: "World", country: "United Kingdom" },
+  { name: "BBC Sport", url: "https://feeds.bbci.co.uk/sport/rss.xml", category: "Sports", country: "United Kingdom" },
+  { name: "Sky Sports", url: "https://www.skysports.com/rss/12040", category: "Sports", country: "United Kingdom" },
   { name: "RTÉ News", url: "https://www.rte.ie/feeds/rss/?index=/news/", category: "World", country: "Ireland" },
-  { name: "Deutsche Welle", url: "https://rss.dw.com/rdf/rss-en-all", category: "World", country: "Germany" },
-  { name: "France 24", url: "https://www.france24.com/en/rss", category: "World", country: "France" },
-  { name: "Euronews", url: "https://www.euronews.com/rss", category: "World", country: "European Union" },
-  { name: "Le Monde English", url: "https://www.lemonde.fr/en/rss/une.xml", category: "World", country: "France" },
-  { name: "Der Spiegel International", url: "https://www.spiegel.de/international/index.rss", category: "World", country: "Germany" },
-  { name: "Politico Europe", url: "https://www.politico.eu/feed/", category: "World", country: "European Union" },
-  { name: "NHK World", url: "https://www3.nhk.or.jp/rj/podcast/rss/english.xml", category: "World", country: "Japan" },
-  { name: "The Japan Times", url: "https://www.japantimes.co.jp/feed/topstories/", category: "World", country: "Japan" },
-  { name: "Kyodo News", url: "https://english.kyodonews.net/rss/all.xml", category: "World", country: "Japan" },
-  { name: "CNA", url: "https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml", category: "World", country: "Singapore" },
+  // Canada, Australia and New Zealand.
+  { name: "CBC News", url: "https://www.cbc.ca/webfeed/rss/rss-topstories", category: "World", country: "Canada" },
+  { name: "Global News Canada", url: "https://globalnews.ca/feed/", category: "World", country: "Canada" },
+  { name: "ABC News Australia", url: "https://www.abc.net.au/news/feed/51120/rss.xml", category: "World", country: "Australia" },
+  { name: "RNZ", url: "https://www.rnz.co.nz/rss/national.xml", category: "World", country: "New Zealand" },
+  // Continental Europe.
+  { name: "Deutsche Welle", url: "https://rss.dw.com/xml/rss-en-all", category: "World", country: "Germany" },
   { name: "tagesschau", url: "https://www.tagesschau.de/index~rss2.xml", category: "World", country: "Germany" },
+  { name: "France 24", url: "https://www.france24.com/en/rss", category: "World", country: "France" },
+  { name: "Le Monde English", url: "https://www.lemonde.fr/en/rss/une.xml", category: "World", country: "France" },
+  { name: "ARTE News", url: "https://www.arte.tv/sites/news/feed/", category: "World", country: "France" },
+  { name: "Euronews", url: "https://www.euronews.com/rss", category: "World", country: "European Union" },
+  { name: "Politico Europe", url: "https://www.politico.eu/feed/", category: "World", country: "European Union" },
+  { name: "NOS News", url: "https://feeds.nos.nl/nosnieuwsalgemeen", category: "World", country: "Netherlands" },
   { name: "ANSA English", url: "https://www.ansa.it/english/news/english_rss.xml", category: "World", country: "Italy" },
-  { name: "El País English", url: "https://feeds.elpais.com/mrss-s/pages/ep/site/english.elpais.com/section/english.elpais.com/rss", category: "World", country: "Spain" },
-
-  // Sports reporting across the US and international leagues.
-  { name: "ESPN", url: "https://www.espn.com/espn/rss/news", category: "Sports", country: "United States" },
+  // Asia-Pacific and international publishers.
+  { name: "NHK World", url: "https://www3.nhk.or.jp/rssxml/news/globalnewsroom.xml", category: "World", country: "Japan" },
+  { name: "CNA", url: "https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml", category: "World", country: "Singapore" },
+  { name: "Yonhap News", url: "https://en.yna.co.kr/RSS/news.xml", category: "World", country: "South Korea" },
+  { name: "Times of India", url: "https://timesofindia.indiatimes.com/rssfeedstopstories.cms", category: "World", country: "India" },
+  { name: "Al Jazeera English", url: "https://www.aljazeera.com/xml/rss/all.xml", category: "World", country: "Qatar" },
+  { name: "TRT World", url: "https://www.trtworld.com/rss", category: "World", country: "Türkiye" },
+  // Sports reporting.
   { name: "Fox Sports", url: "https://feeds.foxnews.com/foxnews/sports", category: "Sports", country: "United States" },
   { name: "Yahoo Sports", url: "https://sports.yahoo.com/rss/", category: "Sports", country: "United States" },
-  { name: "BBC Sport", url: "https://feeds.bbci.co.uk/sport/rss.xml", category: "Sports", country: "United Kingdom" },
   { name: "CBS Sports", url: "https://www.cbssports.com/rss/headlines/", category: "Sports", country: "United States" },
-  { name: "Sky Sports", url: "https://www.skysports.com/rss/12040", category: "Sports", country: "United Kingdom" },
 ];
 
 function decodeXml(value = "") {
@@ -278,7 +283,8 @@ function parseRssFeed(xml, feed) {
     const content = cleanFeedText(getXmlTag(block, ["content:encoded", "content", "description", "summary"]));
     const rawLink = getXmlTag(block, ["link"]);
     const href = rawLink.match(/\bhref=["']([^"']+)["']/i)?.[1];
-    const link = decodeXml(rawLink.replace(/<[^>]+>/g, "").trim() || href || "");
+    const atomHref = block.match(/<link\b[^>]*\bhref=["']([^"']+)["'][^>]*\/?\s*>/i)?.[1];
+    const link = decodeXml(rawLink.replace(/<[^>]+>/g, "").trim() || href || atomHref || "");
     const rawDate = getXmlTag(block, ["pubDate", "published", "updated", "dc:date"]);
     const image = block.match(/<(?:media:content|media:thumbnail|enclosure)\b[^>]*\burl=["']([^"']+)["']/i)?.[1] || null;
     let publishedAt = null;
@@ -288,7 +294,7 @@ function parseRssFeed(xml, feed) {
     }
     return {
       title, description: description.slice(0, 3000), content: content.slice(0, 5000),
-      url: normalizedUrl(link), publishedAt, source: { name: feed.name },
+      url: normalizedUrl(link), publishedAt, source: { name: feed.name, country: feed.country },
       source_category: feed.category, urlToImage: image ? decodeXml(image) : null,
     };
   }).filter((article) => {
@@ -296,6 +302,37 @@ function parseRssFeed(xml, feed) {
     if (article.publishedAt) return Date.now() - Date.parse(article.publishedAt) <= 48 * 60 * 60 * 1000;
     return true;
   });
+}
+
+function selectBalancedByCountry(items, limit) {
+  const groups = new Map();
+  for (const item of items) {
+    const country = item.source?.country || "International";
+    if (!groups.has(country)) groups.set(country, []);
+    groups.get(country).push(item);
+  }
+  for (const group of groups.values()) {
+    group.sort((a, b) => (Date.parse(b.publishedAt || "") || 0) - (Date.parse(a.publishedAt || "") || 0));
+  }
+  const countries = [...groups.keys()].sort((a, b) => {
+    const timeA = Date.parse(groups.get(a)[0]?.publishedAt || "") || 0;
+    const timeB = Date.parse(groups.get(b)[0]?.publishedAt || "") || 0;
+    return timeB - timeA || a.localeCompare(b);
+  });
+  const selected = [];
+  for (let round = 0; selected.length < limit; round += 1) {
+    let added = false;
+    for (const country of countries) {
+      const candidate = groups.get(country)[round];
+      if (candidate) {
+        selected.push(candidate);
+        added = true;
+        if (selected.length >= limit) break;
+      }
+    }
+    if (!added) break;
+  }
+  return selected;
 }
 
 async function getHeadlines() {
@@ -337,20 +374,25 @@ async function getHeadlines() {
   // Keep the Gemini/free-tier workload bounded while drawing from the expanded
   // international news pool and preserving a separate sports allocation.
   const recent = [...articles].sort((a, b) => (Date.parse(b.publishedAt || "") || 0) - (Date.parse(a.publishedAt || "") || 0));
-  const generalNews = recent.filter((item) => item.source_category !== "Sports").slice(0, 15);
-  const sports = recent.filter((item) => item.source_category === "Sports").slice(0, 15);
+  // Round-robin by publisher country so high-volume US/UK feeds cannot crowd out other markets.
+  const generalNews = selectBalancedByCountry(recent.filter((item) => item.source_category !== "Sports"), 15);
+  const sports = selectBalancedByCountry(recent.filter((item) => item.source_category === "Sports"), 15);
   const selected = [...generalNews, ...sports].sort((a, b) => (Date.parse(b.publishedAt || "") || 0) - (Date.parse(a.publishedAt || "") || 0));
-  const countries = [...new Set(selected.map((item) => RSS_FEEDS.find((feed) => feed.name === item.source?.name)?.country).filter(Boolean))];
+  const countries = [...new Set(selected.map((item) => item.source?.country).filter(Boolean))];
   console.log("Gemini candidate limit: " + selected.length + " stories (maximum 15 international/general news + 15 sports) from " + countries.length + " countries/regions: " + countries.join(", ") + ".");
   const enriched = await enrichSourceArticles(selected);
   const withCoverage = enriched.map((article) => ({ ...article, related_coverage: relatedCoverageFor(article, selected) }));
   const fullTextCount = withCoverage.filter((article) => article.article_text).length;
-  const evidenceEligible = withCoverage.filter((article) => {
+  const evidenceQualified = withCoverage.filter((article) => {
     const parts = [article.article_text, article.content, article.description]
       .filter((part) => typeof part === "string" && part.trim().length > 0)
       .map((part) => part.trim());
     return [...new Set(parts)].join(" ").length >= 800;
-  }).slice(0, 10); // Keep the Gemini task focused; quality checks still decide what can publish.
+  });
+  // Balance again after enrichment so accessible publishers do not create a new country bias.
+  const evidenceEligible = selectBalancedByCountry(evidenceQualified, 10);
+  const evidenceCountries = [...new Set(evidenceEligible.map((article) => article.source?.country).filter(Boolean))];
+  console.log("Evidence-qualified country coverage: " + evidenceCountries.length + " countries/regions: " + evidenceCountries.join(", "));
   console.log("Publisher page enrichment: " + fullTextCount + " of " + withCoverage.length + " stories have full article text.");
   console.log("Evidence-qualified stories sent to Gemini: " + evidenceEligible.length + " (minimum 800 distinct source characters).");
   if (evidenceEligible.length === 0) {
