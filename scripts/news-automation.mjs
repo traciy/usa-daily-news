@@ -426,35 +426,37 @@ async function generateArticles(geminiApiKey, sourceArticles, retryFeedback = ""
     };
   });
 
-  const prompt = `You are an evidence-led editor for USA Daily News.
-Review the numbered source candidates below independently. Select and write up to ${ARTICLE_COUNT} distinct stories that can provide genuine reader value. You are allowed to return fewer than the target. Do not return an empty array merely because some candidates are unsuitable: assess every candidate and include each suitable one.
+  const prompt = `You are an evidence-led news editor for USA Daily News.
+Review every numbered source candidate independently. Select and write up to ${ARTICLE_COUNT} distinct stories that provide genuine reader value. Returning fewer than the target is acceptable. Never force ten stories and never return an empty array if suitable candidates exist.
 
-For every article you include:
-- Use only facts explicitly supported by that candidate's own evidence. The publisher name and source URL identify the evidence source.
-- Attribute the central report to the named publisher in the opening paragraph.
-- Write a complete, reader-first report of about ${ARTICLE_WORDS} words (never fewer than 350 words), normally in 5–7 substantial paragraphs, with exactly 2 useful Markdown H2 subheadings.
-- For each selected candidate, produce a full article independently. Do not compress several stories into short summaries to fit the response.
-- Develop the story with key verified facts, relevant details, timeline and implications explicitly supported by this candidate's evidence. Give readers information beyond a rewritten headline.
-- Do not stop after one or two paragraphs. Do not pad, repeat points, or invent background. If evidence cannot support a complete report of at least 350 words and 5 meaningful paragraphs, omit the candidate rather than manufacture detail.
-- SEO: identify one natural primary search phrase that accurately describes this specific story. Use it naturally in the headline and near the start of the opening paragraph; use relevant names, places and related terms only where supported. Do not repeat keywords unnaturally or write for a keyword-density target.
-- Make the headline specific and descriptive, ideally about 45–65 characters when practical. Put the most important identifying subject/action early; avoid generic wording, sensationalism and clickbait.
-- Structure the article for scanning: start with a direct answer to what happened and why it matters; use descriptive H2 subheadings; keep paragraphs focused; explain relevant context and implications only when supported. Do not add a fabricated FAQ or unsupported advice.
-- Write a unique, accurate meta description of 120–160 characters that summarizes the actual article and naturally includes the primary search phrase. Do not simply repeat the headline.
-- Preserve uncertainty and attribution. Never invent quotes, names, statistics, dates, causes, motives, context or details.
-- Do not use another candidate as corroboration or borrow facts from it.
-- Omit a candidate if its evidence is too thin, contradictory, unclear, or does not support a useful report.
-- Hold for human review and omit any candidate whose central event involves death, serious injury, hospitalization, arrest, criminal charges, conviction, court ruling, election outcome, endorsement, layoffs, or financial distress.
+Editorial and evidence rules:
+- Use only facts explicitly supported by that candidate's own evidence. Do not use another candidate as corroboration or borrow facts from it.
+- Attribute the central report to the named publisher in the opening paragraph and use the exact supplied source_url.
+- Write a complete, clear report whose length matches the amount and quality of verified evidence. Aim for about ${ARTICLE_WORDS} words when the source supports that much detail. A concise, complete report is better than a padded long article. Google does not require a preferred word count.
+- Do not invent or infer missing background to make an article longer. Never repeat the same point in different words. If the source supports only a short update, write a short update; omit it only when the evidence is too thin to explain what happened accurately and usefully.
+- Explain the confirmed event, the key people or organizations involved, relevant dates/locations, verified details, and any stated next steps or implications, but include each only when the candidate's evidence supports it.
+- Use natural paragraphs with clear transitions. Do not follow a fixed paragraph count. H2 subheadings are optional; use concise descriptive headings only when they genuinely improve navigation, especially for longer reports. Do not add headings merely to satisfy a count.
+
+Search and presentation:
+- Identify the main subject and likely search intent. Use the most natural specific search phrase in the headline and naturally in the opening paragraph when it fits. Include important names, organizations and locations only when supported by the source.
+- Write a unique, accurate, descriptive headline. Put the main subject and development early. Keep it concise (usually around 45–70 characters where practical), specific and compelling without clickbait or exaggeration.
+- Write a unique, useful meta description of 120–160 characters summarizing the actual report. Include the main subject naturally; do not stuff keywords or simply repeat the headline. Do not promise details absent from the article.
+- Make the report easy to scan, answer what happened near the beginning, explain unfamiliar terms where the evidence allows, and avoid fabricated FAQs, generic filler and unsupported advice.
+
+Accuracy and safety:
+- Preserve uncertainty and attribution. Never invent quotes, names, statistics, dates, causes, motives, reactions, context or details.
 - Keep every number, percentage, amount and date traceable to that candidate's evidence.
-- Categorize as Politics, Tech, Economy, Culture, or Sports.
-- Return content as Markdown with meaningful H2 subheadings (##). Return only the existing fields: title, content, category, source_url, image_url, seo_description.
+- Omit a candidate if its evidence is contradictory, unclear, too thin for a useful report, or if it would require speculation.
+- Hold for human review and omit any candidate whose central event involves death, serious injury, hospitalization, arrest, criminal charges, conviction, court ruling, election outcome, endorsement, layoffs or financial distress.
+- Categorize each article as Politics, Tech, Economy, Culture or Sports.
+- Return content as Markdown. Return only these existing fields: title, content, category, source_url, image_url, seo_description.
 
 Return ONLY a valid JSON array. Each object must contain exactly these keys: title, content, category, source_url, image_url, seo_description.
-Before returning, check every article yourself: at least 350 words, 5 substantial paragraphs, exactly 2 lines beginning with "## ", and a 120–160 character meta description. Correct any draft that fails.
-Use the exact source_url from the selected candidate. Use null for image_url when no image URL is supplied. If no candidate meets every requirement, return [].
+Before returning, check that each report is factual, useful, clearly written, sufficiently developed for its evidence, attributed in the opening, and has a unique 120–160 character meta description. Do not enforce a fixed word, paragraph or heading count. Use the exact source_url from the selected candidate. Use null for image_url when no image URL is supplied. If no candidate is suitable, return [].
 
 SOURCE CANDIDATES:
 ${JSON.stringify(candidates)}
-${retryFeedback ? "\nRETRY GUIDANCE FROM THE PREVIOUS ATTEMPT:\n" + retryFeedback + "\nReassess the full candidate list and return a corrected JSON array. Do not repeat the previous mistake." : ""}`;
+${retryFeedback ? "\nRETRY GUIDANCE FROM THE PREVIOUS ATTEMPT:\n" + retryFeedback + "\nCorrect the stated issues while reassessing the full candidate list. Do not weaken evidence or safety rules." : ""}`;
 
   const response = await fetchWithRetry(
     `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(MODEL)}:generateContent`,
@@ -505,17 +507,22 @@ function validateAndNormalize(generated, sourceArticles) {
   const allowedCategories = new Set(["Politics", "Tech", "Economy", "Culture", "Sports"]);
   const seenSources = new Set();
   const validated = [];
+  const rejectionReasons = [];
 
   for (const article of generated) {
     if (!article || typeof article !== "object") continue;
     const sourceKey = normalizedUrl(article.source_url);
     const original = sourceByUrl.get(sourceKey);
     if (!original) {
-      console.warn(`Skipping an article because its source_url did not match a URL collected from RSS feeds.`);
+      const reason = "Returned source_url did not match one of the collected RSS source URLs.";
+      console.warn("Skipping an article: " + reason);
+      rejectionReasons.push(reason);
       continue;
     }
     if (seenSources.has(sourceKey)) {
-      console.warn(`Skipping a duplicate source article: ${original.title}`);
+      const reason = `Duplicate source article: ${original.title}`;
+      console.warn("Skipping an article: " + reason);
+      rejectionReasons.push(reason);
       continue;
     }
 
@@ -542,42 +549,59 @@ function validateAndNormalize(generated, sourceArticles) {
     const duplicateCoverage = validated.some((existing) => titleSimilarity(existing.title, title) >= 0.7);
 
     const normalizedParagraphText = content.replace(/<[^>]*>/g, " ").trim();
-    const htmlParagraphs = content.match(/<p\b[^>]*>[\s\S]*?<\/p>/gi);
-    const paragraphCount = htmlParagraphs
-      ? htmlParagraphs.length
-      : content.split(/\n\s*\n/).filter((paragraph) => paragraph.replace(/<[^>]*>/g, "").trim().length >= 40).length;
-    const wordCount = normalizedParagraphText.split(/\s+/).filter(Boolean).length;
-    const headingCount = (content.match(/^##\s+.+$/gm) || []).length;
+    const wordCount = normalizedParagraphText.split(/\\s+/).filter(Boolean).length;
     const descriptionLength = seoDescription.length;
     const titleLength = title.length;
-    const primaryTerms = title.toLowerCase().replace(/[^a-z0-9 ]/g, " ").split(/\s+/).filter((term) => term.length > 3);
+    const primaryTerms = title.toLowerCase().replace(/[^a-z0-9 ]/g, " ").split(/\\s+/).filter((term) => term.length > 3);
     const openingText = normalizedParagraphText.slice(0, 700).toLowerCase();
     const primaryTermCoverage = primaryTerms.length
       ? primaryTerms.filter((term) => openingText.includes(term)).length / primaryTerms.length
       : 0;
 
-    if (!title || !content || !seoDescription || !category || !hasSubstantialEvidence || content.length < 350 || paragraphCount < 5 || wordCount < 350 || headingCount < 2 || descriptionLength < 120 || descriptionLength > 160 || titleLength > 70 || primaryTermCoverage < 0.5) {
-      console.warn(`Skipping an article that fails evidence, length, structure, or on-page SEO checks (${wordCount} words, ${paragraphCount} paragraphs, ${headingCount} H2 headings, meta description ${descriptionLength} chars, title ${titleLength} chars, opening title-term coverage ${Math.round(primaryTermCoverage * 100)}%). Source: ${original.title}`);
+    const qualityIssues = [];
+    if (!title) qualityIssues.push("missing headline");
+    if (!content || content.length < 350) qualityIssues.push("article body is missing or too short");
+    if (wordCount < 120) qualityIssues.push(`only ${wordCount} words; at least 120 are required for a complete report`);
+    if (!seoDescription) qualityIssues.push("missing meta description");
+    if (descriptionLength > 0 && (descriptionLength < 120 || descriptionLength > 160)) qualityIssues.push(`meta description is ${descriptionLength} characters; use 120–160`);
+    if (!category) qualityIssues.push("category is missing or unsupported");
+    if (!hasSubstantialEvidence) qualityIssues.push("source evidence is below the 800-character threshold");
+    if (titleLength > 70) qualityIssues.push(`headline is ${titleLength} characters; make it more concise`);
+    if (primaryTermCoverage < 0.5) qualityIssues.push("the opening does not clearly include enough of the headline's main subject/terms");
+    if (qualityIssues.length) {
+      const reason = `${original.title}: ${qualityIssues.join("; ")}`;
+      console.warn("Skipping an article that fails editorial/on-page checks (" + reason + ").");
+      rejectionReasons.push(reason);
       continue;
     }
     if (heldForHumanReview) {
-      console.warn("Holding a high-impact story for human editorial review (" + heldForHumanReview + "). Source: " + original.title);
+      const reason = `${original.title}: held for human review because it concerns ${heldForHumanReview}`;
+      console.warn(reason);
+      rejectionReasons.push(reason);
       continue;
     }
     if (!attributedInOpening) {
-      console.warn("Skipping an article that does not identify its publisher in the opening 700 characters. Source: " + original.title);
+      const reason = `${original.title}: identify ${original.source?.name || "the publisher"} in the opening paragraph`;
+      console.warn(reason);
+      rejectionReasons.push(reason);
       continue;
     }
     if (unsupportedClaim) {
-      console.warn(`Skipping an article with a high-impact claim not found in its own source evidence (${unsupportedClaim}). Source: ${original.title}`);
+      const reason = `${original.title}: unsupported high-impact claim (${unsupportedClaim}); remove it or omit the story`;
+      console.warn(reason);
+      rejectionReasons.push(reason);
       continue;
     }
     if (unsupportedNumber) {
-      console.warn(`Skipping an article containing a number not found in its own source evidence (${unsupportedNumber}). Source: ${original.title}`);
+      const reason = `${original.title}: unsupported number (${unsupportedNumber}); remove it or omit the story`;
+      console.warn(reason);
+      rejectionReasons.push(reason);
       continue;
     }
     if (duplicateCoverage) {
-      console.warn(`Skipping likely duplicate coverage based on headline similarity. Source: ${original.title}`);
+      const reason = `${original.title}: likely duplicate coverage of another selected story`;
+      console.warn(reason);
+      rejectionReasons.push(reason);
       continue;
     }
 
@@ -594,7 +618,8 @@ function validateAndNormalize(generated, sourceArticles) {
   }
 
   if (validated.length === 0) {
-    throw new Error("No valid articles remained after checking Gemini's output against the original RSS feed URLs.");
+    const details = rejectionReasons.slice(0, 8).join(" | ");
+    throw new Error("No articles passed the editorial checks. " + (details || "Gemini returned no usable article objects."));
   }
   return validated;
 }
