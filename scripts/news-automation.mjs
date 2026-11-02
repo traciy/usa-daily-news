@@ -177,20 +177,20 @@ function relatedCoverageFor(article, allArticles) {
 
 function sourceEvidenceText(article) {
   return [article.title, article.description, article.content, article.article_text]
-    .filter(Boolean).join(" ").replace(/\\s+/g, " ").trim();
+    .filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
 }
 
 function hasUnsupportedHighImpactClaim(generatedText, evidenceText) {
   const groups = [
-    ["death or fatality", /\\b(died|death|dead|killed|fatal|fatalities)\\b/i],
-    ["injury or hospitalization", /\\b(injured|wounded|hospitali[sz]ed|critical condition|surgery)\\b/i],
-    ["arrest or detention", /\\b(arrested|detained|taken into custody)\\b/i],
-    ["criminal charge or conviction", /\\b(charged|indicted|convicted|sentenced|acquitted)\\b/i],
-    ["court ruling", /\\b(ruled|ruling|throws? out|dismissed|overturned|blocked)\\b/i],
-    ["election result", /\\b(won|wins|defeated|elected|reelected|re- elected)\\b/i],
-    ["endorsement", /\\b(endorsed|endorsement|backs|backed)\\b/i],
-    ["job losses", /\\b(layoffs?|laid off|job cuts|cuts? jobs)\\b/i],
-    ["financial distress", /\\b(bankrupt|bankruptcy|insolvent|defaulted)\\b/i],
+    ["death or fatality", /\b(died|death|dead|killed|fatal|fatalities)\b/i],
+    ["injury or hospitalization", /\b(injured|wounded|hospitali[sz]ed|critical condition|surgery)\b/i],
+    ["arrest or detention", /\b(arrested|detained|taken into custody)\b/i],
+    ["criminal charge or conviction", /\b(charged|indicted|convicted|sentenced|acquitted)\b/i],
+    ["court ruling", /\b(ruled|ruling|throws? out|dismissed|overturned|blocked)\b/i],
+    ["election result", /\b(won|wins|defeated|elected|reelected|re- elected)\b/i],
+    ["endorsement", /\b(endorsed|endorsement|backs|backed)\b/i],
+    ["job losses", /\b(layoffs?|laid off|job cuts|cuts? jobs)\b/i],
+    ["financial distress", /\b(bankrupt|bankruptcy|insolvent|defaulted)\b/i],
   ];
 
   for (const [label, pattern] of groups) {
@@ -200,12 +200,12 @@ function hasUnsupportedHighImpactClaim(generatedText, evidenceText) {
 }
 
 function hasUnsupportedNumbers(generatedText, evidenceText) {
-  const normalizeNumber = (value) => value.replace(/,/g, "").replace(/\\.0+$/, "");
+  const normalizeNumber = (value) => value.replace(/,/g, "").replace(/\.0+$/, "");
   const evidenceNumbers = new Set(
-    (evidenceText.match(/\\b\\d[\\d,]*(?:\\.\\d+)?%?\\b|\\$\\s?\\d[\\d,]*(?:\\.\\d+)?/g) || [])
+    (evidenceText.match(/\b\d[\d,]*(?:\.\d+)?%?\b|\$\s?\d[\d,]*(?:\.\d+)?/g) || [])
       .map(normalizeNumber)
   );
-  const generatedNumbers = (generatedText.match(/\\b\\d[\\d,]*(?:\\.\\d+)?%?\\b|\\$\\s?\\d[\\d,]*(?:\\.\\d+)?/g) || [])
+  const generatedNumbers = (generatedText.match(/\b\d[\d,]*(?:\.\d+)?%?\b|\$\s?\d[\d,]*(?:\.\d+)?/g) || [])
     .map(normalizeNumber);
   return generatedNumbers.find((number) => !evidenceNumbers.has(number)) || "";
 }
