@@ -76,34 +76,107 @@ function parseModelJson(text) {
   return data;
 }
 
-async function getHeadlines(newsApiKey) {
-  async function fetchCategory(category, pageSize) {
-    const url = `${NEWS_API_BASE}&category=${encodeURIComponent(category)}&pageSize=${pageSize}`;
-    const response = await fetchWithRetry(
-      url,
-      { headers: { "X-Api-Key": newsApiKey, Accept: "application/json" } },
-      `NewsAPI ${category} headlines request`,
-    );
-    const data = await response.json();
-    if (data.status !== "ok" || !Array.isArray(data.articles)) {
-      throw new Error(`NewsAPI returned an unexpected ${category} response: ${data.message || "No articles array"}`);
-    }
-    return data.articles.filter((article) => article?.title && article?.url);
-  }
+const RSS_FEEDS = [
+  { name: "NPR", url: "https://feeds.npr.org/1001/rss.xml", category: "Politics" },
+  { name: "NBC News", url: "https://feeds.nbcnews.com/nbcnews/public/news", category: "Politics" },
+  { name: "ABC News", url: "https://abcnews.go.com/abcnews/topstories", category: "Politics" },
+  { name: "CBS News", url: "https://www.cbsnews.com/latest/rss/main", category: "Politics" },
+  { name: "Politico", url: "https://rss.politico.com/politics-news.xml", category: "Politics" },
+  { name: "The Hill", url: "https://thehill.com/feed/", category: "Politics" },
+  { name: "Axios", url: "https://api.axios.com/feed/", category: "Politics" },
+  { name: "ESPN", url: "https://www.espn.com/espn/rss/news", category: "Sports" },
+];
 
-  const [generalArticles, sportsArticles] = await Promise.all([
-    fetchCategory("general", 20),
-    fetchCategory("sports", 10),
-  ]);
-  const seen = new Set();
-  const articles = [...generalArticles, ...sportsArticles].filter((article) => {
-    const key = normalizedUrl(article.url);
-    if (!key || seen.has(key)) return false;
-    seen.add(key);
+function decodeXml(value = "") {
+  return value
+    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
+    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"').replace(/&apos;/g, "'")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)));
+}
+
+function cleanFeedText(value = "") {
+  return decodeXml(value)
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function getXmlTag(block, tagNames) {
+  for (const tag of tagNames) {
+    const match = block.match(new RegExp("<" + tag + "\\b[^>]*>([\\s\\S]*?)<\\/" + tag + "\\s*>", "i"));
+    if (match) return match[1].trim();
+  }
+  return "";
+}
+
+function parseRssFeed(xml, feed) {
+  const itemBlocks = [...xml.matchAll(/<(item|entry)\b[^>]*>([\s\S]*?)<\/\1\s*>/gi)];
+  return itemBlocks.map((match) => {
+    const block = match[2];
+    const title = cleanFeedText(getXmlTag(block, ["title"]));
+    const description = cleanFeedText(getXmlTag(block, ["description", "summary", "content:encoded", "content"]));
+    const content = cleanFeedText(getXmlTag(block, ["content:encoded", "content", "description", "summary"]));
+    const rawLink = getXmlTag(block, ["link"]);
+    const href = rawLink.match(/\bhref=["']([^"']+)["']/i)?.[1];
+    const link = decodeXml(rawLink.replace(/<[^>]+>/g, "").trim() || href || "");
+    const rawDate = getXmlTag(block, ["pubDate", "published", "updated", "dc:date"]);
+    const imageTag = getXmlTag(block, ["media:content", "media:thumbnail", "enclosure"]);
+    const image = imageTag.match(/\burl=["']([^"']+)["']/i)?.[1] || null;
+    let publishedAt = null;
+    if (rawDate) {
+      const parsedDate = Date.parse(cleanFeedText(rawDate));
+      if (Number.isFinite(parsedDate)) publishedAt = new Date(parsedDate).toISOString();
+    }
+    return {
+      title, description: description.slice(0, 3000), content: content.slice(0, 5000),
+      url: normalizedUrl(link), publishedAt, source: { name: feed.name },
+      source_category: feed.category, urlToImage: image ? decodeXml(image) : null,
+    };
+  }).filter((article) => {
+    if (!article.title || !article.url || !/^https?:\/\//i.test(article.url)) return false;
+    if (article.publishedAt) return Date.now() - Date.parse(article.publishedAt) <= 48 * 60 * 60 * 1000;
     return true;
   });
-  if (articles.length === 0) throw new Error("NewsAPI returned no usable headlines.");
-  console.log(`NewsAPI returned ${articles.length} unique headlines (${generalArticles.length} general, ${sportsArticles.length} sports).`);
+}
+
+async function getHeadlines() {
+  const results = await Promise.allSettled(RSS_FEEDS.map(async (feed) => {
+    const response = await fetchWithRetry(feed.url, {
+      headers: {
+        Accept: "application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
+        "User-Agent": "USA-Daily-News-Bot/1.0 (+https://usa-daily-news.info-luwigang254.workers.dev)",
+      },
+      signal: AbortSignal.timeout(15000),
+    }, feed.name + " RSS feed", 2);
+    const xml = await response.text();
+    if (!/<(rss|feed|rdf:RDF)\b/i.test(xml)) throw new Error(feed.name + " did not return recognizable RSS/XML.");
+    const articles = parseRssFeed(xml, feed).slice(0, 15);
+    console.log(feed.name + " RSS: " + articles.length + " recent usable stories.");
+    return articles;
+  }));
+
+  const articles = [];
+  const seen = new Set();
+  const failures = [];
+  for (const result of results) {
+    if (result.status === "rejected") {
+      failures.push(result.reason?.message || String(result.reason));
+      continue;
+    }
+    for (const article of result.value) {
+      const key = normalizedUrl(article.url);
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      articles.push(article);
+    }
+  }
+  console.log("RSS collection finished: " + articles.length + " unique stories from " + RSS_FEEDS.length + " feeds; " + failures.length + " feed(s) unavailable.");
+  if (failures.length) console.warn("RSS feed warnings:", failures.join(" | "));
+  if (articles.length === 0) {
+    throw new Error("No usable RSS stories were collected. Feed errors: " + (failures.join(" | ") || "Feeds returned no recent stories."));
+  }
   return articles;
 }
 
@@ -123,6 +196,7 @@ ${JSON.stringify(sourceArticles.map((a) => ({
   description: a.description,
   content: a.content,
   source_name: a.source?.name,
+  source_category: a.source_category,
   author: a.author,
   publishedAt: a.publishedAt,
   url: a.url,
@@ -172,7 +246,7 @@ function validateAndNormalize(generated, sourceArticles) {
     const sourceKey = normalizedUrl(article.source_url);
     const original = sourceByUrl.get(sourceKey);
     if (!original) {
-      console.warn(`Skipping an article because its source_url did not match a URL returned by NewsAPI.`);
+      console.warn(`Skipping an article because its source_url did not match a URL collected from RSS feeds.`);
       continue;
     }
     if (seenSources.has(sourceKey)) {
@@ -204,7 +278,7 @@ function validateAndNormalize(generated, sourceArticles) {
   }
 
   if (validated.length === 0) {
-    throw new Error("No valid articles remained after checking Gemini's output against the original NewsAPI URLs.");
+    throw new Error("No valid articles remained after checking Gemini's output against the original RSS feed URLs.");
   }
   return validated;
 }
@@ -235,9 +309,8 @@ async function publishArticles(articles, supabaseUrl, bearerToken) {
 }
 
 async function main() {
-  const newsApiKey = requiredEnv("NEWSAPI_API_KEY");
   const geminiApiKey = requiredEnv("GEMINI_API_KEY");
-  const sourceArticles = await getHeadlines(newsApiKey);
+  const sourceArticles = await getHeadlines();
   const generated = await generateArticles(geminiApiKey, sourceArticles);
   const articles = validateAndNormalize(generated, sourceArticles);
 
