@@ -15,32 +15,27 @@ interface HomePageProps {
 
 const FAQ_ENTRIES = [
   {
-    question: 'What is USA Daily News?',
+    question: 'How is content prepared for USA Daily News?',
     answer:
-      'USA Daily News is an independent American news outlet covering Politics, Technology, Economy, and Culture. We publish fresh, verified stories every day with clarity, accuracy, and coverage you can trust.',
+      'Digital tools and AI-assisted processes may help discover, organize, and prepare news summaries. Articles may summarize reporting published by other outlets, with source links provided when available.',
   },
   {
-    question: 'What topics does USA Daily News cover?',
+    question: 'Is every article original reporting?',
     answer:
-      'We cover four core sections: Politics, Tech, Economy, and Culture. Each section features daily original reporting on American policy, innovation, markets, and society — written in plain language.',
+      'No. Some articles summarize or discuss reporting published by other outlets. USA Daily News aims to identify and link to source material when available.',
   },
   {
-    question: 'How often is USA Daily News updated?',
+    question: 'How can I report an error?',
     answer:
-      'New stories are published every day across all four sections. Our editorial team monitors developing stories in real time, so readers always have the latest reporting on American news.',
-  },
-  {
-    question: 'Is USA Daily News independent journalism?',
-    answer:
-      'Yes. USA Daily News is fully independent and not owned by a political party, corporation, or foreign entity. Our reporting is guided by facts, sourced verification, and plain-language truth.',
+      'Email info.luwigang254@gmail.com with the article URL, the detail you believe is incorrect, and reliable supporting information.',
   },
 ];
 
 export function HomePage({ onOpenArticle, onNavigate }: HomePageProps) {
   useSeo({
-    title: 'USA Daily News — US Politics, Tech, Economy & Culture',
+    title: 'USA Daily News — Latest News, Politics, Business & Sports',
     description:
-      'Independent American journalism covering Politics, Tech, Economy, and Culture. Fresh stories every day with clarity and coverage you can trust.',
+      'Digital news coverage and source-attributed summaries across US and international affairs, politics, business, technology, culture, weather and sports.',
     type: 'website',
     url: SITE_CONFIG.url,
     jsonLd: [ORGANIZATION_SCHEMA, WEBSITE_SCHEMA, FAQ_SCHEMA],
@@ -243,10 +238,10 @@ export function HomePage({ onOpenArticle, onNavigate }: HomePageProps) {
             so readers stay informed without the noise.
           </p>
           <button
-            onClick={() => onOpenArticle(0)}
+            onClick={() => onNavigate('/about')}
             className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-red-700 hover:text-red-900 transition-colors"
           >
-            Read our latest coverage <ArrowRight className="h-4 w-4" />
+            Learn more about us <ArrowRight className="h-4 w-4" />
           </button>
         </div>
       </section>
