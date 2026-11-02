@@ -17,23 +17,22 @@ type Route =
   | { name: 'contact' };
 
 function parsePath(): Route {
-  const path = window.location.pathname.replace(/\\/+$/, '') || '/';
-  const article = /^\\/article\\/(\\d+)$/.exec(path);
+  const path = window.location.pathname.replace(/\/+$/, '') || '/';
+  const article = /^\/article\/(\d+)$/.exec(path);
   if (article) return { name: 'article', id: Number(article[1]) };
   if (path === '/weather') return { name: 'weather' };
   if (path === '/contact') return { name: 'contact' };
   if (path === '/football' || path === '/sports') return { name: 'football' };
 
-  // Preserve old shared hash links while moving visitors to clean URLs.
-  const legacy = window.location.hash.replace(/^#\\/?/, '');
-  const legacyArticle = /^article\\/(\\d+)$/.exec(legacy);
+  const legacy = window.location.hash.replace(/^#\/?/, '');
+  const legacyArticle = /^article\/(\d+)$/.exec(legacy);
   if (legacyArticle) {
-    const next = `/article/${legacyArticle[1]}`;
+    const next = '/article/' + legacyArticle[1];
     window.history.replaceState({}, '', next);
     return { name: 'article', id: Number(legacyArticle[1]) };
   }
   if (legacy === 'weather' || legacy === 'football') {
-    window.history.replaceState({}, '', `/${legacy}`);
+    window.history.replaceState({}, '', '/' + legacy);
     return legacy === 'weather' ? { name: 'weather' } : { name: 'football' };
   }
   return { name: 'home' };
@@ -53,14 +52,14 @@ function App() {
   }, [route]);
 
   const navigate = (path: string) => {
-    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+    const cleanPath = path.startsWith('/') ? path : '/' + path;
     window.history.pushState({}, '', cleanPath);
     setRoute(parsePath());
     window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
   };
 
   const goHome = () => navigate('/');
-  const openArticle = (id: number) => navigate(`/article/${id}`);
+  const openArticle = (id: number) => navigate('/article/' + id);
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans text-gray-900">
