@@ -255,9 +255,12 @@ export function HomePage({ onOpenArticle, onNavigate, initialCategory }: HomePag
             About USA Daily News
           </h2>
           <p className="text-gray-700 leading-relaxed">
-            USA Daily News delivers independent American journalism across Politics, Tech,
-            Economy, and Culture. Our editors publish verified, plain-language reporting every day
-            so readers stay informed without the noise.
+            USA Daily News helps readers follow current events across politics, technology, the economy,
+            culture, weather and sports. We use digital tools and AI-assisted processes to prepare
+            clear news summaries based on reporting from other publishers and available source
+            material. Where source information is available, we link to the original report so
+            readers can review it directly. We aim to correct material inaccuracies when reliable
+            evidence is brought to our attention.
           </p>
           <button
             onClick={() => onNavigate('/about')}
