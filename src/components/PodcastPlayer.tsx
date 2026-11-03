@@ -58,6 +58,7 @@ export function PodcastPlayer({ variant = 'card' }: PodcastPlayerProps) {
   const [showList, setShowList] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const initialAutoplayAttempted = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -72,9 +73,14 @@ export function PodcastPlayer({ variant = 'card' }: PodcastPlayerProps) {
           throw new Error('No episodes found in feed.');
         }
         if (data.title) setShowTitle(data.title);
-        setEpisodes(data.episodes);
+        const latestFirst = [...data.episodes].sort((a, b) => {
+          const aTime = new Date(a.pubDate).getTime() || 0;
+          const bTime = new Date(b.pubDate).getTime() || 0;
+          return bTime - aTime;
+        });
+        setEpisodes(latestFirst);
         setCurrentIdx(0);
-        setDuration(data.episodes[0].duration || 0);
+        setDuration(latestFirst[0].duration || 0);
       } catch (err) {
         if (cancelled) return;
         setError(err instanceof Error ? err.message : 'Failed to load podcast feed.');
@@ -88,6 +94,16 @@ export function PodcastPlayer({ variant = 'card' }: PodcastPlayerProps) {
   }, []);
 
   const current = episodes[currentIdx] ?? null;
+
+  // Try to start the newest episode as soon as the feed has loaded.
+  // Browsers may block audible autoplay; the visible Play control remains available.
+  useEffect(() => {
+    if (!current || initialAutoplayAttempted.current) return;
+    initialAutoplayAttempted.current = true;
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
+  }, [current?.audioUrl]);
 
   const selectEpisode = (idx: number) => {
     setCurrentIdx(idx);
@@ -161,7 +177,7 @@ export function PodcastPlayer({ variant = 'card' }: PodcastPlayerProps) {
       onEnded={onEnded}
       onPlay={() => setIsPlaying(true)}
       onPause={() => setIsPlaying(false)}
-      preload="metadata"
+      preload="auto"
       crossOrigin="anonymous"
     />
   );
