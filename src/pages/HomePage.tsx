@@ -42,7 +42,7 @@ export function HomePage({ onOpenArticle, onNavigate, initialCategory }: HomePag
     Culture: 'Read culture news, entertainment, arts, society and lifestyle coverage from USA Daily News.',
   };
   useSeo({
-    title: active === 'All' ? 'USA Daily News — Latest News, Politics, Business & Sports' : `${active} News | USA Daily News`,
+    title: active === 'All' ? 'U.S. Headlines, Politics & Technology | USA Daily News' : `${active} News | USA Daily News`,
     description: categoryDescriptions[active],
     type: 'website',
     url: SITE_CONFIG.url + (window.location.pathname === '/' ? '/' : window.location.pathname),
@@ -102,7 +102,7 @@ export function HomePage({ onOpenArticle, onNavigate, initialCategory }: HomePag
 
       <section className="mx-auto max-w-6xl px-4 py-8" aria-labelledby="latest-heading">
         <h1 id="latest-heading" className="sr-only">
-          USA Daily News — Latest Stories
+          U.S. Headlines, Politics, Technology & Economy
         </h1>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
