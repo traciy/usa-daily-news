@@ -774,6 +774,27 @@ async function fetchLeagueMatches(code: string): Promise<any[]> {
     .map((event) => mapEspnEvent(event, league, code));
 }
 
+async function handleSportsNewsRequest(request: Request, env: Env): Promise<Response> {
+  if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
+  if (request.method !== "GET") return json(405, { error: "Method not allowed. Use GET." });
+  if (!env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) return json(503, { error: "Sports news is temporarily unavailable." });
+  try {
+    const endpoint = new URL(env.SUPABASE_URL.replace(/\\/$/, "") + "/rest/v1/articles");
+    endpoint.searchParams.set("select", "id,title,category,image_url,seo_description,created_at,source_url");
+    endpoint.searchParams.set("category", "eq.Sports");
+    endpoint.searchParams.set("order", "created_at.desc");
+    endpoint.searchParams.set("limit", "8");
+    const response = await fetch(endpoint.toString(), {
+      headers: { apikey: env.SUPABASE_ANON_KEY, Authorization: "Bearer " + env.SUPABASE_ANON_KEY, Accept: "application/json" },
+      cf: { cacheTtl: 120, cacheEverything: true },
+    } as RequestInit & { cf: { cacheTtl: number; cacheEverything: boolean } });
+    if (!response.ok) return json(502, { error: "Sports news is temporarily unavailable." });
+    return json(200, { data: { articles: await response.json() } });
+  } catch {
+    return json(502, { error: "Sports news is temporarily unavailable." });
+  }
+}
+
 async function handleFootballRequest(request: Request): Promise<Response> {
   if (request.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: corsHeaders });
@@ -795,6 +816,32 @@ async function handleFootballRequest(request: Request): Promise<Response> {
       code,
     }));
     return json(200, { data: { competitions } });
+  }
+
+  const detailPath = path.match(/^match\\/([A-Z0-9]+)\\/(\\d+)$/);
+  if (detailPath) {
+    const [, code, eventId] = detailPath;
+    const league = LEAGUES[code];
+    if (!league) return json(400, { error: "Competition is not supported." });
+    try {
+      const upstreamUrl = new URL(`${ESPN_BASE}/${league.slug}/summary`);
+      upstreamUrl.searchParams.set("event", eventId);
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+      try {
+        const upstream = await fetch(upstreamUrl.toString(), {
+          signal: controller.signal,
+          headers: { "Accept": "application/json" },
+          cf: { cacheTtl: 20, cacheEverything: true },
+        } as RequestInit & { cf: { cacheTtl: number; cacheEverything: boolean } });
+        if (!upstream.ok) return json(upstream.status, { error: "Match details are temporarily unavailable." });
+        return json(200, { data: await upstream.json() });
+      } finally {
+        clearTimeout(timer);
+      }
+    } catch {
+      return json(502, { error: "Match details are temporarily unavailable." });
+    }
   }
 
   const matchPath = path.match(/^(?:competitions\/([A-Z0-9]+)\/)?matches(?:\?status=(LIVE|SCHEDULED|TIMED|FINISHED))?$/);
@@ -848,6 +895,9 @@ export default {
     }
     if (url.pathname === "/api/football") {
       return handleFootballRequest(request);
+    }
+    if (url.pathname === "/api/sports-news") {
+      return handleSportsNewsRequest(request, env);
     }
     if (url.pathname === "/feed.xml" || url.pathname === "/rss.xml") {
       return handleRssFeed(env);
