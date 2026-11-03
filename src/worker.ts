@@ -838,7 +838,7 @@ async function handleFootballRequest(request: Request): Promise<Response> {
     return json(200, { data: { competitions } });
   }
 
-  const detailPath = path.match(/^match\\/([A-Z0-9]+)\\/(\\d+)$/);
+  const detailPath = path.match(/^match\/([A-Z0-9]+)\/(\d+)$/);
   if (detailPath) {
     const [, code, eventId] = detailPath;
     const league = LEAGUES[code];
