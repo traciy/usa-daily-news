@@ -654,6 +654,7 @@ function validateAndNormalize(generated, sourceArticles) {
 
 async function publishArticles(articles, supabaseUrl, bearerToken) {
   let successCount = 0;
+  const publishedUrls = [];
   for (const [index, article] of articles.entries()) {
     const response = await fetchWithRetry(
       supabaseUrl,
@@ -668,13 +669,42 @@ async function publishArticles(articles, supabaseUrl, bearerToken) {
       },
       `Supabase publish for article ${index + 1}`,
     );
-    // Read body for diagnostics without printing credentials.
     const responseText = await response.text();
+    let result = {};
+    try { result = responseText ? JSON.parse(responseText) : {}; } catch { /* keep publishing diagnostics below */ }
     console.log(`Published ${index + 1}/${articles.length}: ${article.title} (HTTP ${response.status})`);
     if (responseText.trim()) console.log(`Supabase response: ${responseText.slice(0, 300)}`);
+    const inserted = Array.isArray(result.articles) ? result.articles : [];
+    for (const saved of inserted) {
+      if (Number.isFinite(Number(saved.id))) publishedUrls.push(`https://usadailynews.space/article/${Number(saved.id)}`);
+    }
     successCount += 1;
   }
-  return successCount;
+  return { successCount, publishedUrls };
+}
+
+async function submitToIndexNow(urls) {
+  const uniqueUrls = [...new Set(urls)].filter((url) => {
+    try { return new URL(url).origin === "https://usadailynews.space"; } catch { return false; }
+  });
+  if (uniqueUrls.length === 0) {
+    console.log("IndexNow: no newly published article URLs to submit.");
+    return;
+  }
+
+  const key = "67ea1ee29eb144169b730af2f82ab722";
+  const response = await fetchWithRetry("https://api.indexnow.org/IndexNow", {
+    method: "POST",
+    headers: { "Content-Type": "application/json; charset=utf-8" },
+    body: JSON.stringify({
+      host: "usadailynews.space",
+      key,
+      keyLocation: `https://usadailynews.space/${key}.txt`,
+      urlList: uniqueUrls,
+    }),
+  }, "IndexNow URL submission", 3);
+
+  console.log(`IndexNow accepted ${uniqueUrls.length} newly published URL(s) (HTTP ${response.status}).`);
 }
 
 async function main() {
@@ -735,8 +765,9 @@ async function main() {
     return;
   }
 
-  const count = await publishArticles(articles, supabaseUrl, bearerToken);
-  console.log(`Finished successfully: ${count} article(s) sent to the website.`);
+  const { successCount, publishedUrls } = await publishArticles(articles, supabaseUrl, bearerToken);
+  console.log(`Finished publishing: ${successCount} article(s) sent to the website.`);
+  await submitToIndexNow(publishedUrls);
 }
 
 main().catch((error) => {
