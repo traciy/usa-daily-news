@@ -184,6 +184,7 @@ interface StaticSeoPage {
   description: string;
   heading: string;
   paragraphs: string[];
+  keywords?: string[];
 }
 const STATIC_SEO_PAGES: Record<string, StaticSeoPage> = {
   "/about": {
@@ -260,12 +261,27 @@ const STATIC_SEO_PAGES: Record<string, StaticSeoPage> = {
     paragraphs: ["Read coverage of entertainment, arts, media, society and cultural developments in the United States and around the world."]
   },
   "/football": {
-    title: "Football & Sports News | USA Daily News",
-    description: "Follow football fixtures, scores and sports coverage from USA Daily News.",
-    heading: "Football & Sports",
+    title: "Live Football Scores & Match Analysis | USA Daily News",
+    description: "Live football scores, fixtures, results and match analysis. Explore goals, line-ups, team statistics, head-to-head records and the latest sports news.",
+    heading: "Live Football Scores, Fixtures, Results & Match Analysis",
+    keywords: [
+      "live football scores",
+      "football scores today",
+      "soccer fixtures",
+      "football results",
+      "match analysis",
+      "Premier League scores",
+      "La Liga scores",
+      "Bundesliga scores",
+      "Serie A scores",
+      "Ligue 1 scores",
+      "Champions League scores",
+      "latest sports news"
+    ],
     paragraphs: [
-      "Follow football fixtures, live scores and results across major European competitions, alongside sports coverage from USA Daily News.",
-      "Match information is supplied by external sports data services and may be delayed or subject to correction."
+      "Follow live football scores, today's soccer fixtures and recent match results from the Premier League, La Liga, Bundesliga, Serie A, Ligue 1 and the UEFA Champions League. Live match scores and match minutes refresh regularly as games progress.",
+      "Expand a fixture or result to explore the match centre. When available, match reports include goal and card timelines, team line-ups, team statistics, venue information and previous head-to-head meetings. Statistics are shown only when supplied by the data provider; unavailable figures are never estimated.",
+      "Read the latest sports news and football coverage from USA Daily News alongside live scores, upcoming fixtures and completed match results. Match data is supplied by ESPN and may be delayed or corrected by the provider."
     ]
   },
   "/weather": {
@@ -292,6 +308,7 @@ async function handleStaticSeoPage(request: Request, env: Env, path: string): Pr
     "@type": "WebPage",
     name: page.title,
     description: page.description,
+    keywords: page.keywords?.join(", "),
     url: canonical,
     isPartOf: { "@type": "WebSite", name: "USA Daily News", url: SITE_URL },
     publisher: { "@type": "NewsMediaOrganization", name: "USA Daily News", url: SITE_URL, logo: { "@type": "ImageObject", url: SITE_URL + "/logo.svg" } }
@@ -299,16 +316,19 @@ async function handleStaticSeoPage(request: Request, env: Env, path: string): Pr
   const tags = [
     "<title>" + htmlEscape(page.title) + "</title>",
     '<meta name="description" content="' + description + '">',
+    '<meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">',
     '<link rel="canonical" href="' + canonical + '">',
     '<meta property="og:type" content="website">',
     '<meta property="og:title" content="' + htmlEscape(page.title) + '">',
     '<meta property="og:description" content="' + description + '">',
     '<meta property="og:url" content="' + canonical + '">',
     '<meta property="og:image" content="' + SITE_URL + '/og-default.svg">',
+    '<meta property="og:image:alt" content="' + htmlEscape(page.heading) + '">',
     '<meta name="twitter:card" content="summary_large_image">',
     '<meta name="twitter:title" content="' + htmlEscape(page.title) + '">',
     '<meta name="twitter:description" content="' + description + '">',
     '<meta name="twitter:image" content="' + SITE_URL + '/og-default.svg">',
+    '<meta name="twitter:image:alt" content="' + htmlEscape(page.heading) + '">',
     '<script type="application/ld+json">' + schema + '</script>'
   ].join("\n");
   html = html
