@@ -34,7 +34,7 @@ function MatchDetailsPanel({ match, open }: { match: FootballMatch; open: boolea
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
-    if (!open || details || loading) return;
+    if (!open || details) return;
     let active = true;
     setLoading(true);
     fetchMatchDetails(match.competitionCode, match.id).then((result) => {
@@ -43,8 +43,8 @@ function MatchDetailsPanel({ match, open }: { match: FootballMatch; open: boolea
       else setDetails(result.details ?? null);
       setLoading(false);
     });
-    return () => { active = false; };
-  }, [open, details, loading, match.competitionCode, match.id]);
+    return () => { active = false; setLoading(false); };
+  }, [open, details, match.competitionCode, match.id]);
   if (!open) return null;
   if (loading) return <div className="border-t border-gray-100 bg-gray-50 px-4 py-6 text-sm text-gray-500" role="status">Loading match report and available statistics…</div>;
   if (error || !details) return <div className="border-t border-gray-100 bg-gray-50 px-4 py-5 text-sm text-gray-500">{error || 'Match details are not available yet. Please try again shortly.'}</div>;
@@ -220,8 +220,8 @@ export function FootballPage({ onBack }: FootballPageProps) {
   }, [activeComp]);
 
   // SEO — stable metadata, does not change per refresh.
-  const seoTitle = 'Live Football Scores Today | Fixtures, Results & Match Updates';
-  const seoDescription = 'Follow real-time football scores, live match updates, upcoming fixtures and recent results from major football competitions around the world.';
+  const seoTitle = 'Live Football Scores & Match Analysis | USA Daily News';
+  const seoDescription = 'Follow live football scores, fixtures, results and match analysis. Expand games for goals, line-ups, team statistics, head-to-head and the latest sports news.';
   const canonicalUrl = `${SITE_CONFIG.url}/football`;
 
   const jsonLd = useMemo(() => ([
@@ -284,7 +284,7 @@ export function FootballPage({ onBack }: FootballPageProps) {
       </button>
 
       <h1 className="text-3xl sm:text-4xl font-serif font-bold text-gray-900 mb-2">
-        Live Football Scores & Fixtures
+        Live Football Scores, Fixtures & Match Analysis
       </h1>
       <p className="text-gray-600 mb-6">
         Real-time scores, upcoming fixtures, and recent results from major football competitions. Live scores update every 30 seconds.
@@ -423,7 +423,7 @@ export function FootballPage({ onBack }: FootballPageProps) {
             <div className="flex items-start gap-1.5 text-xs text-gray-400">
               <Info className="h-3 w-3 mt-0.5 shrink-0" aria-hidden="true" />
               <p className="leading-snug">
-                Data sourced from football-data.org. The free tier covers 12 top competitions; live scores update during active matches.
+                Match scores, match reports and available statistics are supplied by ESPN. Live scores refresh every 30 seconds; detailed data appears when the provider makes it available.
               </p>
             </div>
           </section>
