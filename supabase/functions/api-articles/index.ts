@@ -122,7 +122,11 @@ Deno.serve(async (req: Request) => {
       const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
       if (!supabaseUrl || !serviceRoleKey) return json(500, { error: "Server misconfigured." });
       const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } });
-      const { data, error } = await supabase.from("articles").select("title, source_url").order("created_at", { ascending: false }).limit(1000);
+      const missingImages = new URL(req.url).searchParams.get("missing_images") === "true";
+      const query = missingImages
+        ? supabase.from("articles").select("id, title, source_url").is("image_url", null).not("source_url", "is", null).order("created_at", { ascending: false }).limit(100)
+        : supabase.from("articles").select("title, source_url").order("created_at", { ascending: false }).limit(1000);
+      const { data, error } = await query;
       if (error) return json(500, { error: "Published article lookup failed.", details: error.message });
       return json(200, { success: true, articles: data || [] });
     }
@@ -135,6 +139,28 @@ Deno.serve(async (req: Request) => {
     }
 
     // Accept a single object or an array of objects.
+    if (body && typeof body === "object" && !Array.isArray(body) && Array.isArray((body as { image_updates?: unknown }).image_updates)) {
+      const updates = (body as { image_updates: unknown[] }).image_updates;
+      const supabaseUrl = Deno.env.get("SUPABASE_URL");
+      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      if (!supabaseUrl || !serviceRoleKey) return json(500, { error: "Server misconfigured." });
+      const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } });
+      let updated = 0;
+      const rejected: { index: number; reason: string }[] = [];
+      for (const [index, item] of updates.entries()) {
+        if (!item || typeof item !== "object") { rejected.push({ index, reason: "Invalid image update." }); continue; }
+        const update = item as { id?: unknown; image_url?: unknown };
+        const id = Number(update.id);
+        const imageUrl = typeof update.image_url === "string" ? update.image_url.trim() : "";
+        let validUrl = false;
+        try { const parsed = new URL(imageUrl); validUrl = parsed.protocol === "https:" || parsed.protocol === "http:"; } catch { /* invalid URL */ }
+        if (!Number.isSafeInteger(id) || id <= 0 || !validUrl) { rejected.push({ index, reason: "A valid article ID and HTTP(S) image URL are required." }); continue; }
+        const { data, error } = await supabase.from("articles").update({ image_url: imageUrl }).eq("id", id).is("image_url", null).select("id");
+        if (error) { rejected.push({ index, reason: error.message }); continue; }
+        if (data?.length) updated += 1;
+      }
+      return json(200, { success: true, updated, rejected });
+    }
     const items: unknown[] = Array.isArray(body) ? body : [body];
     if (items.length === 0) {
       return json(400, { error: "Body must contain at least one article." });
