@@ -271,7 +271,7 @@ export function PodcastPlayer({ variant = 'card' }: PodcastPlayerProps) {
                   <div className="flex gap-3">
                     <div className="relative w-12 h-12 shrink-0 overflow-hidden rounded bg-gray-100">
                       {current.image ? (
-                        <img src={current.image} alt={current.title} className="w-full h-full object-cover" />
+                        <img src={current.image} alt={`${current.title} podcast cover artwork`} title={`${current.title} podcast cover artwork`} width={1200} height={1200} sizes="(max-width: 640px) 100vw, 320px" loading="lazy" decoding="async" className="w-full h-full object-cover" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center bg-gray-800">
                           <Radio className="h-5 w-5 text-gray-400" />
