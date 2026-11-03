@@ -36,6 +36,7 @@ function MatchDetailsPanel({ match, open }: { match: FootballMatch; open: boolea
   useEffect(() => {
     if (!open || details) return;
     let active = true;
+    setError(null);
     setLoading(true);
     fetchMatchDetails(match.competitionCode, match.id).then((result) => {
       if (!active) return;
@@ -43,7 +44,7 @@ function MatchDetailsPanel({ match, open }: { match: FootballMatch; open: boolea
       else setDetails(result.details ?? null);
       setLoading(false);
     });
-    return () => { active = false; setLoading(false); };
+    return () => { active = false; };
   }, [open, details, match.competitionCode, match.id]);
   if (!open) return null;
   if (loading) return <div className="border-t border-gray-100 bg-gray-50 px-4 py-6 text-sm text-gray-500" role="status">Loading match report and available statistics…</div>;
