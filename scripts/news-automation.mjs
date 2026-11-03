@@ -784,7 +784,6 @@ async function submitToIndexNow(urls) {
 }
 
 async function main() {
-  const geminiApiKey = requiredEnv("GEMINI_API_KEY");
   const supabaseUrl = requiredEnv("SUPABASE_FUNCTION_URL");
   const bearerToken = requiredEnv("SUPABASE_BEARER_TOKEN");
   const publishedResponse = await fetchWithRetry(supabaseUrl, { method: "GET", headers: { Authorization: "Bearer " + bearerToken, Accept: "application/json" } }, "Previously published article lookup");
@@ -796,6 +795,7 @@ async function main() {
     console.log("Image-only backfill completed; skipping news generation and publishing.");
     return;
   }
+  const geminiApiKey = requiredEnv("GEMINI_API_KEY");
   // Run the full collection and publishing check on every scheduled tick.
   // Duplicate protection below prevents already-published stories from being reused.
   console.log("Starting the scheduled five-minute publishing check.");
