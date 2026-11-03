@@ -82,7 +82,9 @@ function injectArticleSeo(documentHtml: string, article: SeoArticle): string {
   const publishedIso = Number.isNaN(published.getTime()) ? "" : published.toISOString();
   const schema = {
     "@context": "https://schema.org", "@type": "NewsArticle",
-    headline: article.title, description, image: [image],
+    headline: article.title, description,
+    image: [{ "@type": "ImageObject", url: image, caption: article.image_url ? article.title : "USA Daily News — news, context and coverage", representativeOfPage: true }],
+
     articleBody: plainArticleText(article.content),
     wordCount: plainArticleText(article.content).split(/\s+/).filter(Boolean).length,
     citation: article.source_url && /^https?:\/\//i.test(article.source_url) ? article.source_url : undefined,
@@ -129,8 +131,10 @@ function injectArticleSeo(documentHtml: string, article: SeoArticle): string {
     "</p><h1>" + htmlEscape(article.title) + "</h1><p>" + htmlEscape(description) +
     '</p><p class="seo-byline">By <a href="/about">USA Daily News</a></p><time datetime="' + htmlEscape(article.created_at) + '">' +
     htmlEscape(publishedIso ? published.toLocaleString("en-US", { dateStyle: "long", timeStyle: "short", timeZone: "UTC" }) + " UTC" : article.created_at) +
-    "</time></header>" + (article.image_url && /^https?:\/\//i.test(article.image_url)
-      ? '<figure><img src="' + htmlEscape(article.image_url) + '" alt="' + htmlEscape(article.title) + '" width="1600" height="900"></figure>' : "") +
+    "</time></header>" +
+    '<figure><img itemprop="image" src="' + htmlEscape(image) + '" alt="' +
+      htmlEscape(article.image_url ? article.title + " — " + article.category + " news" : "USA Daily News — news, context and coverage") +
+      '" title="' + htmlEscape(article.title) + '" width="1600" height="900" sizes="(max-width: 768px) 100vw, 768px" loading="eager" fetchpriority="high" decoding="async"></figure>' +
     "<div>" + renderArticleMarkdown(article.content || "") + "</div>" +
     (article.source_url && (article.source_url.startsWith("https://") || article.source_url.startsWith("http://"))
       ? '<p class="seo-source"><a href="' + htmlEscape(article.source_url) + '" target="_blank" rel="noopener noreferrer">Read the original source report</a></p>'
@@ -151,11 +155,12 @@ function renderHomepage(articles: SeoArticle[]): string {
     const description = htmlEscape(article.seo_description || "");
     const date = new Date(article.created_at);
     const dateTime = Number.isNaN(date.getTime()) ? "" : date.toISOString();
-    const image = article.image_url && /^https?:\/\//i.test(article.image_url)
-      ? '<img src="' + htmlEscape(article.image_url) + '" alt="' + title + '" width="1200" height="675" ' +
-        (index === 0 ? 'loading="eager" fetchpriority="high"' : 'loading="lazy"') +
-        ' decoding="async" style="display:block;width:100%;height:auto;aspect-ratio:16/9;object-fit:cover">'
-      : "";
+    const imageUrl = article.image_url && /^https?:\/\//i.test(article.image_url) ? article.image_url : SITE_URL + "/og-default.svg";
+    const imageAlt = article.image_url ? title + " — " + category + " news" : "USA Daily News — news, context and coverage";
+    const image = '<img src="' + htmlEscape(imageUrl) + '" alt="' + imageAlt + '" title="' + title +
+      '" width="1200" height="675" sizes="(max-width: 1024px) 100vw, 66vw" ' +
+      (index === 0 ? 'loading="eager" fetchpriority="high"' : 'loading="lazy"') +
+      ' decoding="async" style="display:block;width:100%;height:auto;aspect-ratio:16/9;object-fit:cover">';
     return '<article class="seo-home-card"><a href="/article/' + Number(article.id) + '">' +
       image + '<p>' + category + '</p><h2>' + title + '</h2>' +
       (description ? '<p>' + description + '</p>' : "") +
