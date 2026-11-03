@@ -4,9 +4,6 @@ verify_jwt = false
 [functions.api-articles]
 verify_jwt = false
 
-[functions.podcast-feed]
-verify_jwt = false
-
 [functions.sitemap]
 verify_jwt = false
 
