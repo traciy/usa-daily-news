@@ -577,6 +577,51 @@ function rssPlainText(value: string): string {
     .trim();
 }
 
+async function handlePodcastLatest(): Promise<Response> {
+  const headers = {
+    "Content-Type": "application/json; charset=utf-8",
+    "Cache-Control": "public, max-age=60, s-maxage=60",
+    "X-Content-Type-Options": "nosniff",
+  };
+
+  try {
+    const response = await fetch("https://www.spreaker.com/show/7171820/episodes/feed", {
+      headers: { Accept: "application/rss+xml, application/xml, text/xml" },
+      cf: { cacheTtl: 60, cacheEverything: true },
+    } as RequestInit & { cf: { cacheTtl: number; cacheEverything: boolean } });
+
+    if (!response.ok) {
+      return new Response(JSON.stringify({ error: "Podcast feed is temporarily unavailable." }), { status: 502, headers });
+    }
+
+    const xml = await response.text();
+    const item = /<item\\b[^>]*>([\\s\\S]*?)<\\/item>/i.exec(xml)?.[1];
+    const titleTag = item?.match(/<title\\b[^>]*>([\\s\\S]*?)<\\/title>/i)?.[1] || "";
+    const enclosureTag = item?.match(/<enclosure\\b([^>]*)\\/?\\s*>/i)?.[1] || "";
+    const audioUrl = /\\burl=["']([^"']+)["']/i.exec(enclosureTag)?.[1] || "";
+
+    const decodeXml = (value: string) => value
+      .replace(/^<!\\[CDATA\\[([\\s\\S]*?)\\]\\]>$/, "$1")
+      .replace(/&amp;/g, "&")
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;|&apos;/g, "'")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .trim();
+
+    const title = decodeXml(titleTag);
+    const decodedAudioUrl = decodeXml(audioUrl);
+    if (!title || !/^https:\\/\\//i.test(decodedAudioUrl)) {
+      return new Response(JSON.stringify({ error: "No playable latest podcast episode was found." }), { status: 404, headers });
+    }
+
+    return new Response(JSON.stringify({ title, audioUrl: decodedAudioUrl }), { status: 200, headers });
+  } catch (error) {
+    console.error("Latest podcast lookup failed:", error);
+    return new Response(JSON.stringify({ error: "Podcast is temporarily unavailable." }), { status: 502, headers });
+  }
+}
+
 async function handleRssFeed(env: Env): Promise<Response> {
   if (!env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) {
     return new Response("RSS feed is temporarily unavailable.", {
@@ -913,7 +958,7 @@ export default {
       const destination = new URL(url.pathname + url.search, SITE_URL);
       return Response.redirect(destination.toString(), 301);
     }
-    if (url.pathname === "/api/football") {
+    if (url.pathname === "/api/podcast/latest" && request.method === "GET") {\n      return handlePodcastLatest();\n    }\n    if (url.pathname === "/api/football") {
       return handleFootballRequest(request);
     }
     if (url.pathname === "/api/sports-news") {
