@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useSeo } from '@/lib/seo';
 import { CATEGORIES, type Category } from '@/lib/categories';
-import { SITE_CONFIG, ORGANIZATION_SCHEMA, WEBSITE_SCHEMA, FAQ_SCHEMA } from '@/lib/seo-config';
+import { SITE_CONFIG, ORGANIZATION_SCHEMA, WEBSITE_SCHEMA } from '@/lib/seo-config';
 import type { ArticleSummary } from '@/types/article';
 import { ArticleCard } from '@/components/ArticleCard';
 import { CategoryFilter } from '@/components/CategoryFilter';
@@ -106,14 +106,28 @@ export function HomePage({ onOpenArticle, onNavigate, initialCategory }: HomePag
         </h1>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main content column */}
-          <section className="lg:col-span-2 order-2 lg:order-1" aria-label="Top stories">
+          <section className="lg:col-span-2 order-2 lg:order-1" aria-label="Top stories" aria-busy={loading}>
             {loading && (
-              <div className="space-y-6 animate-pulse">
-                <div className="h-80 bg-gray-200 rounded" />
+              <div className="space-y-6" aria-label="Loading latest stories">
+                <div className="overflow-hidden rounded-sm border border-gray-200 bg-white">
+                  <div className="aspect-[16/9] animate-pulse bg-gray-200" />
+                  <div className="space-y-3 p-5 sm:p-7">
+                    <div className="h-5 w-20 rounded bg-gray-200 animate-pulse" />
+                    <div className="h-8 w-full rounded bg-gray-200 animate-pulse" />
+                    <div className="h-4 w-4/5 rounded bg-gray-200 animate-pulse" />
+                    <div className="h-3 w-28 rounded bg-gray-200 animate-pulse" />
+                  </div>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {[0, 1, 2].map((i) => (
-                    <div key={i} className="h-64 bg-gray-200 rounded" />
+                    <div key={i} className="overflow-hidden rounded-sm border border-gray-200 bg-white">
+                      <div className="aspect-[16/10] animate-pulse bg-gray-200" />
+                      <div className="space-y-3 p-4">
+                        <div className="h-4 w-16 rounded bg-gray-200 animate-pulse" />
+                        <div className="h-5 w-full rounded bg-gray-200 animate-pulse" />
+                        <div className="h-4 w-3/4 rounded bg-gray-200 animate-pulse" />
+                      </div>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -172,20 +186,25 @@ export function HomePage({ onOpenArticle, onNavigate, initialCategory }: HomePag
             )}
           </section>
 
-          {/* Sidebar — always visible */}
-          <aside className="lg:col-span-1 order-1 lg:order-2 space-y-8" aria-label="Recent stories and sections">
+          <aside className="lg:col-span-1 order-1 lg:order-2 space-y-8" aria-label="Recent stories and sections" aria-busy={loading}>
             <div>
               <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-gray-500 border-b-2 border-gray-900 pb-2 mb-4">
                 Most Recent
               </h2>
-              {articles.slice(0, 6).map((a) => (
+              {loading && <div className="space-y-3" aria-hidden="true">
+                {[0, 1, 2, 3, 4, 5].map((item) => <div key={item} className="flex gap-3 border-b border-gray-200 py-3">
+                  <div className="h-20 w-20 shrink-0 animate-pulse rounded-sm bg-gray-200" />
+                  <div className="min-w-0 flex-1 space-y-2 py-1"><div className="h-3 w-16 rounded bg-gray-200 animate-pulse" /><div className="h-4 w-full rounded bg-gray-200 animate-pulse" /><div className="h-3 w-3/4 rounded bg-gray-200 animate-pulse" /></div>
+                </div>)}
+              </div>}
+              {!loading && articles.slice(0, 6).map((a) => (
                 <div key={a.id} onClick={() => onOpenArticle(a.id)} className="cursor-pointer">
                   <ArticleCard article={a} variant="compact" />
                 </div>
               ))}
             </div>
 
-            <div className="p-5 bg-gray-50 border border-gray-200 rounded-sm">
+            <div className="min-h-[220px] p-5 bg-gray-50 border border-gray-200 rounded-sm">
               <h2 className="font-serif font-bold text-gray-900">Sections</h2>
               <ul className="mt-3 space-y-2 text-sm">
                 {CATEGORIES.filter((c) => c !== 'All').map((c) => (
@@ -215,8 +234,7 @@ export function HomePage({ onOpenArticle, onNavigate, initialCategory }: HomePag
         </div>
       </section>
 
-      {/* FAQ — Answer-First layout targeting featured snippets / AI Overview */}
-      <section className="mx-auto max-w-3xl px-4 py-12" aria-labelledby="faq-heading">
+      <section className="home-deferred-section mx-auto max-w-3xl px-4 py-12" aria-labelledby="faq-heading">
         <h2 id="faq-heading" className="text-2xl font-serif font-bold text-gray-900 mb-6 text-center">
           Frequently Asked Questions
         </h2>
@@ -232,8 +250,7 @@ export function HomePage({ onOpenArticle, onNavigate, initialCategory }: HomePag
         </ol>
       </section>
 
-      {/* About blurb — Answer-First for LLM clarity */}
-      <section className="bg-gray-50 border-t border-gray-200" aria-labelledby="about-heading">
+      <section className="home-deferred-section bg-gray-50 border-t border-gray-200" aria-labelledby="about-heading">
         <div className="mx-auto max-w-3xl px-4 py-12 text-center">
           <h2 id="about-heading" className="text-2xl font-serif font-bold text-gray-900 mb-4">
             About USA Daily News
