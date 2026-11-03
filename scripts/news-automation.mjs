@@ -792,6 +792,10 @@ async function main() {
   const publishedArticles = Array.isArray(publishedData?.articles) ? publishedData.articles : [];
   console.log("Loaded " + publishedArticles.length + " previously published articles for duplicate protection.");
   await backfillMissingArticleImages(supabaseUrl, bearerToken);
+  if (process.env.IMAGE_BACKFILL_ONLY === "true") {
+    console.log("Image-only backfill completed; skipping news generation and publishing.");
+    return;
+  }
   // Run the full collection and publishing check on every scheduled tick.
   // Duplicate protection below prevents already-published stories from being reused.
   console.log("Starting the scheduled five-minute publishing check.");
