@@ -101,8 +101,8 @@ function injectArticleSeo(documentHtml: string, article: SeoArticle): string {
     .replace(/<title\b[^>]*>[\s\S]*?<\/title>/i, "")
     .replace(/<meta\b[^>]*\bname=["']description["'][^>]*>/i, "")
     .replace(/<meta\b[^>]*\bname=["']robots["'][^>]*>/i, "")
-    .replace(/<meta\b[^>]*\bname=["']twitter:(?:card|title|description|image)["'][^>]*>/gi, "")
-    .replace(/<meta\b[^>]*\bproperty=["'](?:og:title|og:description|og:type|og:url|og:image|og:site_name|article:published_time|article:section)["'][^>]*>/gi, "")
+    .replace(/<meta\b[^>]*\bname=["']twitter:(?:card|title|description|image|image:alt)["'][^>]*>/gi, "")
+    .replace(/<meta\b[^>]*\bproperty=["'](?:og:title|og:description|og:type|og:url|og:image|og:image:alt|og:site_name|article:published_time|article:section)["'][^>]*>/gi, "")
     .replace(/<link\b[^>]*\brel=["']canonical["'][^>]*>/i, "");
   const tags = [
     "<title>" + htmlEscape(pageTitle) + "</title>",
