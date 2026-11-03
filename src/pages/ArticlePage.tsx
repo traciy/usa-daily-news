@@ -187,6 +187,7 @@ export function ArticlePage({ id, onBack }: ArticlePageProps) {
       <figure className="mt-6 -mx-4 sm:mx-0">
         <img
           src={article.image_url || SITE_CONFIG.ogImage}
+          onError={(event) => { event.currentTarget.src = SITE_CONFIG.ogImage; }}
           alt={article.image_url ? article.title : 'USA Daily News'}
           width={1600}
           height={900}
