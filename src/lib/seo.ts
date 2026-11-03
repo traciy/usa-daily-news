@@ -110,6 +110,7 @@ export function useSeo(opts: SeoOptions) {
     setMeta('property', 'og:type', type);
     setMeta('property', 'og:url', url);
     setMeta('property', 'og:image', image);
+    setMeta('property', 'og:image:alt', opts.title);
     setMeta('property', 'og:site_name', SITE_CONFIG.name);
     setMeta('property', 'og:locale', 'en_US');
 
@@ -117,6 +118,7 @@ export function useSeo(opts: SeoOptions) {
     setMeta('name', 'twitter:title', title);
     setMeta('name', 'twitter:description', description);
     setMeta('name', 'twitter:image', image);
+    setMeta('name', 'twitter:image:alt', opts.title);
 
     if (opts.publishedTime) {
       setMeta('property', 'article:published_time', opts.publishedTime);
