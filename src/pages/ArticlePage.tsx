@@ -92,7 +92,7 @@ export function ArticlePage({ id, onBack }: ArticlePageProps) {
   useSeo({
     title: article ? createSeoTitle(article.title) : 'USA Daily News',
     description: seoDescription,
-    image: article?.image_url || undefined,
+    image: article?.image_url || SITE_CONFIG.ogImage,
     type: 'article',
     url: articleUrl,
     publishedTime: article?.created_at,
