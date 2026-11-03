@@ -184,20 +184,18 @@ export function ArticlePage({ id, onBack }: ArticlePageProps) {
         </button>
       </div>
 
-      {article.image_url && (
-        <figure className="mt-6 -mx-4 sm:mx-0">
-          <img
-            src={article.image_url}
-            alt={article.title}
-            width={1600}
-            height={900}
-            loading="eager"
-            fetchPriority="high"
-            decoding="async"
-            className="w-full h-auto object-cover sm:rounded-sm"
-          />
-        </figure>
-      )}
+      <figure className="mt-6 -mx-4 sm:mx-0">
+        <img
+          src={article.image_url || SITE_CONFIG.ogImage}
+          alt={article.image_url ? article.title : 'USA Daily News'}
+          width={1600}
+          height={900}
+          loading="eager"
+          fetchPriority="high"
+          decoding="async"
+          className="w-full h-auto object-cover sm:rounded-sm"
+        />
+      </figure>
 
       <div
         className="mt-8 prose-serif max-w-none"
