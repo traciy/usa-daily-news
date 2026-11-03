@@ -202,6 +202,45 @@ function extractArticleImage(html, pageUrl) {
   for (const match of articleHtml.matchAll(/<img\b[^>]*(?:src|data-src|data-original)=["']([^"']+)["'][^>]*>/ig)) add(match[1]);
   return values[0] || null;
 }
+async function backfillMissingArticleImages(functionUrl, bearerToken) {
+  const lookupUrl = new URL(functionUrl);
+  lookupUrl.searchParams.set('missing_images', 'true');
+  const lookup = await fetchWithRetry(lookupUrl.toString(), {
+    method: 'GET',
+    headers: { Authorization: 'Bearer ' + bearerToken, Accept: 'application/json' },
+  }, 'Missing article image lookup', 2);
+  const payload = await lookup.json();
+  const missing = Array.isArray(payload?.articles) ? payload.articles : [];
+  if (!missing.length) { console.log('Image backfill: no existing articles are missing images.'); return; }
+  console.log('Image backfill: checking ' + missing.length + ' existing article(s) without images.');
+  const updates = (await Promise.all(missing.map(async (article) => {
+    if (!article?.id || !article?.source_url || !/^https?:\/\//i.test(article.source_url)) return null;
+    try {
+      const response = await fetch(article.source_url, {
+        headers: { Accept: 'text/html,application/xhtml+xml', 'User-Agent': 'Mozilla/5.0 (compatible; USADailyNewsBot/1.0)' },
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!response.ok) return null;
+      const html = (await response.text()).slice(0, 1000000);
+      const imageUrl = extractArticleImage(html, article.source_url);
+      if (!imageUrl) { console.log('No usable publisher image found for existing article ' + article.id + '.'); return null; }
+      console.log('Recovered image for existing article ' + article.id + '.');
+      return { id: article.id, image_url: imageUrl };
+    } catch (error) {
+      console.warn('Image recovery failed for existing article ' + article.id + ': ' + (error?.message || error));
+      return null;
+    }
+  }))).filter(Boolean);
+  if (!updates.length) { console.log('Image backfill: no publisher images could be recovered.'); return; }
+  const saved = await fetchWithRetry(functionUrl, {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + bearerToken, 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({ image_updates: updates }),
+  }, 'Save recovered article images', 2);
+  const result = await saved.json();
+  console.log('Image backfill saved ' + Number(result.updated || 0) + ' of ' + updates.length + ' recovered image(s).');
+  if (result.rejected?.length) console.warn('Image backfill rejections: ' + JSON.stringify(result.rejected.slice(0, 5)));
+}
 async function enrichSourceArticles(articles) {
   const selected = [];
   for (const feed of RSS_FEEDS) {
@@ -752,6 +791,7 @@ async function main() {
   const publishedData = await publishedResponse.json();
   const publishedArticles = Array.isArray(publishedData?.articles) ? publishedData.articles : [];
   console.log("Loaded " + publishedArticles.length + " previously published articles for duplicate protection.");
+  await backfillMissingArticleImages(supabaseUrl, bearerToken);
   // Run the full collection and publishing check on every scheduled tick.
   // Duplicate protection below prevents already-published stories from being reused.
   console.log("Starting the scheduled five-minute publishing check.");
