@@ -169,6 +169,39 @@ function extractArticleText(html) {
   ).slice(0, 6000);
 }
 
+function extractArticleImage(html, pageUrl) {
+  const values = [];
+  const add = (value) => {
+    if (!value || typeof value !== 'string') return;
+    let url;
+    try { url = new URL(decodeXml(value.trim()), pageUrl).toString(); } catch { return; }
+    if (!/^https?:/i.test(url) || /\b(logo|avatar|icon|favicon|sprite|placeholder|pixel)\b/i.test(url) || /\.(svg|gif)(?:[?#]|$)/i.test(url)) return;
+    if (!values.includes(url)) values.push(url);
+  };
+  const patterns = [
+    /<meta\b[^>]*(?:property|name)=["']og:image(?:[:][^"']*)?["'][^>]*content=["']([^"']+)["'][^>]*>/ig,
+    /<meta\b[^>]*content=["']([^"']+)["'][^>]*(?:property|name)=["']og:image(?:[:][^"']*)?["'][^>]*>/ig,
+    /<meta\b[^>]*(?:name|property)=["']twitter:image(?:[:][^"']*)?["'][^>]*content=["']([^"']+)["'][^>]*>/ig
+  ];
+  for (const pattern of patterns) for (const match of html.matchAll(pattern)) add(match[1]);
+  for (const match of html.matchAll(/<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/ig)) {
+    try {
+      const parsed = JSON.parse(match[1]);
+      const queue = Array.isArray(parsed) ? [...parsed] : [parsed];
+      while (queue.length) {
+        const item = queue.shift();
+        if (!item || typeof item !== 'object') continue;
+        if (Array.isArray(item)) { queue.push(...item); continue; }
+        if (item['@graph']) queue.push(...(Array.isArray(item['@graph']) ? item['@graph'] : [item['@graph']]));
+        const imgs = Array.isArray(item.image) ? item.image : [item.image];
+        for (const img of imgs) add(typeof img === 'string' ? img : img?.url || img?.contentUrl);
+      }
+    } catch { /* Ignore invalid publisher metadata. */ }
+  }
+  const articleHtml = html.match(/<(?:article|main)\b[^>]*>([\s\S]*?)<\/(?:article|main)>/i)?.[1] || html;
+  for (const match of articleHtml.matchAll(/<img\b[^>]*(?:src|data-src|data-original)=["']([^"']+)["'][^>]*>/ig)) add(match[1]);
+  return values[0] || null;
+}
 async function enrichSourceArticles(articles) {
   const selected = [];
   for (const feed of RSS_FEEDS) {
@@ -183,7 +216,9 @@ async function enrichSourceArticles(articles) {
       }, "Publisher article page", 1);
       const html = (await response.text()).slice(0, 1000000);
       const articleText = extractArticleText(html);
-      return { ...article, article_text: articleText.length >= 500 ? articleText : "" };
+      const pageImage = article.urlToImage || extractArticleImage(html, article.url);
+      if (!article.urlToImage && pageImage) console.log("Recovered publisher image for: " + article.title);
+      return { ...article, urlToImage: pageImage, article_text: articleText.length >= 500 ? articleText : "" };
     } catch (error) {
       console.warn("Could not retrieve full article text for " + article.source?.name + ": " + (error?.message || error));
       return { ...article, article_text: "" };
@@ -286,7 +321,9 @@ function parseRssFeed(xml, feed) {
     const atomHref = block.match(/<link\b[^>]*\bhref=["']([^"']+)["'][^>]*\/?\s*>/i)?.[1];
     const link = decodeXml(rawLink.replace(/<[^>]+>/g, "").trim() || href || atomHref || "");
     const rawDate = getXmlTag(block, ["pubDate", "published", "updated", "dc:date"]);
-    const image = block.match(/<(?:media:content|media:thumbnail|enclosure)\b[^>]*\burl=["']([^"']+)["']/i)?.[1] || null;
+    const image = block.match(/<(?:media:content|media:thumbnail|enclosure|itunes:image)\b[^>]*(?:\burl|\bhref)=["']([^"']+)["']/i)?.[1]
+      || block.match(/<img\b[^>]*\bsrc=["']([^"']+)["']/i)?.[1]
+      || null;
     let publishedAt = null;
     if (rawDate) {
       const parsedDate = Date.parse(cleanFeedText(rawDate));
