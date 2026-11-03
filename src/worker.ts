@@ -799,7 +799,7 @@ async function handleSportsNewsRequest(request: Request, env: Env): Promise<Resp
   if (request.method !== "GET") return json(405, { error: "Method not allowed. Use GET." });
   if (!env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) return json(503, { error: "Sports news is temporarily unavailable." });
   try {
-    const endpoint = new URL(env.SUPABASE_URL.replace(/\\/$/, "") + "/rest/v1/articles");
+    const endpoint = new URL(env.SUPABASE_URL.replace(/\/$/, "") + "/rest/v1/articles");
     endpoint.searchParams.set("select", "id,title,category,image_url,seo_description,created_at,source_url");
     endpoint.searchParams.set("category", "eq.Sports");
     endpoint.searchParams.set("order", "created_at.desc");
