@@ -958,7 +958,10 @@ export default {
       const destination = new URL(url.pathname + url.search, SITE_URL);
       return Response.redirect(destination.toString(), 301);
     }
-    if (url.pathname === "/api/podcast/latest" && request.method === "GET") {\n      return handlePodcastLatest();\n    }\n    if (url.pathname === "/api/football") {
+    if (url.pathname === "/api/podcast/latest" && request.method === "GET") {
+      return handlePodcastLatest();
+    }
+    if (url.pathname === "/api/football") {
       return handleFootballRequest(request);
     }
     if (url.pathname === "/api/sports-news") {
