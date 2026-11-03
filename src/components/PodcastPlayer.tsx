@@ -6,7 +6,7 @@ interface PodcastPlayerProps {
 }
 
 const SPREAKER_PLAYER_URL =
-  'https://widget.spreaker.com/player?show_id=7171820&theme=dark&playlist=false';
+  'https://widget.spreaker.com/player?show_id=7171820&theme=dark&playlist=false&autoplay=true';
 
 export function PodcastPlayer({ variant = 'card' }: PodcastPlayerProps) {
   const [expanded, setExpanded] = useState(false);
@@ -14,8 +14,10 @@ export function PodcastPlayer({ variant = 'card' }: PodcastPlayerProps) {
   if (variant === 'overlay') {
     return (
       <div className="fixed bottom-5 right-5 z-50 flex flex-col items-end gap-3">
-        {expanded && (
-          <div className="w-[min(320px,calc(100vw-2.5rem))] overflow-hidden rounded-xl border border-gray-700 bg-gray-950 shadow-2xl">
+        <div
+          aria-hidden={!expanded}
+          className={`w-[min(320px,calc(100vw-2.5rem))] overflow-hidden rounded-xl border border-gray-700 bg-gray-950 shadow-2xl transition-all duration-200 ${expanded ? 'max-h-[260px] opacity-100' : 'pointer-events-none max-h-0 border-0 opacity-0'}` }
+        >
             <div className="flex items-center gap-2 bg-gray-900 px-3 py-2">
               <Radio className="h-4 w-4 shrink-0 text-red-500" />
               <span className="min-w-0 flex-1 truncate text-xs font-semibold text-white">
@@ -40,8 +42,7 @@ export function PodcastPlayer({ variant = 'card' }: PodcastPlayerProps) {
               loading="eager"
               className="block w-full border-0 bg-gray-950"
             />
-          </div>
-        )}
+        </div>
 
         <div className="flex h-14 sm:h-16 max-w-[calc(100vw-2.5rem)] items-center gap-2 overflow-hidden rounded-xl border border-gray-700 bg-gradient-to-br from-gray-900 to-gray-800 py-1.5 pl-2 pr-2 shadow-xl sm:pr-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-red-700 sm:h-11 sm:w-11">
