@@ -3,6 +3,41 @@ import type { ArticleSummary } from '@/types/article';
 import { categoryColor } from '@/lib/categories';
 import { formatTimeAgo } from '@/lib/date';
 
+interface ArticleImageProps {
+  article: ArticleSummary;
+  className: string;
+  width: number;
+  height: number;
+  loading?: 'eager' | 'lazy';
+  priority?: boolean;
+  sizes: string;
+}
+
+function ArticleImage({ article, className, width, height, loading = 'lazy', priority = false, sizes }: ArticleImageProps) {
+  const hasPublisherImage = Boolean(article.image_url);
+  return (
+    <img
+      src={article.image_url || '/og-default.svg'}
+      alt={hasPublisherImage ? article.title : 'USA Daily News — news, context and coverage'}
+      title={hasPublisherImage ? article.title : 'USA Daily News'}
+      width={width}
+      height={height}
+      sizes={sizes}
+      loading={loading}
+      fetchPriority={priority ? 'high' : 'auto'}
+      decoding="async"
+      onError={(event) => {
+        if (event.currentTarget.dataset.fallbackApplied !== 'true') {
+          event.currentTarget.dataset.fallbackApplied = 'true';
+          event.currentTarget.src = '/og-default.svg';
+          event.currentTarget.alt = 'USA Daily News — news, context and coverage';
+        }
+      }}
+      className={className}
+    />
+  );
+}
+
 interface ArticleCardProps {
   article: ArticleSummary;
   variant?: 'default' | 'feature' | 'compact';
@@ -17,10 +52,7 @@ export function ArticleCard({ article, variant = 'default' }: ArticleCardProps) 
       <a href={articleHref} aria-label={`Read story: ${article.title}`}
         className="group block bg-white rounded-sm overflow-hidden shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
         <div className="aspect-[16/9] overflow-hidden bg-gray-100">
-          {article.image_url ? <img src={article.image_url}
-            onError={(event) => { event.currentTarget.src = '/og-default.svg'; }} alt={article.title} width={1200} height={675}
-            loading="eager" fetchPriority="high" decoding="async"
-            className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500" /> : <img src="/og-default.svg" alt="USA Daily News" width={1200} height={630} loading="lazy" decoding="async" className="w-full h-full object-cover" />}
+          <ArticleImage article={article} width={1200} height={675} loading="eager" priority sizes="(max-width: 1024px) 100vw, 66vw" className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500" />
         </div>
         <div className="p-5 sm:p-7">
           <span className={`inline-block text-xs font-semibold uppercase tracking-wider px-2 py-0.5 rounded ${color.bg} ${color.text}`}>{article.category}</span>
@@ -39,10 +71,7 @@ export function ArticleCard({ article, variant = 'default' }: ArticleCardProps) 
     return (
       <a href={articleHref} aria-label={`Read story: ${article.title}`} className="group flex gap-3 py-3 border-b border-gray-200">
         <div className="w-20 h-20 shrink-0 overflow-hidden bg-gray-100 rounded-sm">
-          {article.image_url ? <img src={article.image_url}
-            onError={(event) => { event.currentTarget.src = '/og-default.svg'; }} alt={article.title}
-            width={200} height={200} loading="lazy" decoding="async"
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform" /> : <img src="/og-default.svg" alt="USA Daily News" width={1200} height={630} loading="lazy" decoding="async" className="w-full h-full object-cover" />}
+          <ArticleImage article={article} width={200} height={200} sizes="80px" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
         </div>
         <div className="min-w-0 flex-1">
           <span className={`inline-block text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded ${color.bg} ${color.text}`}>{article.category}</span>
@@ -57,10 +86,7 @@ export function ArticleCard({ article, variant = 'default' }: ArticleCardProps) 
     <a href={articleHref} aria-label={`Read story: ${article.title}`}
       className="group flex flex-col bg-white rounded-sm overflow-hidden shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
       <div className="aspect-[16/10] overflow-hidden bg-gray-100">
-        {article.image_url ? <img src={article.image_url}
-            onError={(event) => { event.currentTarget.src = '/og-default.svg'; }} alt={article.title} width={1200} height={750}
-          loading="lazy" decoding="async"
-          className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500" /> : <div className="flex h-full items-center justify-center bg-gray-100 text-sm font-serif text-gray-400">USA Daily News</div>}
+        <ArticleImage article={article} width={1200} height={750} sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500" />
       </div>
       <div className="p-4 flex flex-col flex-1">
         <span className={`inline-block self-start text-xs font-semibold uppercase tracking-wider px-2 py-0.5 rounded ${color.bg} ${color.text}`}>{article.category}</span>
