@@ -70,7 +70,9 @@ export function ArticlePage({ id, onBack }: ArticlePageProps) {
         articleBody: article.content.replace(/[#*_>]/g, ' ').replace(/\s+/g, ' ').trim(),
         citation: article.source_url && /^https?:\/\//i.test(article.source_url) ? article.source_url : undefined,
         description: seoDescription,
-        image: article.image_url || [SITE_CONFIG.ogImage],
+        image: article.image_url
+          ? [{ '@type': 'ImageObject', url: article.image_url, caption: article.title, representativeOfPage: true }]
+          : [{ '@type': 'ImageObject', url: SITE_CONFIG.ogImage, caption: 'USA Daily News — news, context and coverage', representativeOfPage: true }],
         datePublished: article.created_at,
         dateModified: article.created_at,
         inLanguage: 'en-US',
@@ -187,8 +189,17 @@ export function ArticlePage({ id, onBack }: ArticlePageProps) {
       <figure className="mt-6 -mx-4 sm:mx-0">
         <img
           src={article.image_url || SITE_CONFIG.ogImage}
-          onError={(event) => { event.currentTarget.src = SITE_CONFIG.ogImage; }}
-          alt={article.image_url ? article.title : 'USA Daily News'}
+          onError={(event) => {
+            if (event.currentTarget.dataset.fallbackApplied !== 'true') {
+              event.currentTarget.dataset.fallbackApplied = 'true';
+              event.currentTarget.src = SITE_CONFIG.ogImage;
+              event.currentTarget.alt = 'USA Daily News — news, context and coverage';
+            }
+          }}
+          alt={article.image_url ? `${article.title} — ${article.category} news` : 'USA Daily News — news, context and coverage'}
+          title={article.title}
+          sizes="(max-width: 768px) 100vw, 768px"
+          itemProp="image"
           width={1600}
           height={900}
           loading="eager"
