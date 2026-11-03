@@ -1,0 +1,40 @@
+name: USA Daily News Article Image Backfill
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - scripts/news-automation.mjs
+      - .github/workflows/article-image-backfill.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: usa-daily-news-image-backfill
+  cancel-in-progress: false
+
+jobs:
+  backfill-images:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SUPABASE_FUNCTION_URL: https://dyabpvcqedeioarkgjlz.supabase.co/functions/v1/api-articles
+      SUPABASE_BEARER_TOKEN: ${{ secrets.SUPABASE_BEARER_TOKEN }}
+      IMAGE_BACKFILL_ONLY: "true"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Check image backfill script syntax
+        run: node --check scripts/news-automation.mjs
+
+      - name: Recover missing article images
+        run: node scripts/news-automation.mjs
