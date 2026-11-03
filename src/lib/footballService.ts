@@ -113,6 +113,74 @@ export async function fetchMatches(
   }
 }
 
+export interface SoccerMatchDetails {
+  header?: {
+    competitions?: Array<{
+      competitors?: Array<{
+        homeAway?: string;
+        team?: { displayName?: string; name?: string; logo?: string };
+        score?: string;
+        winner?: boolean;
+        statistics?: Array<{ name?: string; displayName?: string; displayValue?: string }>;
+      }>;
+      status?: { type?: { detail?: string; shortDetail?: string; state?: string } };
+    }>;
+  };
+  keyEvents?: Array<{
+    id?: string;
+    clock?: { displayValue?: string };
+    type?: { text?: string; abbreviation?: string };
+    text?: string;
+    team?: { displayName?: string };
+    participants?: Array<{ athlete?: { displayName?: string }; type?: string }>;
+  }>;
+  commentary?: Array<{ text?: string; time?: { displayValue?: string } }>;
+  boxscore?: {
+    teams?: Array<{
+      team?: { displayName?: string; logo?: string };
+      statistics?: Array<{ name?: string; displayName?: string; displayValue?: string }>;
+    }>;
+  };
+  rosters?: Array<{
+    team?: { displayName?: string; logo?: string };
+    roster?: Array<{ athlete?: { displayName?: string }; starter?: boolean; position?: { abbreviation?: string } }>;
+  }>;
+  gameInfo?: { venue?: { fullName?: string; address?: { city?: string; country?: string } }; attendance?: number; officials?: Array<{ fullName?: string }> };
+  seasonseries?: Array<{ summary?: string; events?: Array<{ id?: string; date?: string; name?: string; competitions?: Array<{ competitors?: Array<{ score?: string; team?: { displayName?: string } }> }> }> }>;
+  news?: { articles?: Array<{ headline?: string; description?: string; links?: { web?: { href?: string } }; published?: string }> };
+  [key: string]: unknown;
+}
+
+export interface SportsNewsArticle {
+  id: number;
+  title: string;
+  category: string;
+  image_url: string | null;
+  seo_description: string | null;
+  created_at: string;
+  source_url: string | null;
+}
+
+export async function fetchMatchDetails(competitionCode: string, matchId: number): Promise<{ details?: SoccerMatchDetails; error?: string }> {
+  try {
+    const details = await fetchProxy(`match/${competitionCode}/${matchId}`) as SoccerMatchDetails;
+    return { details };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : 'Match details unavailable.' };
+  }
+}
+
+export async function fetchSportsNews(): Promise<{ articles?: SportsNewsArticle[]; error?: string }> {
+  try {
+    const response = await fetch('/api/sports-news');
+    const json = await response.json() as { data?: { articles?: SportsNewsArticle[] }; error?: string };
+    if (!response.ok) throw new Error(json.error || `HTTP ${response.status}`);
+    return { articles: json.data?.articles ?? [] };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : 'Sports news unavailable.' };
+  }
+}
+
 /** Fetch the list of competitions available on the free tier. */
 export async function fetchCompetitions(): Promise<FootballDataResult> {
   try {
