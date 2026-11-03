@@ -54,44 +54,6 @@ function parsePath(): Route {
 
 function App() {
   const [route, setRoute] = useState<Route>(() => parsePath());
-  const [showAdBlockNotice, setShowAdBlockNotice] = useState(false);
-
-  useEffect(() => {
-    let active = true;
-    let bait: HTMLDivElement | null = null;
-    let timer: number | undefined;
-
-    try {
-      if (sessionStorage.getItem('usa-daily-news-ad-notice-dismissed') === '1') return;
-    } catch {
-      // Continue with detection when browser storage is unavailable.
-    }
-
-    timer = window.setTimeout(() => {
-      bait = document.createElement('div');
-      bait.className = 'adsbox ad-placement ad-unit';
-      bait.setAttribute('aria-hidden', 'true');
-      bait.style.cssText = 'position:absolute;left:-10000px;top:-10000px;width:10px;height:10px;pointer-events:none;';
-      document.body.appendChild(bait);
-
-      window.setTimeout(() => {
-        if (!active || !bait) return;
-        const styles = window.getComputedStyle(bait);
-        const blocked = bait.offsetHeight === 0 || bait.offsetWidth === 0 ||
-          styles.display === 'none' || styles.visibility === 'hidden';
-        bait.remove();
-        bait = null;
-        if (blocked) setShowAdBlockNotice(true);
-      }, 350);
-    }, 1200);
-
-    return () => {
-      active = false;
-      if (timer !== undefined) window.clearTimeout(timer);
-      bait?.remove();
-    };
-  }, []);
-
   useEffect(() => {
     const onPopState = () => setRoute(parsePath());
     window.addEventListener('popstate', onPopState);
@@ -128,54 +90,6 @@ function App() {
       </main>
       <Footer onHome={goHome} />
       <PodcastPlayer variant="overlay" />
-      {showAdBlockNotice && (
-        <aside
-          role="status"
-          aria-live="polite"
-          className="fixed inset-x-3 bottom-3 z-[100] mx-auto max-w-xl rounded-xl border border-gray-200 bg-white p-4 shadow-2xl sm:inset-x-auto sm:bottom-5"
-        >
-          <div className="flex items-start gap-3">
-            <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-50 text-lg" aria-hidden="true">♥</div>
-            <div className="min-w-0 flex-1">
-              <p className="font-semibold text-gray-900">Help keep USA Daily News free</p>
-              <p className="mt-1 text-sm leading-5 text-gray-600">
-                It looks like an ad blocker may be preventing our ads from loading. Advertising helps us provide free news. If you would like to support us, please allow ads on this site and reload the page.
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => window.location.reload()}
-                  className="rounded-lg bg-red-800 px-3 py-2 text-sm font-semibold text-white hover:bg-red-900"
-                >
-                  I've allowed ads — reload
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    try {
-                      sessionStorage.setItem('usa-daily-news-ad-notice-dismissed', '1');
-                    } catch {
-                      // Dismiss for this page view if storage is unavailable.
-                    }
-                    setShowAdBlockNotice(false);
-                  }}
-                  className="rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100"
-                >
-                  Continue reading
-                </button>
-              </div>
-            </div>
-            <button
-              type="button"
-              aria-label="Dismiss message"
-              onClick={() => setShowAdBlockNotice(false)}
-              className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-            >
-              ×
-            </button>
-          </div>
-        </aside>
-      )}
     </div>
   );
 }
