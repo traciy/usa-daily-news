@@ -595,13 +595,13 @@ async function handlePodcastLatest(): Promise<Response> {
     }
 
     const xml = await response.text();
-    const item = /<item\\b[^>]*>([\\s\\S]*?)<\\/item>/i.exec(xml)?.[1];
-    const titleTag = item?.match(/<title\\b[^>]*>([\\s\\S]*?)<\\/title>/i)?.[1] || "";
-    const enclosureTag = item?.match(/<enclosure\\b([^>]*)\\/?\\s*>/i)?.[1] || "";
-    const audioUrl = /\\burl=["']([^"']+)["']/i.exec(enclosureTag)?.[1] || "";
+    const item = /<item\b[^>]*>([\s\S]*?)<\/item>/i.exec(xml)?.[1];
+    const titleTag = item?.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i)?.[1] || "";
+    const enclosureTag = item?.match(/<enclosure\b([^>]*)\/?\s*>/i)?.[1] || "";
+    const audioUrl = /\burl=["']([^"']+)["']/i.exec(enclosureTag)?.[1] || "";
 
     const decodeXml = (value: string) => value
-      .replace(/^<!\\[CDATA\\[([\\s\\S]*?)\\]\\]>$/, "$1")
+      .replace(/^<!\[CDATA\[([\s\S]*?)\]\]>$/, "$1")
       .replace(/&amp;/g, "&")
       .replace(/&quot;/g, '"')
       .replace(/&#39;|&apos;/g, "'")
@@ -611,7 +611,7 @@ async function handlePodcastLatest(): Promise<Response> {
 
     const title = decodeXml(titleTag);
     const decodedAudioUrl = decodeXml(audioUrl);
-    if (!title || !/^https:\\/\\//i.test(decodedAudioUrl)) {
+    if (!title || !/^https:\/\//i.test(decodedAudioUrl)) {
       return new Response(JSON.stringify({ error: "No playable latest podcast episode was found." }), { status: 404, headers });
     }
 
