@@ -36,8 +36,9 @@ function MatchDetailsPanel({ match, open }: { match: FootballMatch; open: boolea
   useEffect(() => {
     if (!open) return;
     let active = true;
+    setError(null);
+    setLoading(true);
     const loadDetails = async () => {
-      if (!details) setLoading(true);
       const result = await fetchMatchDetails(match.competitionCode, match.id);
       if (!active) return;
       if (result.error) setError(result.error);
