@@ -17,7 +17,8 @@ export function ArticleCard({ article, variant = 'default' }: ArticleCardProps) 
       <a href={articleHref} aria-label={`Read story: ${article.title}`}
         className="group block bg-white rounded-sm overflow-hidden shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
         <div className="aspect-[16/9] overflow-hidden bg-gray-100">
-          {article.image_url ? <img src={article.image_url} alt={article.title} width={1200} height={675}
+          {article.image_url ? <img src={article.image_url}
+            onError={(event) => { event.currentTarget.src = '/og-default.svg'; }} alt={article.title} width={1200} height={675}
             loading="eager" fetchPriority="high" decoding="async"
             className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500" /> : <img src="/og-default.svg" alt="USA Daily News" width={1200} height={630} loading="lazy" decoding="async" className="w-full h-full object-cover" />}
         </div>
@@ -38,7 +39,8 @@ export function ArticleCard({ article, variant = 'default' }: ArticleCardProps) 
     return (
       <a href={articleHref} aria-label={`Read story: ${article.title}`} className="group flex gap-3 py-3 border-b border-gray-200">
         <div className="w-20 h-20 shrink-0 overflow-hidden bg-gray-100 rounded-sm">
-          {article.image_url ? <img src={article.image_url} alt={article.title}
+          {article.image_url ? <img src={article.image_url}
+            onError={(event) => { event.currentTarget.src = '/og-default.svg'; }} alt={article.title}
             width={200} height={200} loading="lazy" decoding="async"
             className="w-full h-full object-cover group-hover:scale-105 transition-transform" /> : <img src="/og-default.svg" alt="USA Daily News" width={1200} height={630} loading="lazy" decoding="async" className="w-full h-full object-cover" />}
         </div>
@@ -55,7 +57,8 @@ export function ArticleCard({ article, variant = 'default' }: ArticleCardProps) 
     <a href={articleHref} aria-label={`Read story: ${article.title}`}
       className="group flex flex-col bg-white rounded-sm overflow-hidden shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
       <div className="aspect-[16/10] overflow-hidden bg-gray-100">
-        {article.image_url ? <img src={article.image_url} alt={article.title} width={1200} height={750}
+        {article.image_url ? <img src={article.image_url}
+            onError={(event) => { event.currentTarget.src = '/og-default.svg'; }} alt={article.title} width={1200} height={750}
           loading="lazy" decoding="async"
           className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500" /> : <div className="flex h-full items-center justify-center bg-gray-100 text-sm font-serif text-gray-400">USA Daily News</div>}
       </div>
