@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useSeo } from '@/lib/seo';
 import { CATEGORIES, type Category } from '@/lib/categories';
-import { SITE_CONFIG, ORGANIZATION_SCHEMA, WEBSITE_SCHEMA } from '@/lib/seo-config';
+import { SITE_CONFIG } from '@/lib/seo-config';
 import type { ArticleSummary } from '@/types/article';
 import { ArticleCard } from '@/components/ArticleCard';
 import { CategoryFilter } from '@/components/CategoryFilter';
@@ -46,7 +46,6 @@ export function HomePage({ onOpenArticle, onNavigate, initialCategory }: HomePag
     description: categoryDescriptions[active],
     type: 'website',
     url: SITE_CONFIG.url + (window.location.pathname === '/' ? '/' : window.location.pathname),
-    jsonLd: [ORGANIZATION_SCHEMA, WEBSITE_SCHEMA],
   });
   const [articles, setArticles] = useState<ArticleSummary[]>([]);
   const [loading, setLoading] = useState(true);
