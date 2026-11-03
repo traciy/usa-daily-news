@@ -454,12 +454,12 @@ async function handleSitemap(env: Env): Promise<Response> {
   }
 
   const baseUrl = env.SUPABASE_URL.replace(/\/$/, "");
-  const rows: Array<{ id: number; created_at: string }> = [];
+  const rows: Array<{ id: number; created_at: string; image_url: string | null; title: string }> = [];
   const pageSize = 1000;
 
   for (let offset = 0; ; offset += pageSize) {
     const endpoint = new URL(`${baseUrl}/rest/v1/articles`);
-    endpoint.searchParams.set("select", "id,created_at");
+    endpoint.searchParams.set("select", "id,created_at,image_url,title");
     endpoint.searchParams.set("order", "created_at.desc");
     endpoint.searchParams.set("limit", String(pageSize));
     endpoint.searchParams.set("offset", String(offset));
@@ -490,14 +490,18 @@ async function handleSitemap(env: Env): Promise<Response> {
     const lastmodTag = Number.isNaN(lastmod.getTime())
       ? ""
       : `<lastmod>${lastmod.toISOString()}</lastmod>`;
-    return `<url><loc>${xmlEscape(`${SITE_URL}/article/${article.id}`)}</loc>${lastmodTag}</url>`;
+    const imageTag = article.image_url && /^https?:\/\//i.test(article.image_url)
+      ? "<image:image><image:loc>" + xmlEscape(article.image_url) + "</image:loc><image:title>" +
+        xmlEscape(article.title) + "</image:title></image:image>"
+      : "";
+    return `<url><loc>${xmlEscape(`${SITE_URL}/article/${article.id}`)}</loc>${lastmodTag}${imageTag}</url>`;
   }).join("");
 
   const staticUrls = ["/", "/politics", "/tech", "/economy", "/culture", "/football", "/weather", "/about", "/contact", "/editorial-policy", "/corrections", "/privacy-policy"]
     .map((path) => `<url><loc>${SITE_URL}${path}</loc></url>`)
     .join("");
 
-  const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${staticUrls}${articleUrls}</urlset>`;
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">${staticUrls}${articleUrls}</urlset>`;
 
   return new Response(xml, {
     headers: {
