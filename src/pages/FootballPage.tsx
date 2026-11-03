@@ -34,22 +34,27 @@ function MatchDetailsPanel({ match, open }: { match: FootballMatch; open: boolea
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
-    if (!open || details) return;
+    if (!open) return;
     let active = true;
-    setError(null);
-    setLoading(true);
-    fetchMatchDetails(match.competitionCode, match.id).then((result) => {
+    const loadDetails = async () => {
+      if (!details) setLoading(true);
+      const result = await fetchMatchDetails(match.competitionCode, match.id);
       if (!active) return;
       if (result.error) setError(result.error);
-      else setDetails(result.details ?? null);
+      else {
+        setDetails(result.details ?? null);
+        setError(null);
+      }
       setLoading(false);
-    });
-    return () => { active = false; };
-  }, [open, details, match.competitionCode, match.id]);
+    };
+    loadDetails();
+    const interval = setInterval(loadDetails, REFRESH_INTERVAL_MS);
+    return () => { active = false; clearInterval(interval); };
+  }, [open, match.competitionCode, match.id]);
   if (!open) return null;
   if (loading) return <div className="border-t border-gray-100 bg-gray-50 px-4 py-6 text-sm text-gray-500" role="status">Loading match report and available statistics…</div>;
   if (error || !details) return <div className="border-t border-gray-100 bg-gray-50 px-4 py-5 text-sm text-gray-500">{error || 'Match details are not available yet. Please try again shortly.'}</div>;
-  const teams = details.boxscore?.teams ?? [];
+  const teams = details.boxscore?.teams ?? details.header?.competitions?.[0]?.competitors ?? [];
   const homeStats = teams.find((team) => team.team?.displayName === match.homeTeam);
   const awayStats = teams.find((team) => team.team?.displayName === match.awayTeam);
   const homeValues = homeStats?.statistics ?? [];
@@ -79,7 +84,7 @@ function MatchDetailsPanel({ match, open }: { match: FootballMatch; open: boolea
           </ol> : <p className="text-sm text-gray-500">No event timeline has been published for this match yet.</p>}
         </section>
         <section>
-          <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3">Match statistics</h3>
+          <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3">Match analytics & team statistics</h3>
           {statRows.length ? <div className="space-y-3">
             <div className="grid grid-cols-[1fr_auto_1fr] gap-2 text-xs font-semibold text-gray-600"><span>{match.homeTeam}</span><span className="text-center">Stat</span><span className="text-right">{match.awayTeam}</span></div>
             {statRows.slice(0, 12).map((stat) => <div key={stat.name} className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 text-xs">
