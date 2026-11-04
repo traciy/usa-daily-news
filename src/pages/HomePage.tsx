@@ -107,7 +107,7 @@ export function HomePage({ onOpenArticle, onNavigate, initialCategory }: HomePag
         </h1>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <section className="lg:col-span-2 order-2 lg:order-1" aria-label="Top stories" aria-busy={loading}>
+          <section className="order-1 lg:col-span-2 lg:row-span-2" aria-label="Top stories" aria-busy={loading}>
             {loading && (
               <div className="space-y-6" aria-label="Loading latest stories">
                 <div className="overflow-hidden rounded-sm border border-gray-200 bg-white">
@@ -187,7 +187,7 @@ export function HomePage({ onOpenArticle, onNavigate, initialCategory }: HomePag
             )}
           </section>
 
-          <aside className="lg:col-span-1 order-1 lg:order-2 space-y-4" aria-label="Recent stories and sections" aria-busy={loading}>
+          <aside className="order-2 lg:col-start-3 lg:row-start-1 space-y-4" aria-label="Recent stories and sections" aria-busy={loading}>
             <PodcastPlayer variant="compact" />
             <div>
               <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-gray-500 border-b-2 border-gray-900 pb-2 mb-4">
@@ -206,7 +206,6 @@ export function HomePage({ onOpenArticle, onNavigate, initialCategory }: HomePag
               ))}
             </div>
 
-            <SidebarEngagement onOpenArticle={onOpenArticle} />
 
             <div className="min-h-[220px] p-5 bg-gray-50 border border-gray-200 rounded-sm">
               <h2 className="font-serif font-bold text-gray-900">Sections</h2>
@@ -235,6 +234,10 @@ export function HomePage({ onOpenArticle, onNavigate, initialCategory }: HomePag
               </ul>
             </div>
           </aside>
+
+          <div className="order-3 lg:col-start-3 lg:row-start-2">
+            <SidebarEngagement onOpenArticle={onOpenArticle} />
+          </div>
         </div>
       </section>
 
