@@ -6,7 +6,6 @@ interface Env {
   // read-only site access; never use a service-role key here.
   SUPABASE_URL?: string;
   SUPABASE_ANON_KEY?: string;
-  TAVILY_API_KEY?: string;
 }
 
 const SITE_URL = "https://usadailynews.space";
@@ -1167,59 +1166,78 @@ async function handleAiChatRequest(request: Request, env: Env & { AI?: WorkersAi
     }
   }
 
-  // Search the public web when a private Tavily key has been configured in Cloudflare.
-  // The free Tavily allowance is limited; use one basic search per visitor question.
+  // Search DuckDuckGo's public HTML results. This requires no API key or paid account.
+  // Cache each normalized query briefly to reduce repeat requests and avoid unnecessary traffic.
   let webSearchContext = "";
   let webSources: Array<{ title: string; url: string }> = [];
-  if (env.TAVILY_API_KEY) {
-    try {
-      const webResponse = await fetch("https://api.tavily.com/search", {
-        method: "POST",
+  try {
+    const query = messages[messages.length - 1].content.trim().slice(0, 300);
+    const cacheKey = new Request("https://usadailynews.space/__ai_web_search_cache/" + encodeURIComponent(query.toLowerCase()));
+    const cache = caches.default;
+    let searchHtml = "";
+    const cached = await cache.match(cacheKey);
+    if (cached) {
+      searchHtml = await cached.text();
+    } else {
+      const searchUrl = new URL("https://html.duckduckgo.com/html/");
+      searchUrl.searchParams.set("q", query);
+      const searchResponse = await fetch(searchUrl.toString(), {
         headers: {
-          Authorization: "Bearer " + env.TAVILY_API_KEY,
-          "Content-Type": "application/json",
+          "Accept": "text/html,application/xhtml+xml",
+          "User-Agent": "Mozilla/5.0 (compatible; USADailyNewsBot/1.0; +https://usadailynews.space)",
         },
-        body: JSON.stringify({
-          query: messages[messages.length - 1].content.slice(0, 350),
-          search_depth: "basic",
-          topic: "general",
-          max_results: 5,
-          include_raw_content: false,
-        }),
-      });
-      if (webResponse.ok) {
-        const searchData = await webResponse.json() as {
-          results?: Array<{ title?: string; url?: string; content?: string; published_date?: string }>;
-        };
-        webSources = (searchData.results || []).flatMap((item) => {
-          if (typeof item.url !== "string" || typeof item.title !== "string") return [];
-          try {
-            const sourceUrl = new URL(item.url);
-            if (sourceUrl.protocol !== "https:" && sourceUrl.protocol !== "http:") return [];
-            return [{ title: item.title.slice(0, 220), url: sourceUrl.toString() }];
-          } catch {
-            return [];
-          }
-        }).slice(0, 5);
-        webSearchContext = (searchData.results || []).slice(0, 5).map((item, index) => {
-          const safeUrl = typeof item.url === "string" ? item.url : "";
-          let validUrl = "";
-          try {
-            const parsed = new URL(safeUrl);
-            if (parsed.protocol === "https:" || parsed.protocol === "http:") validUrl = parsed.toString();
-          } catch { /* Ignore malformed result URLs. */ }
-          if (!validUrl) return "";
-          return [
-            "WEB SOURCE [" + (index + 1) + "]: " + String(item.title || "Untitled").slice(0, 220),
-            "URL: " + validUrl,
-            item.published_date ? "PUBLISHED: " + String(item.published_date).slice(0, 40) : "",
-            "EXCERPT: " + String(item.content || "").slice(0, 1600),
-          ].filter(Boolean).join("\n");
-        }).filter(Boolean).join("\n\n");
+        cf: { cacheTtl: 300, cacheEverything: true },
+      } as RequestInit & { cf: { cacheTtl: number; cacheEverything: boolean } });
+      if (searchResponse.ok) {
+        searchHtml = (await searchResponse.text()).slice(0, 500000);
+        if (searchHtml) {
+          await cache.put(cacheKey, new Response(searchHtml, {
+            headers: { "Cache-Control": "public, max-age=300" },
+          }));
+        }
       }
-    } catch {
-      // Keep the site-article assistant available if web search is temporarily unavailable.
     }
+
+    const decodeHtml = (value: string) => value
+      .replace(/<[^>]*>/g, " ")
+      .replace(/&amp;/gi, "&")
+      .replace(/&quot;/gi, '"')
+      .replace(/&#39;|&#x27;/gi, "'")
+      .replace(/&lt;/gi, "<")
+      .replace(/&gt;/gi, ">")
+      .replace(/&nbsp;/gi, " ")
+      .replace(/&#(\d+);/g, (_match, code) => String.fromCodePoint(Number(code)))
+      .replace(/&#x([0-9a-f]+);/gi, (_match, code) => String.fromCodePoint(parseInt(code, 16)))
+      .replace(/\s+/g, " ").trim();
+    const resultBlocks = searchHtml.match(/<div[^>]*class=["'][^"']*result[^"']*["'][^>]*>[\s\S]*?(?=<div[^>]*class=["'][^"']*result[^"']*["']|$)/gi) || [];
+    for (const block of resultBlocks) {
+      if (webSources.length >= 5) break;
+      const linkMatch = /<a[^>]*class=["'][^"']*result__a[^"']*["'][^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/i.exec(block)
+        || /<a[^>]*href=["']([^"']+)["'][^>]*class=["'][^"']*result__a[^"']*["'][^>]*>([\s\S]*?)<\/a>/i.exec(block);
+      if (!linkMatch) continue;
+      let resultUrl = linkMatch[1].replace(/&amp;/gi, "&");
+      try {
+        const parsedLink = new URL(resultUrl, "https://duckduckgo.com");
+        const redirect = parsedLink.searchParams.get("uddg");
+        if (redirect) resultUrl = redirect;
+        const parsedResult = new URL(resultUrl);
+        if (parsedResult.protocol !== "https:" && parsedResult.protocol !== "http:") continue;
+        const title = decodeHtml(linkMatch[2]).slice(0, 220);
+        if (!title) continue;
+        const snippetMatch = /class=["'][^"']*result__snippet[^"']*["'][^>]*>([\s\S]*?)<\//i.exec(block);
+        const excerpt = snippetMatch ? decodeHtml(snippetMatch[1]).slice(0, 1200) : "";
+        webSources.push({ title, url: parsedResult.toString() });
+        webSearchContext += [
+          "WEB SOURCE [" + webSources.length + "]: " + title,
+          "URL: " + parsedResult.toString(),
+          excerpt ? "EXCERPT: " + excerpt : "",
+        ].filter(Boolean).join("\n") + "\n\n";
+      } catch {
+        // Ignore malformed or non-web search results.
+      }
+    }
+  } catch {
+    // Keep the site-article assistant available if public web search is unavailable.
   }
 
   const systemPrompt = [
