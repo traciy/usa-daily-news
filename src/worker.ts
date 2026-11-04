@@ -671,7 +671,39 @@ function rssPlainText(value: string): string {
 interface GoogleTrendItem {
   topic: string;
   traffic: string;
+  answer: string;
   news: Array<{ title: string; url: string; source: string }>;
+}
+
+function decodeHtmlText(value: string): string {
+  return value.replace(/<[^>]*>/g, " ").replace(/&amp;/g, "&").replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCodePoint(parseInt(code, 16)))
+    .replace(/&#(\\d+);/g, (_, code) => String.fromCodePoint(Number(code)))
+    .replace(/\\s+/g, " ").trim();
+}
+
+async function fetchTrendAnswer(articleUrl: string): Promise<string> {
+  try {
+    const response = await fetch(articleUrl, {
+      headers: { Accept: "text/html", "User-Agent": "Mozilla/5.0 (compatible; USADailyNewsBot/1.0)" },
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!response.ok) return "";
+    const html = (await response.text()).slice(0, 500000);
+    const meta = html.match(/<meta[^>]+(?:name|property)=["'](?:description|og:description)["'][^>]+content=["']([^"']+)["'][^>]*>/i)
+      || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+(?:name|property)=["'](?:description|og:description)["'][^>]*>/i);
+    let answer = meta ? decodeHtmlText(meta[1]) : "";
+    if (answer.length < 100) {
+      const paragraphs = [...html.matchAll(/<p\\b[^>]*>([\\s\\S]*?)<\\/p>/gi)]
+        .map(match => decodeHtmlText(match[1]))
+        .filter(text => text.length > 90 && !/cookie|subscribe|sign up|advertisement|javascript/i.test(text));
+      answer = paragraphs.slice(0, 2).join(" ");
+    }
+    return answer.length > 520 ? answer.slice(0, 517).replace(/\\s+\\S*$/, "") + "…" : answer;
+  } catch {
+    return "";
+  }
 }
 
 function decodeTrendXml(value: string): string {
@@ -718,7 +750,10 @@ async function handleGoogleTrends(): Promise<Response> {
           return { title, url: url.toString(), source };
         } catch { return null; }
       }).filter((entry): entry is { title: string; url: string; source: string } => entry !== null);
-      if (news.length) trends.push({ topic, traffic, news: news.slice(0, 2) });
+      if (news.length) {
+        const answer = await fetchTrendAnswer(news[0].url);
+        if (answer) trends.push({ topic, traffic, answer, news: news.slice(0, 2) });
+      }
       if (trends.length >= 6) break;
     }
     if (!trends.length) {
