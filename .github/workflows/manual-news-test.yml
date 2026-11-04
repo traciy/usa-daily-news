@@ -1,0 +1,46 @@
+name: USA Daily News Manual Test
+
+on:
+  push:
+    paths:
+      - ".github/workflows/manual-news-test.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: usa-daily-news-automation
+  cancel-in-progress: false
+
+jobs:
+  publish-one-article:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GEMINI_MODEL: gemini-3.5-flash-lite
+      ARTICLE_COUNT: "1"
+      MIN_ARTICLES: "1"
+      ARTICLE_WORDS: "250"
+      SUPABASE_FUNCTION_URL: https://dyabpvcqedeioarkgjlz.supabase.co/functions/v1/api-articles
+      SUPABASE_BEARER_TOKEN: ${{ secrets.SUPABASE_BEARER_TOKEN }}
+      BUFFER_API_KEY: ${{ secrets.BUFFER_API_KEY }}
+      BUFFER_X_CHANNEL_ID: "6aeb3ae6e29c69a1715d3a4c"
+      BUFFER_SUBSTACK_CHANNEL_ID: "6aeb3c18e29c69a1715d54aa"
+      PUBLISH_ENABLED: "true"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Check news automation syntax
+        run: node --check scripts/news-automation.mjs
+
+      - name: Publish one article and share to X and Substack
+        run: node scripts/news-automation.mjs
