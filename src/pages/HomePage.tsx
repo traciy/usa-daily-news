@@ -73,7 +73,7 @@ export function HomePage({ onOpenArticle, onNavigate, initialCategory }: HomePag
         .from('articles')
         .select('id, title, category, image_url, seo_description, created_at, source_url')
         .order('created_at', { ascending: false })
-        .limit(24);
+        .limit(1000);
       if (active !== 'All') {
         query = query.ilike('category', active);
       }
