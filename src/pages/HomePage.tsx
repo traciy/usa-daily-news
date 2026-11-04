@@ -8,6 +8,7 @@ import type { ArticleSummary } from '@/types/article';
 import { ArticleCard } from '@/components/ArticleCard';
 import { CategoryFilter } from '@/components/CategoryFilter';
 import { PodcastPlayer } from '@/components/PodcastPlayer';
+import { SidebarEngagement } from '@/components/SidebarEngagement';
 
 interface HomePageProps {
   onOpenArticle: (id: number) => void;
@@ -204,6 +205,8 @@ export function HomePage({ onOpenArticle, onNavigate, initialCategory }: HomePag
                 </div>
               ))}
             </div>
+
+            <SidebarEngagement onOpenArticle={onOpenArticle} />
 
             <div className="min-h-[220px] p-5 bg-gray-50 border border-gray-200 rounded-sm">
               <h2 className="font-serif font-bold text-gray-900">Sections</h2>
