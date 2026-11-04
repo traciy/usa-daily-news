@@ -990,6 +990,7 @@ async function postArticleToBuffer(article, articleUrl, apiKey, channelId) {
     input: {
       text,
       channelId,
+      needsApproval: false,
       schedulingType: "automatic",
       mode: "shareNow",
     },
