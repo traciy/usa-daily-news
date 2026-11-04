@@ -3,8 +3,8 @@
  * Worker at /api/football. The API key stays in a Cloudflare Worker secret
  * and is never exposed to the browser.
  *
- * football-data.org plan limits determine which competitions and match
- * details are available for the account using the API key.
+ * The Cloudflare Worker normalizes ESPN scoreboard and match-centre data.
+ * Provider availability determines which details are present for each fixture.
  */
 
 const PROXY_URL = '/api/football';
@@ -28,6 +28,8 @@ export interface FootballMatch {
   homeTla: string;
   awayTeam: string;
   awayTla: string;
+  homeLogo?: string | null;
+  awayLogo?: string | null;
   homeScore: number | null;
   awayScore: number | null;
   minute: number | null;
@@ -53,8 +55,8 @@ interface RawMatch {
   utcDate: string;
   minute: number | null;
   competition?: { name: string; code: string };
-  homeTeam?: { name: string; tla: string };
-  awayTeam?: { name: string; tla: string };
+  homeTeam?: { name: string; tla: string; crest?: string; logo?: string };
+  awayTeam?: { name: string; tla: string; crest?: string; logo?: string };
   score?: {
     fullTime?: { home: number | null; away: number | null };
     halfTime?: { home: number | null; away: number | null };
@@ -70,6 +72,8 @@ function mapMatch(raw: RawMatch): FootballMatch {
     homeTla: raw.homeTeam?.tla ?? raw.homeTeam?.name?.slice(0, 3).toUpperCase() ?? '???',
     awayTeam: raw.awayTeam?.name ?? 'TBD',
     awayTla: raw.awayTeam?.tla ?? raw.awayTeam?.name?.slice(0, 3).toUpperCase() ?? '???',
+    homeLogo: raw.homeTeam?.logo ?? raw.homeTeam?.crest ?? null,
+    awayLogo: raw.awayTeam?.logo ?? raw.awayTeam?.crest ?? null,
     homeScore: raw.score?.fullTime?.home ?? null,
     awayScore: raw.score?.fullTime?.away ?? null,
     minute: raw.minute,
@@ -181,7 +185,7 @@ export async function fetchSportsNews(): Promise<{ articles?: SportsNewsArticle[
   }
 }
 
-/** Fetch the list of competitions available on the free tier. */
+/** Fetch the list of competitions supported by the Worker. */
 export async function fetchCompetitions(): Promise<FootballDataResult> {
   try {
     const data = await fetchProxy('competitions') as {
@@ -195,7 +199,7 @@ export async function fetchCompetitions(): Promise<FootballDataResult> {
   }
 }
 
-// Competitions available on the football-data.org free tier.
+// Competitions currently enabled by the ESPN scoreboard adapter.
 export const FREE_COMPETITIONS: Competition[] = [
   { id: 2021, name: 'Premier League', code: 'PL' },
   { id: 2014, name: 'La Liga', code: 'PD' },
