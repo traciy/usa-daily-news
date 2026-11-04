@@ -184,6 +184,7 @@ interface StaticSeoPage {
   heading: string;
   paragraphs: string[];
   keywords?: string[];
+  faq?: Array<{ question: string; answer: string }>;
 }
 const STATIC_SEO_PAGES: Record<string, StaticSeoPage> = {
   "/about": {
@@ -260,27 +261,50 @@ const STATIC_SEO_PAGES: Record<string, StaticSeoPage> = {
     paragraphs: ["Read coverage of entertainment, arts, media, society and cultural developments in the United States and around the world."]
   },
   "/football": {
-    title: "Live Football Scores & Match Analysis | USA Daily News",
-    description: "Live football scores, fixtures, results and match analysis. Explore goals, line-ups, team statistics, head-to-head records and the latest sports news.",
-    heading: "Live Football Scores, Fixtures, Results & Match Analysis",
+    title: "Live Football Scores & Fixtures | USA Daily News",
+    description: "Follow live football scores, today's fixtures and recent results. Explore match timelines, team line-ups, statistics, head-to-head records and sports news.",
+    heading: "Live Football Scores, Fixtures, Results & Match Centre",
     keywords: [
       "live football scores",
       "football scores today",
-      "soccer fixtures",
+      "soccer live scores",
+      "football fixtures today",
       "football results",
-      "match analysis",
       "Premier League scores",
       "La Liga scores",
       "Bundesliga scores",
       "Serie A scores",
       "Ligue 1 scores",
-      "Champions League scores",
+      "UEFA Champions League scores",
+      "football match analysis",
+      "team line-ups",
+      "football statistics",
+      "head-to-head football results",
       "latest sports news"
     ],
     paragraphs: [
-      "Follow live football scores, today's soccer fixtures and recent match results from the Premier League, La Liga, Bundesliga, Serie A, Ligue 1 and the UEFA Champions League. Live match scores and match minutes refresh regularly as games progress.",
-      "Expand a fixture or result to explore the match centre. When available, match reports include goal and card timelines, team line-ups, team statistics, venue information and previous head-to-head meetings. Statistics are shown only when supplied by the data provider; unavailable figures are never estimated.",
-      "Read the latest sports news and football coverage from USA Daily News alongside live scores, upcoming fixtures and completed match results. Match data is supplied by ESPN and may be delayed or corrected by the provider."
+      "Follow live football scores, today's soccer fixtures and recent match results from the Premier League, La Liga, Bundesliga, Serie A, Ligue 1 and the UEFA Champions League. Match cards show the full team names, competition, kickoff time, score and current match status. Live score data refreshes every 30 seconds.",
+      "Open a fixture or result to explore its match centre. When the provider makes the information available, the expanded report can include goal and card events, player names, team line-ups, team statistics, match commentary, venue details, attendance, officials and previous meetings between the teams.",
+      "Browse live matches, upcoming fixtures and completed results by competition. Kickoff times are displayed in your device's local timezone, and the match list is organized by competition and date to make fixtures easier to scan.",
+      "USA Daily News also publishes sports headlines and match coverage alongside its live football score centre. Match data is supplied by ESPN. Coverage, statistics and update timing can vary by competition and fixture; unavailable figures are not estimated."
+    ],
+    faq: [
+      {
+        question: "How often are live football scores updated?",
+        answer: "The live football score centre checks for updates every 30 seconds. The underlying data provider may delay or revise individual match updates."
+      },
+      {
+        question: "Which football competitions are covered?",
+        answer: "The score centre currently covers the Premier League, La Liga, Bundesliga, Serie A, Ligue 1 and the UEFA Champions League."
+      },
+      {
+        question: "What is available in the expanded match centre?",
+        answer: "When supplied by the data provider, a match report can include key events, goal and card timelines, line-ups, team statistics, commentary, venue information, attendance, officials and previous meetings."
+      },
+      {
+        question: "Are statistics shown for every match?",
+        answer: "No. Match statistics and other details are displayed only when the provider makes them available. Missing statistics are not estimated."
+      }
     ]
   },
   "/weather": {
@@ -302,7 +326,7 @@ async function handleStaticSeoPage(request: Request, env: Env, path: string): Pr
   let html = await asset.text();
   const canonical = SITE_URL + path;
   const description = htmlEscape(page.description);
-  const schema = JSON.stringify({
+  const pageSchema = {
     "@context": "https://schema.org",
     "@type": "WebPage",
     name: page.title,
@@ -311,7 +335,21 @@ async function handleStaticSeoPage(request: Request, env: Env, path: string): Pr
     url: canonical,
     isPartOf: { "@type": "WebSite", name: "USA Daily News", url: SITE_URL },
     publisher: { "@type": "NewsMediaOrganization", name: "USA Daily News", url: SITE_URL, logo: { "@type": "ImageObject", url: SITE_URL + "/logo.svg" } }
-  }).replace(/</g, "\\u003c");
+  };
+  const schema = JSON.stringify(page.faq?.length ? {
+    "@context": "https://schema.org",
+    "@graph": [
+      pageSchema,
+      {
+        "@type": "FAQPage",
+        mainEntity: page.faq.map((entry) => ({
+          "@type": "Question",
+          name: entry.question,
+          acceptedAnswer: { "@type": "Answer", text: entry.answer }
+        }))
+      }
+    ]
+  } : pageSchema).replace(/</g, "\\u003c");
   const tags = [
     "<title>" + htmlEscape(page.title) + "</title>",
     '<meta name="description" content="' + description + '">',
@@ -337,8 +375,14 @@ async function handleStaticSeoPage(request: Request, env: Env, path: string): Pr
     .replace(/<meta\b[^>]*\bname=["']twitter:[^"']+["'][^>]*>/gi, "")
     .replace(/<link\b[^>]*\brel=["']canonical["'][^>]*>/i, "")
     .replace("</head>", tags + "\n</head>");
+  const faqHtml = page.faq?.length
+    ? '<section aria-labelledby="seo-page-faq"><h2 id="seo-page-faq">Football Scores & Match Centre FAQs</h2>' +
+      page.faq.map((entry) => "<h3>" + htmlEscape(entry.question) + "</h3><p>" + htmlEscape(entry.answer) + "</p>").join("") +
+      "</section>"
+    : "";
   const body = '<main id="seo-static-content"><article><h1>' + htmlEscape(page.heading) + '</h1>' +
     page.paragraphs.map((paragraph) => "<p>" + htmlEscape(paragraph) + "</p>").join("") +
+    faqHtml +
     '<nav aria-label="News sections"><a href="/">Latest news</a> · <a href="/politics">Politics</a> · <a href="/tech">Technology</a> · <a href="/economy">Economy</a> · <a href="/culture">Culture</a> · <a href="/football">Sports</a> · <a href="/weather">Weather</a></nav><p><a href="/about">About</a> · <a href="/editorial-policy">Editorial policy</a> · <a href="/corrections">Corrections</a> · <a href="/privacy-policy">Privacy</a> · <a href="/contact">Contact</a></p></article></main>';
   html = html.replace('<div id="root"></div>', '<div id="root">' + body + '</div>');
   return new Response(html, {
@@ -489,7 +533,7 @@ async function handleSitemap(env: Env): Promise<Response> {
         Authorization: `Bearer ${env.SUPABASE_ANON_KEY}`,
         Accept: "application/json",
       },
-      cf: { cacheTtl: 300, cacheEverything: true },
+      cf: { cacheTtl: 20, cacheEverything: true },
     } as RequestInit & { cf: { cacheTtl: number; cacheEverything: boolean } });
 
     if (!response.ok) {
@@ -778,10 +822,12 @@ function mapEspnEvent(event: any, league: { name: string }, code: string) {
     homeTeam: {
       name: home?.team?.displayName ?? home?.team?.name ?? "TBD",
       tla: home?.team?.abbreviation ?? "???",
+      logo: home?.team?.logo ?? home?.team?.logos?.[0]?.href ?? null,
     },
     awayTeam: {
       name: away?.team?.displayName ?? away?.team?.name ?? "TBD",
       tla: away?.team?.abbreviation ?? "???",
+      logo: away?.team?.logo ?? away?.team?.logos?.[0]?.href ?? null,
     },
     score: {
       fullTime: {
