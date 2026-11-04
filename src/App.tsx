@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
-import { PodcastPlayer } from '@/components/PodcastPlayer';
 import { NewsAiChat } from '@/components/NewsAiChat';
 import { HomePage } from '@/pages/HomePage';
 import { ArticlePage } from '@/pages/ArticlePage';
@@ -90,7 +89,6 @@ function App() {
         {route.name === 'privacy' && <PrivacyPolicyPage />}
       </main>
       <Footer onHome={goHome} />
-      <PodcastPlayer variant="overlay" />
       <NewsAiChat />
     </div>
   );
