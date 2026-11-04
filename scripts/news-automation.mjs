@@ -983,27 +983,60 @@ async function bufferGraphQL(apiKey, query, variables = {}) {
   return payload?.data ?? {};
 }
 
-async function postArticleToBuffer(article, articleUrl, apiKey, channelId) {
-  const text = buildXPostText(article, articleUrl);
-  const query = "mutation CreatePost($input: CreatePostInput!) { createPost(input: $input) { ... on PostActionSuccess { post { id text status } } ... on MutationError { message } } }";
-  const data = await bufferGraphQL(apiKey, query, {
-    input: {
-      text,
-      channelId,
-      needsApproval: false,
-      schedulingType: "automatic",
-      mode: "shareNow",
-    },
-  });
+async function createBufferPost(apiKey, channelId, text, imageUrl = "") {
+  const input = {
+    text,
+    channelId,
+    needsApproval: false,
+    schedulingType: "automatic",
+    mode: "shareNow",
+  };
+  if (imageUrl) input.assets = [{ image: { url: imageUrl } }];
 
+  const query = "mutation CreatePost($input: CreatePostInput!) { createPost(input: $input) { ... on PostActionSuccess { post { id text status } } ... on MutationError { message } } }";
+  const data = await bufferGraphQL(apiKey, query, { input });
   const result = data?.createPost;
+
   if (result?.message) throw new Error("Buffer could not create the post: " + result.message);
   if (!result?.post?.id) {
-    throw new Error("Buffer did not confirm the X post was created: " + JSON.stringify(result).slice(0, 700));
+    throw new Error("Buffer did not confirm the post was created: " + JSON.stringify(result).slice(0, 700));
+  }
+  return result.post;
+}
+
+async function postArticleToBuffer(article, articleUrl, apiKey, channelId, channelName) {
+  const text = buildXPostText(article, articleUrl);
+  const isSubstack = String(channelName).toLowerCase() === "substack";
+  const fallbackImageUrl = "https://usadailynews.space/substack-fallback.webp";
+
+  let post;
+  let usedImageUrl = "";
+
+  if (isSubstack) {
+    const articleImageUrl = typeof article.image_url === "string" && /^https:\/\/\S+$/i.test(article.image_url.trim())
+      ? article.image_url.trim()
+      : "";
+    usedImageUrl = articleImageUrl || fallbackImageUrl;
+
+    try {
+      post = await createBufferPost(apiKey, channelId, text, usedImageUrl);
+    } catch (error) {
+      const isImageFailure = /image|asset|media|dimension|format|file|not found|fetch/i.test(String(error?.message || error));
+      if (!articleImageUrl || !isImageFailure) throw error;
+
+      console.warn("Substack could not use the article's source image; retrying with the USA Daily News branded fallback image: " + (error?.message || error));
+      usedImageUrl = fallbackImageUrl;
+      post = await createBufferPost(apiKey, channelId, text, usedImageUrl);
+    }
+
+    console.log("Created Substack Note with image: " + post.id);
+    console.log("Substack image URL: " + usedImageUrl);
+  } else {
+    post = await createBufferPost(apiKey, channelId, text);
+    console.log("Created X post: " + post.id);
   }
 
-  console.log("Sent article to Buffer for immediate X publishing. Buffer post ID: " + result.post.id);
-  console.log("X post text: " + text);
+  console.log("Buffer post text: " + text);
 }
 
 async function publishArticles(articles, supabaseUrl, bearerToken) {
@@ -1054,7 +1087,7 @@ async function publishArticles(articles, supabaseUrl, bearerToken) {
       if (bufferApiKey) {
         for (const channel of bufferChannels) {
           try {
-            await postArticleToBuffer(article, articleUrl, bufferApiKey, channel.id);
+            await postArticleToBuffer(article, articleUrl, bufferApiKey, channel.id, channel.name);
             console.log("Queued website article for " + channel.name + ".");
           } catch (error) {
             // Keep successful website publication successful even if a social channel is unavailable.
