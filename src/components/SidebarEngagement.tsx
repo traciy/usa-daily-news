@@ -7,6 +7,7 @@ type Poll = { question: string; options: string[] };
 type GoogleTrend = {
   topic: string;
   traffic: string;
+  answer: string;
   news: Array<{ title: string; url: string; source: string }>;
 };
 const POLLS: Poll[] = [
@@ -166,7 +167,7 @@ export function SidebarEngagement({ onOpenArticle }: { onOpenArticle: (id: numbe
           <h2 id="news-questions-heading" className="font-serif font-bold text-gray-900">What Americans Are Searching</h2>
           <span className="rounded-full bg-gray-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-gray-600">Google Trends · US</span>
         </div>
-        <p className="mt-1 text-xs text-gray-500">Six news-related topics from Google's US trending searches, refreshed from the live feed.</p>
+        <p className="mt-1 text-xs text-gray-500">Six news-related topics from Google's US trending searches, with answers summarized from linked reporting.</p>
         {trendsLoading ? (
           <p className="mt-3 text-sm text-gray-500">Loading today's US trending searches…</p>
         ) : googleTrends.length > 0 ? (
@@ -176,10 +177,12 @@ export function SidebarEngagement({ onOpenArticle }: { onOpenArticle: (id: numbe
               return (
                 <article key={trend.topic} className="py-3 first:pt-0 last:pb-0">
                   <h3 className="text-sm font-semibold leading-snug text-gray-900">Why is {trend.topic} trending in the US today?</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-gray-600">
-                    Google Trends currently lists {trend.topic} among US trending searches.
-                    {report ? ` Related coverage: ${report.title}${report.source ? ` — ${report.source}` : ''}.` : ''}
-                  </p>
+                  <p className="mt-2 text-sm leading-relaxed text-gray-700">{trend.answer}</p>
+                  {report && (
+                    <p className="mt-2 text-xs text-gray-500">
+                      Reporting: {report.title}{report.source ? ` — ${report.source}` : ''}
+                    </p>
+                  )}
                   {report && (
                     <a href={report.url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-xs font-semibold text-red-700 hover:text-red-900">
                       Read related reporting →
@@ -198,7 +201,7 @@ export function SidebarEngagement({ onOpenArticle }: { onOpenArticle: (id: numbe
         ) : (
           <p className="mt-3 text-sm text-gray-500">Google Trends is temporarily unavailable. Please check back shortly.</p>
         )}
-        <p className="mt-3 text-[11px] text-gray-400">Topics are sourced from Google Trends; the questions are editorially written and are not exact Google search queries.</p>
+        <p className="mt-3 text-[11px] text-gray-400">Topics come from Google Trends US. Answers summarize the linked news report; questions are editorially written, not exact Google search queries.</p>
       </section>
     </div>
   );
