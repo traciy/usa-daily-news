@@ -52,6 +52,20 @@ export function ArticlePage({ id, onBack }: ArticlePageProps) {
       } else {
         const currentArticle = data as Article;
         setArticle(currentArticle);
+        try {
+          const visitorKey = 'usadailynews-article-reader';
+          let visitorId = window.localStorage.getItem(visitorKey);
+          if (!visitorId) {
+            visitorId = window.crypto.randomUUID();
+            window.localStorage.setItem(visitorKey, visitorId);
+          }
+          await client.from('article_views').upsert(
+            { article_id: currentArticle.id, visitor_id: visitorId },
+            { onConflict: 'article_id,viewed_on,visitor_id', ignoreDuplicates: true },
+          );
+        } catch {
+          // Reading the article should continue even if view tracking is unavailable.
+        }
         const { data: suggestions } = await client
           .from('articles')
           .select('id, title, category, image_url, seo_description, created_at, source_url')
