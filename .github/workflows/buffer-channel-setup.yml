@@ -57,16 +57,16 @@ jobs:
 
           const matches = { twitter: [], substack: [] };
           for (const organization of organizations) {
-            const data = await bufferQuery(\`
+            const data = await bufferQuery(`
               query GetChannels {
-                channels(input: { organizationId: "\${organization.id}" }) {
+                channels(input: { organizationId: "${organization.id}" }) {
                   id
                   name
                   displayName
                   service
                 }
               }
-            \`);
+            `);
             for (const channel of data?.channels || []) {
               const service = String(channel.service).toLowerCase();
               const entry = {
@@ -98,7 +98,7 @@ jobs:
           console.log("BUFFER_SUBSTACK_CHANNEL_ID=" + substackChannel.id);
           await import("node:fs/promises").then(({ appendFile }) =>
             appendFile(process.env.GITHUB_STEP_SUMMARY,
-              "## Buffer channels found\\n\\nConnected X channel: **" + xChannel.name + "**\\n\\nAdd this repository variable in GitHub Settings → Secrets and variables → Actions → Variables:\\n\\n- Name: \`BUFFER_X_CHANNEL_ID\`\\n- Value: \`" + xChannel.id + "\`\\n\\nConnected Substack channel: **" + substackChannel.name + "**\\n\\n- Name: \`BUFFER_SUBSTACK_CHANNEL_ID\`\\n- Value: \`" + substackChannel.id + "\`\\n",
+              "## Buffer channels found\n\nConnected X channel: **" + xChannel.name + "**\n\nAdd this repository variable in GitHub Settings → Secrets and variables → Actions → Variables:\n\n- Name: `BUFFER_X_CHANNEL_ID`\n- Value: `" + xChannel.id + "`\n\nConnected Substack channel: **" + substackChannel.name + "**\n\n- Name: `BUFFER_SUBSTACK_CHANNEL_ID`\n- Value: `" + substackChannel.id + "`\n",
             ),
           );
           NODE
