@@ -1177,9 +1177,9 @@ async function handleAiChatRequest(request: Request, env: Env & { AI?: WorkersAi
     .filter(Boolean);
   const rawQuery = recentQuestions.join(" ").slice(0, 260);
   const latestQuestion = messages[messages.length - 1].content;
-  const needsLiveSearch = /\\b(news|headlines|breaking|latest|current|currently|today|tonight|yesterday|this week|this month|recently|right now|live score|live scores|score today|fixtures|forecast|weather now|stock price|share price|exchange rate|price today|who won|what happened|search (the )?(web|internet)|look up|find online|on the internet)\\b/i.test(latestQuestion);
+  const needsLiveSearch = /\b(news|headlines|breaking|latest|current|currently|today|tonight|yesterday|this week|this month|recently|right now|live score|live scores|score today|fixtures|forecast|weather now|stock price|share price|exchange rate|price today|who won|what happened|search (the )?(web|internet)|look up|find online|on the internet)\b/i.test(latestQuestion);
   if (needsLiveSearch) try {
-    const historicalRequest = /\\b(19\\d{2}|20\\d{2})\\b/.test(rawQuery);
+    const historicalRequest = /\b(19\d{2}|20\d{2})\b/.test(rawQuery);
     const query = rawQuery + (historicalRequest ? "" : " when:7d");
     const cacheKey = new Request("https://usadailynews.space/__ai_google_news_cache/" + encodeURIComponent(query.toLowerCase()));
     const cache = caches.default;
