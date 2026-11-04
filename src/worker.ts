@@ -679,8 +679,8 @@ function decodeHtmlText(value: string): string {
   return value.replace(/<[^>]*>/g, " ").replace(/&amp;/g, "&").replace(/&quot;/g, '"')
     .replace(/&#39;|&apos;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
     .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCodePoint(parseInt(code, 16)))
-    .replace(/&#(\\d+);/g, (_, code) => String.fromCodePoint(Number(code)))
-    .replace(/\\s+/g, " ").trim();
+    .replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code)))
+    .replace(/\s+/g, " ").trim();
 }
 
 async function fetchTrendAnswer(articleUrl: string): Promise<string> {
@@ -695,12 +695,12 @@ async function fetchTrendAnswer(articleUrl: string): Promise<string> {
       || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+(?:name|property)=["'](?:description|og:description)["'][^>]*>/i);
     let answer = meta ? decodeHtmlText(meta[1]) : "";
     if (answer.length < 100) {
-      const paragraphs = [...html.matchAll(/<p\\b[^>]*>([\\s\\S]*?)<\\/p>/gi)]
+      const paragraphs = [...html.matchAll(/<p\b[^>]*>([\s\S]*?)<\/p>/gi)]
         .map(match => decodeHtmlText(match[1]))
         .filter(text => text.length > 90 && !/cookie|subscribe|sign up|advertisement|javascript/i.test(text));
       answer = paragraphs.slice(0, 2).join(" ");
     }
-    return answer.length > 520 ? answer.slice(0, 517).replace(/\\s+\\S*$/, "") + "…" : answer;
+    return answer.length > 280 ? answer.slice(0, 277).replace(/\s+\S*$/, "") + "…" : answer;
   } catch {
     return "";
   }
