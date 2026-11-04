@@ -371,15 +371,6 @@ export function FootballPage({ onBack }: FootballPageProps) {
         },
       })),
     },
-    {
-      '@context': 'https://schema.org',
-      '@type': 'FAQPage',
-      mainEntity: FOOTBALL_FAQS.map((entry) => ({
-        '@type': 'Question',
-        name: entry.question,
-        acceptedAnswer: { '@type': 'Answer', text: entry.answer },
-      })),
-    },
   ]), [seoTitle, seoDescription, canonicalUrl, live, fixtures, results]);
 
   useSeo({
