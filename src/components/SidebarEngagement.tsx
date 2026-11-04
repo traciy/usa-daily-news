@@ -60,7 +60,7 @@ export function SidebarEngagement({ onOpenArticle }: { onOpenArticle: (id: numbe
       const latest = (latestResult.data ?? []) as ArticleSummary[];
       if (latest.length) {
         const start = dayNumber % latest.length;
-        setDailyQuestions(Array.from({ length: Math.min(3, latest.length) }, (_, index) => latest[(start + index) % latest.length]));
+        setDailyQuestions(Array.from({ length: Math.min(6, latest.length) }, (_, index) => latest[(start + index) % latest.length]));
       }
       void voter;
     });
@@ -144,19 +144,30 @@ export function SidebarEngagement({ onOpenArticle }: { onOpenArticle: (id: numbe
 
       <section className="rounded-sm border border-gray-200 bg-white p-4" aria-labelledby="news-questions-heading">
         <div className="flex items-center justify-between gap-2">
-          <h2 id="news-questions-heading" className="font-serif font-bold text-gray-900">Questions People Are Asking</h2>
-          <span className="rounded-full bg-gray-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-gray-600">Daily</span>
+          <h2 id="news-questions-heading" className="font-serif font-bold text-gray-900">USA News: Questions & Answers</h2>
+          <span className="rounded-full bg-gray-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-gray-600">Updated daily</span>
         </div>
-        <p className="mt-1 text-xs text-gray-500">Quick answers based on the latest stories</p>
+        <p className="mt-1 text-xs text-gray-500">Six timely questions about US news, current events and the stories readers are following.</p>
         {dailyQuestions.length > 0 ? (
           <div className="mt-3 divide-y divide-gray-100">
-            {dailyQuestions.map((story) => (
-              <article key={story.id} className="py-3 first:pt-0 last:pb-0">
-                <h3 className="text-sm font-semibold leading-snug text-gray-900">What should readers know about {story.title.replace(/[?.!]+$/, '')}?</h3>
-                <p className="mt-2 text-sm leading-relaxed text-gray-600">{story.seo_description || `This latest ${story.category || 'news'} report covers ${story.title.replace(/[?.!]+$/, '')}. Open the full story for the details and developments.`}</p>
-                <button type="button" onClick={() => onOpenArticle(story.id)} className="mt-2 text-xs font-semibold text-red-700 hover:text-red-900">Read the full story →</button>
-              </article>
-            ))}
+            {dailyQuestions.map((story, index) => {
+              const subject = story.title.replace(/[?.!]+$/, '');
+              const questionTemplates = [
+                `What are the latest updates on ${subject}?`,
+                `Why is ${subject} making headlines in the United States?`,
+                `What happened in the latest report about ${subject}?`,
+                `How could ${subject} affect Americans?`,
+                `What should people know about ${subject} today?`,
+                `What are the key facts behind ${subject}?`,
+              ];
+              return (
+                <article key={story.id} className="py-3 first:pt-0 last:pb-0">
+                  <h3 className="text-sm font-semibold leading-snug text-gray-900">{questionTemplates[index % questionTemplates.length]}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-gray-600">{story.seo_description || `USA Daily News reports on ${subject}. Read the full article for the available details, context and latest developments.`}</p>
+                  <button type="button" onClick={() => onOpenArticle(story.id)} className="mt-2 text-xs font-semibold text-red-700 hover:text-red-900">Read the full story →</button>
+                </article>
+              );
+            })}
           </div>
         ) : (
           <p className="mt-3 text-sm text-gray-500">New questions and answers will appear as fresh stories are published.</p>
