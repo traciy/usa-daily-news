@@ -983,15 +983,16 @@ async function bufferGraphQL(apiKey, query, variables = {}) {
   return payload?.data ?? {};
 }
 
-async function createBufferPost(apiKey, channelId, text, imageUrl = "") {
+async function createBufferPost(apiKey, channelId, text, imageUrl = "", options = {}) {
   const input = {
     text,
     channelId,
     needsApproval: false,
     schedulingType: "automatic",
-    mode: "shareNow",
+    mode: options.mode || "shareNow",
   };
   if (imageUrl) input.assets = [{ image: { url: imageUrl } }];
+  if (options.metadata) input.metadata = options.metadata;
 
   const query = "mutation CreatePost($input: CreatePostInput!) { createPost(input: $input) { ... on PostActionSuccess { post { id text status } } ... on MutationError { message } } }";
   const data = await bufferGraphQL(apiKey, query, { input });
@@ -1002,6 +1003,75 @@ async function createBufferPost(apiKey, channelId, text, imageUrl = "") {
     throw new Error("Buffer did not confirm the post was created: " + JSON.stringify(result).slice(0, 700));
   }
   return result.post;
+}
+
+async function discoverPinterestTarget(apiKey) {
+  const organizationsData = await bufferGraphQL(
+    apiKey,
+    "query GetOrganizations { account { organizations { id name } } }",
+  );
+  const organizations = organizationsData?.account?.organizations || [];
+  for (const organization of organizations) {
+    const channelsData = await bufferGraphQL(
+      apiKey,
+      "query GetChannels($organizationId: OrganizationId!) { channels(input: { organizationId: $organizationId }) { id name displayName service metadata { ... on PinterestMetadata { boards { name serviceId } } } } }",
+      { organizationId: organization.id },
+    );
+    const channels = channelsData?.channels || [];
+    const channel = channels.find((item) => String(item.service || "").toLowerCase().includes("pinterest"));
+    if (!channel) continue;
+
+    const boards = channel.metadata?.boards || [];
+    if (!boards.length) throw new Error("Pinterest is connected in Buffer, but no Pinterest boards were returned.");
+    const preferredName = (process.env.BUFFER_PINTEREST_BOARD_NAME || "USA Breaking News").trim().toLowerCase();
+    const board = boards.find((item) => String(item.name || "").trim().toLowerCase() === preferredName)
+      || (boards.length === 1 ? boards[0] : null);
+    if (!board) {
+      throw new Error("Pinterest channel found, but the board named '" + (process.env.BUFFER_PINTEREST_BOARD_NAME || "USA Breaking News") + "' was not found. Available boards: " + boards.map((item) => item.name).join(", "));
+    }
+    return { channelId: channel.id, boardServiceId: board.serviceId, boardName: board.name };
+  }
+  throw new Error("No Pinterest channel was found in the Buffer organizations connected to this API key.");
+}
+
+function buildPinterestDescription(article) {
+  const base = String(article.seo_description || article.title || "Read the latest story at USA Daily News.")
+    .replace(/\s+/g, " ").trim();
+  const keywords = extractArticleKeywords(article, 5);
+  const categoryTags = {
+    Politics: "#USPolitics",
+    Tech: "#Technology",
+    Economy: "#BusinessNews",
+    Culture: "#EntertainmentNews",
+    Sports: "#SportsNews",
+  };
+  const tags = [];
+  if (categoryTags[article.category]) tags.push(categoryTags[article.category]);
+  for (const keyword of keywords.slice(0, 3)) {
+    const tag = articleHashtag(keyword);
+    if (tag && !tags.includes(tag)) tags.push(tag);
+  }
+  return (base + (tags.length ? "\\n\\n" + tags.join(" ") : "")).slice(0, 500);
+}
+
+async function postArticleToPinterest(article, articleUrl, apiKey, target) {
+  const imageUrl = typeof article.image_url === "string" && /^https:\/\/\\S+$/i.test(article.image_url.trim())
+    ? article.image_url.trim()
+    : "https://usadailynews.space/substack-fallback.webp";
+  const title = String(article.title || "USA Daily News").replace(/\\s+/g, " ").trim().slice(0, 100);
+  const description = buildPinterestDescription(article);
+  const post = await createBufferPost(apiKey, target.channelId, description, imageUrl, {
+    mode: "addToQueue",
+    metadata: {
+      pinterest: {
+        boardServiceId: target.boardServiceId,
+        title,
+        url: articleUrl,
+      },
+    },
+  });
+  console.log("Created Pinterest Pin for board '" + target.boardName + "': " + post.id);
+  console.log("Pinterest image URL: " + imageUrl);
 }
 
 async function postArticleToBuffer(article, articleUrl, apiKey, channelId, channelName) {
@@ -1047,8 +1117,18 @@ async function publishArticles(articles, supabaseUrl, bearerToken) {
     { name: "X", id: process.env.BUFFER_X_CHANNEL_ID?.trim() || "" },
     { name: "Substack", id: process.env.BUFFER_SUBSTACK_CHANNEL_ID?.trim() || "" },
   ].filter((channel) => channel.id);
+  let pinterestTarget = null;
 
-  if (!bufferApiKey || bufferChannels.length === 0) {
+  if (bufferApiKey) {
+    try {
+      pinterestTarget = await discoverPinterestTarget(bufferApiKey);
+      console.log("Pinterest auto-posting enabled for board: " + pinterestTarget.boardName + ".");
+    } catch (error) {
+      console.warn("Pinterest auto-posting is not ready: " + (error?.message || error));
+    }
+  }
+
+  if (!bufferApiKey || (bufferChannels.length === 0 && !pinterestTarget)) {
     console.log("Buffer auto-posting is not fully configured. Add BUFFER_API_KEY and the Buffer channel ID repository variables for the channels you want to publish to.");
   } else {
     console.log("Buffer auto-posting enabled for: " + bufferChannels.map((channel) => channel.name).join(" and ") + ".");
@@ -1092,6 +1172,14 @@ async function publishArticles(articles, supabaseUrl, bearerToken) {
           } catch (error) {
             // Keep successful website publication successful even if a social channel is unavailable.
             console.error("BUFFER AUTO-POST FAILED (" + channel.name + ") for " + articleUrl + ": " + (error?.message || error));
+          }
+        }
+        if (pinterestTarget) {
+          try {
+            await postArticleToPinterest(article, articleUrl, bufferApiKey, pinterestTarget);
+            console.log("Queued website article for Pinterest.");
+          } catch (error) {
+            console.error("BUFFER AUTO-POST FAILED (Pinterest) for " + articleUrl + ": " + (error?.message || error));
           }
         }
       }
