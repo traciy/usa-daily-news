@@ -4,6 +4,11 @@ import { supabase } from '@/lib/supabase';
 import type { ArticleSummary } from '@/types/article';
 
 type Poll = { question: string; options: string[] };
+type GoogleTrend = {
+  topic: string;
+  traffic: string;
+  news: Array<{ title: string; url: string; source: string }>;
+};
 const POLLS: Poll[] = [
   { question: 'Which issue should receive the most attention from US leaders?', options: ['The cost of living', 'Healthcare', 'Jobs and the economy', 'Immigration'] },
   { question: 'What is your biggest source of news?', options: ['News websites', 'Television', 'Social media', 'Podcasts'] },
@@ -34,7 +39,8 @@ export function SidebarEngagement({ onOpenArticle }: { onOpenArticle: (id: numbe
   const [voted, setVoted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [trending, setTrending] = useState<(ArticleSummary & { view_count: number })[]>([]);
-  const [dailyQuestions, setDailyQuestions] = useState<ArticleSummary[]>([]);
+  const [googleTrends, setGoogleTrends] = useState<GoogleTrend[]>([]);
+  const [trendsLoading, setTrendsLoading] = useState(true);
 
   useEffect(() => {
     let active = true;
@@ -48,8 +54,7 @@ export function SidebarEngagement({ onOpenArticle }: { onOpenArticle: (id: numbe
     Promise.all([
       supabase.from('daily_poll_votes').select('option_index').eq('poll_date', day).eq('poll_key', pollKey),
       supabase.from('article_trending').select('id, title, category, image_url, seo_description, created_at, source_url, view_count').limit(5),
-      supabase.from('articles').select('id, title, category, image_url, seo_description, created_at, source_url').order('created_at', { ascending: false }).limit(14),
-    ]).then(([pollResult, trendingResult, latestResult]) => {
+    ]).then(([pollResult, trendingResult]) => {
       if (!active) return;
       const counts = Array(poll.options.length).fill(0) as number[];
       (pollResult.data ?? []).forEach((vote) => {
@@ -57,15 +62,29 @@ export function SidebarEngagement({ onOpenArticle }: { onOpenArticle: (id: numbe
       });
       setVotes(counts);
       setTrending((trendingResult.data ?? []) as (ArticleSummary & { view_count: number })[]);
-      const latest = (latestResult.data ?? []) as ArticleSummary[];
-      if (latest.length) {
-        const start = dayNumber % latest.length;
-        setDailyQuestions(Array.from({ length: Math.min(6, latest.length) }, (_, index) => latest[(start + index) % latest.length]));
-      }
       void voter;
     });
     return () => { active = false; };
   }, [day, pollKey, poll.options.length]);
+
+  useEffect(() => {
+    let active = true;
+    fetch('/api/google-trends', { headers: { Accept: 'application/json' } })
+      .then((response) => {
+        if (!response.ok) throw new Error('Google Trends feed unavailable');
+        return response.json();
+      })
+      .then((data: { trends?: GoogleTrend[] }) => {
+        if (active) setGoogleTrends(Array.isArray(data.trends) ? data.trends.slice(0, 6) : []);
+      })
+      .catch(() => {
+        if (active) setGoogleTrends([]);
+      })
+      .finally(() => {
+        if (active) setTrendsLoading(false);
+      });
+    return () => { active = false; };
+  }, []);
 
   const totalVotes = useMemo(() => votes.reduce((sum, count) => sum + count, 0), [votes]);
 
@@ -144,34 +163,42 @@ export function SidebarEngagement({ onOpenArticle }: { onOpenArticle: (id: numbe
 
       <section className="rounded-sm border border-gray-200 bg-white p-4" aria-labelledby="news-questions-heading">
         <div className="flex items-center justify-between gap-2">
-          <h2 id="news-questions-heading" className="font-serif font-bold text-gray-900">USA News: Questions & Answers</h2>
-          <span className="rounded-full bg-gray-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-gray-600">Updated daily</span>
+          <h2 id="news-questions-heading" className="font-serif font-bold text-gray-900">What Americans Are Searching</h2>
+          <span className="rounded-full bg-gray-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-gray-600">Google Trends · US</span>
         </div>
-        <p className="mt-1 text-xs text-gray-500">Six timely questions about US news, current events and the stories readers are following.</p>
-        {dailyQuestions.length > 0 ? (
+        <p className="mt-1 text-xs text-gray-500">Six news-related topics from Google's US trending searches, refreshed from the live feed.</p>
+        {trendsLoading ? (
+          <p className="mt-3 text-sm text-gray-500">Loading today's US trending searches…</p>
+        ) : googleTrends.length > 0 ? (
           <div className="mt-3 divide-y divide-gray-100">
-            {dailyQuestions.map((story, index) => {
-              const subject = story.title.replace(/[?.!]+$/, '');
-              const questionTemplates = [
-                `What are the latest updates on ${subject}?`,
-                `Why is ${subject} making headlines in the United States?`,
-                `What happened in the latest report about ${subject}?`,
-                `How could ${subject} affect Americans?`,
-                `What should people know about ${subject} today?`,
-                `What are the key facts behind ${subject}?`,
-              ];
+            {googleTrends.map((trend, index) => {
+              const report = trend.news[0];
               return (
-                <article key={story.id} className="py-3 first:pt-0 last:pb-0">
-                  <h3 className="text-sm font-semibold leading-snug text-gray-900">{questionTemplates[index % questionTemplates.length]}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-gray-600">{story.seo_description || `USA Daily News reports on ${subject}. Read the full article for the available details, context and latest developments.`}</p>
-                  <button type="button" onClick={() => onOpenArticle(story.id)} className="mt-2 text-xs font-semibold text-red-700 hover:text-red-900">Read the full story →</button>
+                <article key={trend.topic} className="py-3 first:pt-0 last:pb-0">
+                  <h3 className="text-sm font-semibold leading-snug text-gray-900">Why is {trend.topic} trending in the US today?</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-gray-600">
+                    Google Trends currently lists {trend.topic} among US trending searches.
+                    {report ? ` Related coverage: ${report.title}${report.source ? ` — ${report.source}` : ''}.` : ''}
+                  </p>
+                  {report && (
+                    <a href={report.url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-xs font-semibold text-red-700 hover:text-red-900">
+                      Read related reporting →
+                    </a>
+                  )}
+                  {trend.news.length > 1 && (
+                    <a href={trend.news[1].url} target="_blank" rel="noopener noreferrer" className="ml-3 mt-2 inline-block text-xs font-semibold text-gray-600 hover:text-red-900">
+                      More coverage
+                    </a>
+                  )}
+                  {trend.traffic && <p className="mt-1 text-[11px] text-gray-400">Google Trends reported traffic: {trend.traffic}</p>}
                 </article>
               );
             })}
           </div>
         ) : (
-          <p className="mt-3 text-sm text-gray-500">New questions and answers will appear as fresh stories are published.</p>
+          <p className="mt-3 text-sm text-gray-500">Google Trends is temporarily unavailable. Please check back shortly.</p>
         )}
+        <p className="mt-3 text-[11px] text-gray-400">Topics are sourced from Google Trends; the questions are editorially written and are not exact Google search queries.</p>
       </section>
     </div>
   );
