@@ -5,9 +5,9 @@ type ChatSource = { title: string; url: string; publisher?: string; publishedAt?
 type ChatMessage = { role: 'user' | 'assistant'; content: string; sources?: ChatSource[] };
 
 const starters = [
+  'Explain how artificial intelligence works',
+  'Help me write a professional email',
   'Summarize the latest US headlines',
-  'Explain a major news story',
-  'What should I know about today’s news?',
 ];
 
 export function NewsAiChat() {
@@ -79,7 +79,7 @@ export function NewsAiChat() {
               </div>
               <div>
                 <p className="font-semibold leading-tight">USA Daily News AI</p>
-                <p className="mt-1 text-xs text-slate-300">Your news companion</p>
+                <p className="mt-1 text-xs text-slate-300">General answers, explanations & news</p>
               </div>
             </div>
             <div className="flex items-center gap-1">
@@ -100,7 +100,7 @@ export function NewsAiChat() {
                 </div>
                 <h2 className="text-lg font-bold text-gray-900">What would you like to know?</h2>
                 <p className="mt-1 text-sm leading-6 text-gray-600">
-                  Ask about the news, explore a story or get a clear explanation of the headlines.
+                  Ask me anything — from everyday questions and learning to writing, technology and the latest news.
                 </p>
                 <div className="mt-5 space-y-2">
                   {starters.map((starter) => (
@@ -161,7 +161,7 @@ export function NewsAiChat() {
                 }}
                 maxLength={1200}
                 rows={1}
-                placeholder="Ask USA Daily News AI…"
+                placeholder="Ask me anything…"
                 aria-label="Your message"
                 className="max-h-24 min-h-9 flex-1 resize-none border-0 bg-transparent px-2 py-2 text-sm text-gray-900 outline-none placeholder:text-gray-400 focus:ring-0"
               />
