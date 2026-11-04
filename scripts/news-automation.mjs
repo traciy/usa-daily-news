@@ -224,6 +224,22 @@ const RSS_FEEDS = [
   { name: "BBC Golf", url: "https://feeds.bbci.co.uk/sport/golf/rss.xml", category: "Sports", country: "United Kingdom" },
   { name: "BBC Rugby Union", url: "https://feeds.bbci.co.uk/sport/rugby-union/rss.xml", category: "Sports", country: "United Kingdom" },
 
+  // Additional Australian national, state, politics, science, culture and sport feeds.
+  { name: "ABC Australia Politics", url: "https://www.abc.net.au/news/feed/1534/rss.xml", category: "Politics", country: "Australia" },
+  { name: "ABC Australia Sport", url: "https://www.abc.net.au/news/feed/2942460/rss.xml", category: "Sports", country: "Australia" },
+  { name: "ABC Australia Science", url: "https://www.abc.net.au/news/feed/8132426/rss.xml", category: "Tech", country: "Australia" },
+  { name: "ABC Australia Health", url: "https://www.abc.net.au/news/feed/9167762/rss.xml", category: "Culture", country: "Australia" },
+  { name: "ABC Australia Arts and Entertainment", url: "https://www.abc.net.au/news/feed/472/rss.xml", category: "Culture", country: "Australia" },
+  { name: "ABC Australia Queensland", url: "https://www.abc.net.au/news/feed/5555988/rss.xml", category: "World", country: "Australia" },
+  { name: "ABC Australia Adelaide", url: "https://www.abc.net.au/news/feed/8057540/rss.xml", category: "World", country: "Australia" },
+  { name: "ABC Australia Brisbane", url: "https://www.abc.net.au/news/feed/8053540/rss.xml", category: "World", country: "Australia" },
+  { name: "ABC Australia Canberra", url: "https://www.abc.net.au/news/feed/8057234/rss.xml", category: "World", country: "Australia" },
+  { name: "ABC Australia Darwin", url: "https://www.abc.net.au/news/feed/8057648/rss.xml", category: "World", country: "Australia" },
+  { name: "ABC Australia Hobart", url: "https://www.abc.net.au/news/feed/8054562/rss.xml", category: "World", country: "Australia" },
+  { name: "ABC Australia Melbourne", url: "https://www.abc.net.au/news/feed/8057136/rss.xml", category: "World", country: "Australia" },
+  { name: "ABC Australia Perth", url: "https://www.abc.net.au/news/feed/8057096/rss.xml", category: "World", country: "Australia" },
+  { name: "ABC Australia Sydney", url: "https://www.abc.net.au/news/feed/8055316/rss.xml", category: "World", country: "Australia" },
+
   // New Zealand.
   { name: "RNZ", url: "https://www.rnz.co.nz/rss/national.xml", category: "World", country: "New Zealand" },
 
