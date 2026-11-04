@@ -474,10 +474,14 @@ export async function fetchFullWeather(
   }
 }
 
-export async function getInitialCoords(): Promise<{ coords: Coords; name: string }> {
-  const saved = getSavedLocation();
-  if (saved) return { coords: { lat: saved.lat, lon: saved.lon }, name: saved.name };
+export async function getDeviceLocation(): Promise<{ coords: Coords; name: string }> {
   const coords = await getPosition();
   const name = await reverseGeocode(coords.lat, coords.lon);
   return { coords, name };
+}
+
+export async function getInitialCoords(): Promise<{ coords: Coords; name: string }> {
+  const saved = getSavedLocation();
+  if (saved) return { coords: { lat: saved.lat, lon: saved.lon }, name: saved.name };
+  return getDeviceLocation();
 }
