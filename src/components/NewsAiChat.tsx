@@ -1,7 +1,8 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import { Bot, MessageCircle, Send, Sparkles, X, Loader2, RotateCcw } from 'lucide-react';
 
-type ChatMessage = { role: 'user' | 'assistant'; content: string };
+type ChatSource = { title: string; url: string };
+type ChatMessage = { role: 'user' | 'assistant'; content: string; sources?: ChatSource[] };
 
 const starters = [
   'Summarize the latest US headlines',
@@ -40,11 +41,11 @@ export function NewsAiChat() {
           articleId: articleMatch ? Number(articleMatch[1]) : undefined,
         }),
       });
-      const data = await response.json() as { answer?: string; error?: string };
+      const data = await response.json() as { answer?: string; error?: string; sources?: ChatSource[] };
       if (!response.ok || !data.answer) {
         throw new Error(data.error || 'The assistant is temporarily unavailable. Please try again.');
       }
-      setMessages((current) => [...current, { role: 'assistant', content: data.answer! }]);
+      setMessages((current) => [...current, { role: 'assistant', content: data.answer!, sources: data.sources || [] }]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to reach the assistant. Please try again.');
     } finally {
@@ -117,6 +118,20 @@ export function NewsAiChat() {
                   ? 'max-w-[88%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-red-800 px-3.5 py-3 text-sm leading-6 text-white'
                   : 'max-w-[92%] whitespace-pre-wrap rounded-2xl rounded-bl-md border border-gray-200 bg-white px-3.5 py-3 text-sm leading-6 text-gray-800'}>
                   {message.content}
+                  {message.role === 'assistant' && message.sources && message.sources.length > 0 && (
+                    <div className="mt-3 border-t border-gray-100 pt-2">
+                      <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500">Web sources</p>
+                      <ol className="space-y-1">
+                        {message.sources.map((source, sourceIndex) => (
+                          <li key={source.url} className="text-xs leading-5">
+                            <a href={source.url} target="_blank" rel="noopener noreferrer" className="text-blue-700 underline decoration-blue-300 underline-offset-2 hover:text-blue-900">
+                              [{sourceIndex + 1}] {source.title}
+                            </a>
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
