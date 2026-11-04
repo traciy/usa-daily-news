@@ -314,7 +314,7 @@ async function fetchAirQuality(lat: number, lon: number): Promise<AirQualityData
     });
     const response = await fetchWithTimeout(`https://air-quality-api.open-meteo.com/v1/air-quality?${params.toString()}`, API_TIMEOUT_MS);
     if (!response.ok) return null;
-    const json = await response.json() as { current?: Record<string, number> };
+    const json = await response.json() as { current?: Record<string, number | string> };
     const current = json.current;
     if (!current) return null;
     const hasAnyData = Object.values(current).some((value) => typeof value === 'number' && Number.isFinite(value));
