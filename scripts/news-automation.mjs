@@ -1,3 +1,4 @@
+import { createHmac, randomBytes } from "node:crypto";
 /**
  * Replaces the uploaded n8n flow:
  * Publisher RSS feeds -> Gemini -> JSON validation -> Supabase Edge Function.
@@ -959,22 +960,66 @@ function buildXPostText(article, articleUrl) {
   return postText;
 }
 
-async function postArticleToX(article, articleUrl, userAccessToken) {
-  const text = buildXPostText(article, articleUrl);
-  const response = await fetchWithRetry(
-    "https://api.x.com/2/tweets",
-    {
-      method: "POST",
-      headers: {
-        Authorization: "Bearer " + userAccessToken,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify({ text }),
-    },
-    "X post for article " + article.title,
-    3,
+function oauthPercentEncode(value) {
+  return encodeURIComponent(String(value)).replace(/[!'()*]/g, (character) =>
+    "%" + character.charCodeAt(0).toString(16).toUpperCase(),
   );
+}
+
+function createXOAuth1AuthorizationHeader(url, credentials) {
+  const oauthParameters = {
+    oauth_consumer_key: credentials.apiKey,
+    oauth_nonce: randomBytes(16).toString("hex"),
+    oauth_signature_method: "HMAC-SHA1",
+    oauth_timestamp: String(Math.floor(Date.now() / 1000)),
+    oauth_token: credentials.accessToken,
+    oauth_version: "1.0",
+  };
+
+  const parameterString = Object.entries(oauthParameters)
+    .map(([key, value]) => [oauthPercentEncode(key), oauthPercentEncode(value)])
+    .sort(([keyA, valueA], [keyB, valueB]) =>
+      keyA === keyB ? valueA.localeCompare(valueB) : keyA.localeCompare(keyB),
+    )
+    .map(([key, value]) => key + "=" + value)
+    .join("&");
+
+  const signatureBaseString = [
+    "POST",
+    oauthPercentEncode(url),
+    oauthPercentEncode(parameterString),
+  ].join("&");
+
+  const signingKey = oauthPercentEncode(credentials.apiSecret) + "&" + oauthPercentEncode(credentials.accessTokenSecret);
+  const signature = createHmac("sha1", signingKey).update(signatureBaseString).digest("base64");
+
+  const authorizationParameters = { ...oauthParameters, oauth_signature: signature };
+  const header = Object.entries(authorizationParameters)
+    .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
+    .map(([key, value]) => oauthPercentEncode(key) + '="' + oauthPercentEncode(value) + '"')
+    .join(", ");
+
+  return "OAuth " + header;
+}
+
+async function postArticleToX(article, articleUrl, credentials) {
+  const text = buildXPostText(article, articleUrl);
+  const endpoint = "https://api.x.com/2/tweets";
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      Authorization: createXOAuth1AuthorizationHeader(endpoint, credentials),
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({ text }),
+  });
+
+  if (!response.ok) {
+    const responseBody = await response.text();
+    throw new Error("X post request failed (HTTP " + response.status + "): " + responseBody.slice(0, 900));
+  }
+
   const result = await response.json();
   const postId = result?.data?.id;
   if (!postId) throw new Error("X did not return a post ID: " + JSON.stringify(result).slice(0, 700));
@@ -985,10 +1030,16 @@ async function postArticleToX(article, articleUrl, userAccessToken) {
 async function publishArticles(articles, supabaseUrl, bearerToken) {
   let successCount = 0;
   const publishedUrls = [];
-  const xUserAccessToken = process.env.X_USER_ACCESS_TOKEN?.trim() || "";
+  const xCredentials = {
+    apiKey: process.env.X_API_KEY?.trim() || "",
+    apiSecret: process.env.X_API_SECRET?.trim() || "",
+    accessToken: process.env.X_ACCESS_TOKEN?.trim() || "",
+    accessTokenSecret: process.env.X_ACCESS_TOKEN_SECRET?.trim() || "",
+  };
+  const xPostingEnabled = Object.values(xCredentials).every(Boolean);
 
-  if (!xUserAccessToken) {
-    console.log("X auto-posting is not configured. Add X_USER_ACCESS_TOKEN as a GitHub repository secret to enable it.");
+  if (!xPostingEnabled) {
+    console.log("X auto-posting is not configured. Add X_API_KEY, X_API_SECRET, X_ACCESS_TOKEN and X_ACCESS_TOKEN_SECRET as GitHub repository secrets to enable it.");
   }
 
   for (const [index, article] of articles.entries()) {
@@ -1021,9 +1072,9 @@ async function publishArticles(articles, supabaseUrl, bearerToken) {
       const articleUrl = "https://usadailynews.space/article/" + Number(saved.id);
       publishedUrls.push(articleUrl);
 
-      if (xUserAccessToken) {
+      if (xPostingEnabled) {
         try {
-          await postArticleToX(article, articleUrl, xUserAccessToken);
+          await postArticleToX(article, articleUrl, xCredentials);
         } catch (error) {
           // Keep successful website publication successful even if X is temporarily unavailable.
           console.error("X AUTO-POST FAILED for " + articleUrl + ": " + (error?.message || error));
