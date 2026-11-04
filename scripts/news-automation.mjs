@@ -1014,14 +1014,21 @@ async function discoverPinterestTarget(apiKey) {
   for (const organization of organizations) {
     const channelsData = await bufferGraphQL(
       apiKey,
-      "query GetChannels($organizationId: OrganizationId!) { channels(input: { organizationId: $organizationId }) { id name displayName service metadata { ... on PinterestMetadata { boards { name serviceId } } } } }",
+      "query GetChannels($organizationId: OrganizationId!) { channels(input: { organizationId: $organizationId }) { id name displayName service } }",
       { organizationId: organization.id },
     );
     const channels = channelsData?.channels || [];
     const channel = channels.find((item) => String(item.service || "").toLowerCase().includes("pinterest"));
     if (!channel) continue;
 
-    const boards = channel.metadata?.boards || [];
+    // Buffer's API reference specifically exposes Pinterest boards through the
+    // single-channel query, rather than relying on the organization channel list.
+    const channelDetails = await bufferGraphQL(
+      apiKey,
+      "query GetChannelWithSubprofiles($channelId: ChannelId!) { channel(input: { id: $channelId }) { id metadata { ... on PinterestMetadata { boards { name serviceId } } } } }",
+      { channelId: channel.id },
+    );
+    const boards = channelDetails?.channel?.metadata?.boards || [];
     if (!boards.length) throw new Error("Pinterest is connected in Buffer, but no Pinterest boards were returned.");
     const preferredName = (process.env.BUFFER_PINTEREST_BOARD_NAME || "USA Breaking News").trim().toLowerCase();
     const board = boards.find((item) => String(item.name || "").trim().toLowerCase() === preferredName)
