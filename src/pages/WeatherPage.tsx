@@ -6,7 +6,7 @@ import {
   RefreshCw, ExternalLink, LocateFixed, ChevronDown,
 } from 'lucide-react';
 import {
-  fetchFullWeather, searchCities, getInitialCoords, saveLocation,
+  fetchFullWeather, searchCities, getInitialCoords, getDeviceLocation, saveLocation,
   weatherIconName, weatherLabel, windDirectionLabel,
   type FullWeatherData, type CitySearchResult, type SavedLocation, type DailyForecast,
 } from '@/lib/weatherService';
@@ -273,8 +273,9 @@ export function WeatherPage({ onBack }: WeatherPageProps) {
   };
 
   const useMyLocation = async () => {
-    const initial = await getInitialCoords();
+    const initial = await getDeviceLocation();
     setCoords(initial.coords);
+    saveLocation({ name: initial.name, lat: initial.coords.lat, lon: initial.coords.lon });
     load(initial.coords.lat, initial.coords.lon, initial.name);
   };
 
@@ -643,7 +644,7 @@ export function WeatherPage({ onBack }: WeatherPageProps) {
           </section>
 
           <div className="flex flex-wrap items-start justify-between gap-2 border-t border-gray-200 pt-4 text-[11px] text-gray-400">
-            <p>Weather forecast data: Open-Meteo · Air-quality model data: Open-Meteo Air Quality API · Radar map: Windy.</p>
+            <p>Weather forecast data: <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-gray-700">Open-Meteo</a> · Air-quality model data: <a href="https://open-meteo.com/en/docs/air-quality-api" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-gray-700">Open-Meteo Air Quality API</a> · Radar map: <a href="https://www.windy.com/" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-gray-700">Windy</a>.</p>
             <p>Forecasts are guidance, not official emergency warnings.</p>
           </div>
         </>
