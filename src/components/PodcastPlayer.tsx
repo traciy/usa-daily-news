@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Radio, Play, Pause } from 'lucide-react';
 
 interface PodcastPlayerProps {
-  variant?: 'card' | 'overlay';
+  variant?: 'card' | 'compact';
 }
 
 interface PodcastEpisode {
@@ -75,13 +75,13 @@ export function PodcastPlayer({ variant = 'card' }: PodcastPlayerProps) {
   }
 
   const progress = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
-  const compact = variant === 'overlay';
+  const compact = variant === 'compact';
 
   return (
     <section
       aria-label="USA Daily Podcast player"
       className={compact
-        ? 'fixed bottom-5 left-1/2 z-50 w-[min(360px,calc(100vw-7rem))] -translate-x-1/2 overflow-hidden rounded-xl border border-gray-700 bg-gradient-to-br from-gray-900 to-gray-800 text-white shadow-xl'
+        ? 'w-full max-w-[360px] overflow-hidden rounded-xl border border-gray-700 bg-gradient-to-br from-gray-900 to-gray-800 text-white shadow-sm'
         : 'w-full overflow-hidden rounded-sm border border-gray-700 bg-gray-950 text-white shadow-sm'}
     >
       <div className={compact ? 'flex h-16 items-center gap-2 px-2.5' : 'flex items-center gap-3 px-4 py-3'}>
