@@ -28,7 +28,7 @@ const FAQ_ENTRIES = [
   {
     question: 'How can I report an error?',
     answer:
-      'Email info.luwigang254@gmail.com with the article URL, the detail you believe is incorrect, and reliable supporting information.',
+      'Email contact@usadailynews.space with the article URL, the detail you believe is incorrect, and reliable supporting information.',
   },
 ];
 
