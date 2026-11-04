@@ -96,6 +96,26 @@ export function HomePage({ onOpenArticle, onNavigate, initialCategory }: HomePag
   const rest = useMemo(() => (feature ? articles.slice(1) : articles), [articles, feature]);
   const sidebar = useMemo(() => rest.slice(0, 5), [rest]);
   const grid = useMemo(() => rest.slice(5), [rest]);
+  const recommended = useMemo(() => {
+    const candidates = articles.slice(6);
+    const picks: ArticleSummary[] = [];
+    const seenCategories = new Set<string>();
+    for (const article of candidates) {
+      const category = article.category || 'News';
+      if (!seenCategories.has(category)) {
+        picks.push(article);
+        seenCategories.add(category);
+      }
+      if (picks.length === 4) break;
+    }
+    if (picks.length < 4) {
+      for (const article of candidates) {
+        if (!picks.some((pick) => pick.id === article.id)) picks.push(article);
+        if (picks.length === 4) break;
+      }
+    }
+    return picks;
+  }, [articles]);
 
   return (
     <>
@@ -206,8 +226,28 @@ export function HomePage({ onOpenArticle, onNavigate, initialCategory }: HomePag
               ))}
             </div>
 
+            <section className="rounded-sm border border-gray-200 bg-white p-4" aria-labelledby="recommended-heading">
+              <div className="mb-3 flex items-center justify-between gap-2 border-b border-gray-200 pb-2">
+                <div>
+                  <h2 id="recommended-heading" className="font-serif font-bold text-gray-900">Recommended Reads</h2>
+                  <p className="mt-1 text-xs text-gray-500">More stories across our coverage</p>
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-wide text-red-700">For you</span>
+              </div>
+              {recommended.length > 0 ? (
+                <div>
+                  {recommended.map((article) => (
+                    <div key={article.id} onClick={() => onOpenArticle(article.id)} className="cursor-pointer">
+                      <ArticleCard article={article} variant="compact" />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">More recommended stories will appear as new articles are published.</p>
+              )}
+            </section>
 
-            <div className="min-h-[220px] p-5 bg-gray-50 border border-gray-200 rounded-sm">
+            <div className="p-5 bg-gray-50 border border-gray-200 rounded-sm">
               <h2 className="font-serif font-bold text-gray-900">Sections</h2>
               <ul className="mt-3 space-y-2 text-sm">
                 {CATEGORIES.filter((c) => c !== 'All').map((c) => (
