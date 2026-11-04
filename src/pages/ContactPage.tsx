@@ -1,7 +1,7 @@
 import { Mail } from 'lucide-react';
 import { useSeo } from '@/lib/seo';
 
-const CONTACT_EMAIL = 'info.luwigang254@gmail.com';
+const CONTACT_EMAIL = 'contact@usadailynews.space';
 
 export function ContactPage() {
   useSeo({
