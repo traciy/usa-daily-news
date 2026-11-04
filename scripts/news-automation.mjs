@@ -194,6 +194,10 @@ const RSS_FEEDS = [
   { name: "The Age Australia", url: "https://www.theage.com.au/rss/feed.xml", category: "World", country: "Australia" },
   { name: "SBS News Australia", url: "https://www.sbs.com.au/news/feed", category: "World", country: "Australia" },
 
+  { name: "BBC England", url: "https://feeds.bbci.co.uk/news/england/rss.xml", category: "World", country: "United Kingdom" },
+  { name: "BBC Scotland", url: "https://feeds.bbci.co.uk/news/scotland/rss.xml", category: "World", country: "United Kingdom" },
+  { name: "BBC Wales", url: "https://feeds.bbci.co.uk/news/wales/rss.xml", category: "World", country: "United Kingdom" },
+
   // New Zealand.
   { name: "RNZ", url: "https://www.rnz.co.nz/rss/national.xml", category: "World", country: "New Zealand" },
 
