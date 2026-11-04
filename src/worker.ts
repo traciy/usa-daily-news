@@ -667,6 +667,70 @@ function rssPlainText(value: string): string {
     .trim();
 }
 
+
+interface GoogleTrendItem {
+  topic: string;
+  traffic: string;
+  news: Array<{ title: string; url: string; source: string }>;
+}
+
+function decodeTrendXml(value: string): string {
+  return value.replace(/^<!\[CDATA\[([\s\S]*?)\]\]>$/, "$1")
+    .replace(/&amp;/g, "&").replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").trim();
+}
+
+function trendTag(block: string, tag: string): string {
+  const pattern = new RegExp("<(?:[\\w.-]+:)?" + tag + "\\b[^>]*>([\\s\\S]*?)<\\/(?:[\\w.-]+:)?" + tag + ">", "i");
+  const match = pattern.exec(block);
+  return match ? decodeTrendXml(match[1]) : "";
+}
+
+async function handleGoogleTrends(): Promise<Response> {
+  const headers = {
+    "Content-Type": "application/json; charset=utf-8",
+    "Cache-Control": "public, max-age=3600, s-maxage=86400",
+    "X-Content-Type-Options": "nosniff",
+  };
+  try {
+    const response = await fetch("https://trends.google.com/trending/rss?geo=US", {
+      headers: { Accept: "application/rss+xml, application/xml, text/xml" },
+      cf: { cacheTtl: 86400, cacheEverything: true },
+    } as RequestInit & { cf: { cacheTtl: number; cacheEverything: boolean } });
+    if (!response.ok) {
+      return new Response(JSON.stringify({ error: "Google Trends is temporarily unavailable." }), { status: 502, headers });
+    }
+    const xml = await response.text();
+    const trends: GoogleTrendItem[] = [];
+    const itemBlocks = xml.match(/<item\b[^>]*>[\s\S]*?<\/item>/gi) || [];
+    for (const item of itemBlocks) {
+      const topic = trendTag(item, "title");
+      if (!topic) continue;
+      const traffic = trendTag(item, "approx_traffic");
+      const newsBlocks = item.match(/<(?:[\w.-]+:)?news_item\b[^>]*>[\s\S]*?<\/(?:[\w.-]+:)?news_item>/gi) || [];
+      const news = newsBlocks.map((block) => {
+        const title = trendTag(block, "news_item_title");
+        const rawUrl = trendTag(block, "news_item_url");
+        const source = trendTag(block, "news_item_source");
+        try {
+          const url = new URL(rawUrl);
+          if ((url.protocol !== "https:" && url.protocol !== "http:") || !title) return null;
+          return { title, url: url.toString(), source };
+        } catch { return null; }
+      }).filter((entry): entry is { title: string; url: string; source: string } => entry !== null);
+      if (news.length) trends.push({ topic, traffic, news: news.slice(0, 2) });
+      if (trends.length >= 6) break;
+    }
+    if (!trends.length) {
+      return new Response(JSON.stringify({ error: "No current US news-related Google Trends topics were available." }), { status: 503, headers });
+    }
+    return new Response(JSON.stringify({ source: "Google Trends US Trending Searches RSS", geo: "US", updatedAt: new Date().toISOString(), trends }), { status: 200, headers });
+  } catch (error) {
+    console.error("Google Trends feed request failed:", error);
+    return new Response(JSON.stringify({ error: "Google Trends is temporarily unavailable." }), { status: 502, headers });
+  }
+}
+
 async function handlePodcastLatest(): Promise<Response> {
   const headers = {
     "Content-Type": "application/json; charset=utf-8",
@@ -1319,6 +1383,9 @@ export default {
     }
     if (url.pathname === "/api/podcast/latest" && request.method === "GET") {
       return handlePodcastLatest();
+    }
+    if (url.pathname === "/api/google-trends" && request.method === "GET") {
+      return handleGoogleTrends();
     }
     if (url.pathname === "/api/football") {
       return handleFootballRequest(request);
