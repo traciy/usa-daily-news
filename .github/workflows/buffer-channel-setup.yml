@@ -9,7 +9,6 @@ on:
 
 permissions:
   contents: read
-  actions: write
 
 jobs:
   discover-channel:
@@ -85,36 +84,12 @@ jobs:
           }
 
           const channel = matches[0];
-          const [owner, repo] = repository.split("/");
-          const base = "https://api.github.com/repos/" + owner + "/" + repo + "/actions/variables";
-          const headers = {
-            Authorization: "Bearer " + githubToken,
-            Accept: "application/vnd.github+json",
-            "X-GitHub-Api-Version": "2022-11-28",
-            "Content-Type": "application/json",
-          };
-          const payload = { name: "BUFFER_CHANNEL_ID", value: channel.id };
-
-          const existing = await fetch(base + "/BUFFER_CHANNEL_ID", { headers });
-          let saved;
-          if (existing.status === 404) {
-            saved = await fetch(base, { method: "POST", headers, body: JSON.stringify(payload) });
-          } else if (existing.ok) {
-            saved = await fetch(base + "/BUFFER_CHANNEL_ID", { method: "PATCH", headers, body: JSON.stringify(payload) });
-          } else {
-            throw new Error("Could not check the GitHub repository variable (HTTP " + existing.status + ").");
-          }
-
-          if (!saved.ok) {
-            throw new Error("Could not save BUFFER_CHANNEL_ID in GitHub (HTTP " + saved.status + "): " + (await saved.text()).slice(0, 700));
-          }
-
           console.log("Connected Buffer channel: " + channel.name + " (" + channel.organization + ")");
-          console.log("Saved BUFFER_CHANNEL_ID as a GitHub Actions repository variable.");
-          console.log("Buffer channel ID: " + channel.id);
+          console.log("Copy the Buffer channel ID below into GitHub repository Variables as BUFFER_CHANNEL_ID:");
+          console.log("BUFFER_CHANNEL_ID=" + channel.id);
           await import("node:fs/promises").then(({ appendFile }) =>
             appendFile(process.env.GITHUB_STEP_SUMMARY,
-              "## Buffer X channel configured\n\nConnected channel: **" + channel.name + "**\n\nThe channel ID was saved in GitHub repository variables as `BUFFER_CHANNEL_ID`.\n",
+              "## Buffer X channel found\n\nConnected channel: **" + channel.name + "**\n\nAdd this repository variable in GitHub Settings → Secrets and variables → Actions → Variables:\n\n- Name: `BUFFER_CHANNEL_ID`\n- Value: `" + channel.id + "`\n",
             ),
           );
           NODE
