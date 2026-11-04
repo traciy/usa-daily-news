@@ -1177,7 +1177,7 @@ async function handleAiChatRequest(request: Request, env: Env & { AI?: WorkersAi
       .map((message) => message.content.trim())
       .filter(Boolean);
     const rawQuery = recentQuestions.join(" ").slice(0, 260);
-    const historicalRequest = /\\b(19\\d{2}|20[01]\\d|202[0-5])\\b/.test(rawQuery);
+    const historicalRequest = /\b(19\d{2}|20[01]\d|202[0-5])\b/.test(rawQuery);
     const query = rawQuery + (historicalRequest ? "" : " when:7d");
     const cacheKey = new Request("https://usadailynews.space/__ai_google_news_cache/" + encodeURIComponent(query.toLowerCase()));
     const cache = caches.default;
@@ -1206,7 +1206,7 @@ async function handleAiChatRequest(request: Request, env: Env & { AI?: WorkersAi
     }
 
     const decodeXml = (value: string) => value
-      .replace(/<!\\[CDATA\\[([\\s\\S]*?)\\]\\]>/g, "$1")
+      .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
       .replace(/<[^>]*>/g, " ")
       .replace(/&amp;/gi, "&")
       .replace(/&quot;/gi, '"')
@@ -1214,14 +1214,14 @@ async function handleAiChatRequest(request: Request, env: Env & { AI?: WorkersAi
       .replace(/&lt;/gi, "<")
       .replace(/&gt;/gi, ">")
       .replace(/&nbsp;/gi, " ")
-      .replace(/&#(\\d+);/g, (_match, code) => String.fromCodePoint(Number(code)))
+      .replace(/&#(\d+);/g, (_match, code) => String.fromCodePoint(Number(code)))
       .replace(/&#x([0-9a-f]+);/gi, (_match, code) => String.fromCodePoint(parseInt(code, 16)))
-      .replace(/\\s+/g, " ").trim();
+      .replace(/\s+/g, " ").trim();
     const tagValue = (block: string, tag: string) => {
-      const match = new RegExp("<" + tag + "(?:\\\\s[^>]*)?>([\\\\s\\\\S]*?)</" + tag + ">", "i").exec(block);
+      const match = new RegExp("<" + tag + "(?:\\s[^>]*)?>([\\s\\S]*?)</" + tag + ">", "i").exec(block);
       return match ? decodeXml(match[1]) : "";
     };
-    const items = feedXml.match(/<item(?:\\s[^>]*)?>[\\s\\S]*?<\\/item>/gi) || [];
+    const items = feedXml.match(/<item(?:\s[^>]*)?>[\s\S]*?<\/item>/gi) || [];
     for (const item of items) {
       if (webSources.length >= 8) break;
       const title = tagValue(item, "title").slice(0, 240);
@@ -1235,24 +1235,22 @@ async function handleAiChatRequest(request: Request, env: Env & { AI?: WorkersAi
       try {
         const parsed = new URL(link);
         if (parsed.protocol !== "https:" && parsed.protocol !== "http:") continue;
-        // Current-news requests should not quietly surface stale search results.
         if (!historicalRequest && publishedAt && Date.now() - Date.parse(publishedAt) > 10 * 24 * 60 * 60 * 1000) continue;
         if (webSources.some((source) => source.url === parsed.toString())) continue;
-        const source = {
+        webSources.push({
           title,
           url: parsed.toString(),
           ...(publisher ? { publisher } : {}),
           ...(publishedAt ? { publishedAt } : {}),
           ...(excerpt ? { excerpt } : {}),
-        };
-        webSources.push(source);
+        });
         webSearchContext += [
           "WEB SOURCE [" + webSources.length + "]: " + title,
           publisher ? "PUBLISHER: " + publisher : "",
           publishedAt ? "PUBLISHED: " + publishedAt : "PUBLICATION DATE: Not supplied",
           "URL: " + parsed.toString(),
           excerpt ? "FEED EXCERPT: " + excerpt : "FEED EXCERPT: Not supplied",
-        ].filter(Boolean).join("\\n") + "\\n\\n";
+        ].filter(Boolean).join("\n") + "\n\n";
       } catch {
         // Ignore malformed feed links.
       }
