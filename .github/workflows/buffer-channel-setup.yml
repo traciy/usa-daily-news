@@ -1,5 +1,5 @@
-# One-time discovery for the already connected USA Daily News X channel
-name: Set up Buffer X channel
+# One-time discovery for connected USA Daily News X and Substack channels
+name: Set up Buffer X and Substack channels
 
 on:
   push:
@@ -14,7 +14,7 @@ jobs:
   discover-channel:
     runs-on: ubuntu-latest
     steps:
-      - name: Find the connected X channel and save its ID
+      - name: Find the connected X and Substack channel IDs
         env:
           BUFFER_API_KEY: ${{ secrets.BUFFER_API_KEY }}
           GITHUB_TOKEN: ${{ github.token }}
@@ -55,41 +55,50 @@ jobs:
           const organizations = account?.account?.organizations || [];
           if (!organizations.length) throw new Error("No Buffer organization was found for this API key.");
 
-          const matches = [];
+          const matches = { twitter: [], substack: [] };
           for (const organization of organizations) {
-            const data = await bufferQuery(`
+            const data = await bufferQuery(\`
               query GetChannels {
-                channels(input: { organizationId: "${organization.id}" }) {
+                channels(input: { organizationId: "\${organization.id}" }) {
                   id
                   name
                   displayName
                   service
                 }
               }
-            `);
+            \`);
             for (const channel of data?.channels || []) {
-              if (String(channel.service).toLowerCase() === "twitter") {
-                matches.push({ id: channel.id, name: channel.displayName || channel.name || "X", organization: organization.name });
-              }
+              const service = String(channel.service).toLowerCase();
+              const entry = {
+                id: channel.id,
+                name: channel.displayName || channel.name || service,
+                organization: organization.name,
+              };
+              if (service === "twitter") matches.twitter.push(entry);
+              if (service === "substack") matches.substack.push(entry);
             }
           }
 
-          if (matches.length !== 1) {
-            const safeList = matches.map((item) => item.name + " (" + item.organization + ")").join(", ");
-            throw new Error(
-              matches.length === 0
-                ? "No X/Twitter channel was found. Confirm your X account is connected in Buffer."
-                : "More than one X/Twitter channel was found: " + safeList + ". Keep only the intended USA Daily News X channel connected, or select one before continuing.",
-            );
+          for (const [service, label] of [["twitter", "X/Twitter"], ["substack", "Substack"]]) {
+            if (matches[service].length !== 1) {
+              const safeList = matches[service].map((item) => item.name + " (" + item.organization + ")").join(", ");
+              throw new Error(
+                matches[service].length === 0
+                  ? "No " + label + " channel was found. Confirm it is connected in Buffer."
+                  : "More than one " + label + " channel was found: " + safeList + ". Keep only the intended channel connected.",
+              );
+            }
           }
 
-          const channel = matches[0];
-          console.log("Connected Buffer channel: " + channel.name + " (" + channel.organization + ")");
-          console.log("Copy the Buffer channel ID below into GitHub repository Variables as BUFFER_CHANNEL_ID:");
-          console.log("BUFFER_CHANNEL_ID=" + channel.id);
+          const xChannel = matches.twitter[0];
+          const substackChannel = matches.substack[0];
+          console.log("Connected X channel: " + xChannel.name + " (" + xChannel.organization + ")");
+          console.log("BUFFER_X_CHANNEL_ID=" + xChannel.id);
+          console.log("Connected Substack channel: " + substackChannel.name + " (" + substackChannel.organization + ")");
+          console.log("BUFFER_SUBSTACK_CHANNEL_ID=" + substackChannel.id);
           await import("node:fs/promises").then(({ appendFile }) =>
             appendFile(process.env.GITHUB_STEP_SUMMARY,
-              "## Buffer X channel found\n\nConnected channel: **" + channel.name + "**\n\nAdd this repository variable in GitHub Settings → Secrets and variables → Actions → Variables:\n\n- Name: `BUFFER_CHANNEL_ID`\n- Value: `" + channel.id + "`\n",
+              "## Buffer channels found\\n\\nConnected X channel: **" + xChannel.name + "**\\n\\nAdd this repository variable in GitHub Settings → Secrets and variables → Actions → Variables:\\n\\n- Name: \`BUFFER_X_CHANNEL_ID\`\\n- Value: \`" + xChannel.id + "\`\\n\\nConnected Substack channel: **" + substackChannel.name + "**\\n\\n- Name: \`BUFFER_SUBSTACK_CHANNEL_ID\`\\n- Value: \`" + substackChannel.id + "\`\\n",
             ),
           );
           NODE
