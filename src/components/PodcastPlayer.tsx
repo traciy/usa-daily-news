@@ -81,7 +81,7 @@ export function PodcastPlayer({ variant = 'card' }: PodcastPlayerProps) {
     <section
       aria-label="USA Daily Podcast player"
       className={compact
-        ? 'fixed bottom-5 right-5 z-50 w-[min(360px,calc(100vw-2.5rem))] overflow-hidden rounded-xl border border-gray-700 bg-gradient-to-br from-gray-900 to-gray-800 text-white shadow-xl'
+        ? 'fixed bottom-5 left-1/2 z-50 w-[min(360px,calc(100vw-7rem))] -translate-x-1/2 overflow-hidden rounded-xl border border-gray-700 bg-gradient-to-br from-gray-900 to-gray-800 text-white shadow-xl'
         : 'w-full overflow-hidden rounded-sm border border-gray-700 bg-gray-950 text-white shadow-sm'}
     >
       <div className={compact ? 'flex h-16 items-center gap-2 px-2.5' : 'flex items-center gap-3 px-4 py-3'}>
