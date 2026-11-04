@@ -983,38 +983,6 @@ async function bufferGraphQL(apiKey, query, variables = {}) {
   return payload?.data ?? {};
 }
 
-async function findBufferXChannel(apiKey) {
-  const organizationData = await bufferGraphQL(
-    apiKey,
-    "query GetOrganizations { account { organizations { id name } } }",
-  );
-  const organizations = organizationData?.account?.organizations ?? [];
-  if (!organizations.length) {
-    throw new Error("No Buffer organization was found for this API key. Check that the key belongs to the Buffer account where X is connected.");
-  }
-
-  const channels = [];
-  for (const organization of organizations) {
-    const query = "query GetChannels { channels(input: { organizationId: " + JSON.stringify(organization.id) + " }) { id name service } }";
-    const channelData = await bufferGraphQL(apiKey, query);
-    for (const channel of channelData?.channels ?? []) {
-      if (String(channel.service).toLowerCase() === "twitter") {
-        channels.push({ ...channel, organizationName: organization.name });
-      }
-    }
-  }
-
-  if (channels.length === 0) {
-    throw new Error("Buffer did not return an X/Twitter channel. Confirm that your X account is connected in Buffer and that the API key belongs to the same account.");
-  }
-  if (channels.length > 1) {
-    throw new Error("More than one X/Twitter channel is connected in Buffer. Keep only the intended USA Daily News X channel connected, then rerun.");
-  }
-
-  console.log("Buffer X channel found: " + channels[0].name + " (" + channels[0].organizationName + ").");
-  return channels[0].id;
-}
-
 async function postArticleToBuffer(article, articleUrl, apiKey, channelId) {
   const text = buildXPostText(article, articleUrl);
   const query = "mutation CreatePost($input: CreatePostInput!) { createPost(input: $input) { ... on PostActionSuccess { post { id text status } } ... on MutationError { message } } }";
@@ -1041,16 +1009,10 @@ async function publishArticles(articles, supabaseUrl, bearerToken) {
   let successCount = 0;
   const publishedUrls = [];
   const bufferApiKey = process.env.BUFFER_API_KEY?.trim() || "";
-  let bufferXChannelId = "";
+  const bufferXChannelId = process.env.BUFFER_CHANNEL_ID?.trim() || "";
 
-  if (bufferApiKey) {
-    try {
-      bufferXChannelId = await findBufferXChannel(bufferApiKey);
-    } catch (error) {
-      console.error("BUFFER AUTO-POST SETUP FAILED: " + (error?.message || error));
-    }
-  } else {
-    console.log("Buffer auto-posting is not configured. Add BUFFER_API_KEY as a GitHub repository secret to enable it.");
+  if (!bufferApiKey || !bufferXChannelId) {
+    console.log("Buffer auto-posting is not configured. Add BUFFER_API_KEY and BUFFER_CHANNEL_ID as GitHub repository secrets to enable it.");
   }
 
   for (const [index, article] of articles.entries()) {
