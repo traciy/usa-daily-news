@@ -1,4 +1,3 @@
-import { createHmac, randomBytes } from "node:crypto";
 /**
  * Replaces the uploaded n8n flow:
  * Publisher RSS feeds -> Gemini -> JSON validation -> Supabase Edge Function.
@@ -960,86 +959,98 @@ function buildXPostText(article, articleUrl) {
   return postText;
 }
 
-function oauthPercentEncode(value) {
-  return encodeURIComponent(String(value)).replace(/[!'()*]/g, (character) =>
-    "%" + character.charCodeAt(0).toString(16).toUpperCase(),
-  );
-}
 
-function createXOAuth1AuthorizationHeader(url, credentials) {
-  const oauthParameters = {
-    oauth_consumer_key: credentials.apiKey,
-    oauth_nonce: randomBytes(16).toString("hex"),
-    oauth_signature_method: "HMAC-SHA1",
-    oauth_timestamp: String(Math.floor(Date.now() / 1000)),
-    oauth_token: credentials.accessToken,
-    oauth_version: "1.0",
-  };
-
-  const parameterString = Object.entries(oauthParameters)
-    .map(([key, value]) => [oauthPercentEncode(key), oauthPercentEncode(value)])
-    .sort(([keyA, valueA], [keyB, valueB]) =>
-      keyA === keyB ? valueA.localeCompare(valueB) : keyA.localeCompare(keyB),
-    )
-    .map(([key, value]) => key + "=" + value)
-    .join("&");
-
-  const signatureBaseString = [
-    "POST",
-    oauthPercentEncode(url),
-    oauthPercentEncode(parameterString),
-  ].join("&");
-
-  const signingKey = oauthPercentEncode(credentials.apiSecret) + "&" + oauthPercentEncode(credentials.accessTokenSecret);
-  const signature = createHmac("sha1", signingKey).update(signatureBaseString).digest("base64");
-
-  const authorizationParameters = { ...oauthParameters, oauth_signature: signature };
-  const header = Object.entries(authorizationParameters)
-    .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
-    .map(([key, value]) => oauthPercentEncode(key) + '="' + oauthPercentEncode(value) + '"')
-    .join(", ");
-
-  return "OAuth " + header;
-}
-
-async function postArticleToX(article, articleUrl, credentials) {
-  const text = buildXPostText(article, articleUrl);
-  const endpoint = "https://api.x.com/2/tweets";
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      Authorization: createXOAuth1AuthorizationHeader(endpoint, credentials),
-      "Content-Type": "application/json",
-      Accept: "application/json",
+async function bufferGraphQL(apiKey, query, variables = {}) {
+  const response = await fetchWithRetry(
+    "https://api.buffer.com",
+    {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer " + apiKey,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ query, variables }),
     },
-    body: JSON.stringify({ text }),
-  });
+    "Buffer API request",
+    3,
+  );
 
-  if (!response.ok) {
-    const responseBody = await response.text();
-    throw new Error("X post request failed (HTTP " + response.status + "): " + responseBody.slice(0, 900));
+  const payload = await response.json();
+  if (Array.isArray(payload?.errors) && payload.errors.length) {
+    throw new Error("Buffer GraphQL error: " + payload.errors.map((item) => item.message).join("; ").slice(0, 900));
+  }
+  return payload?.data ?? {};
+}
+
+async function findBufferXChannel(apiKey) {
+  const organizationData = await bufferGraphQL(
+    apiKey,
+    "query GetOrganizations { account { organizations { id name } } }",
+  );
+  const organizations = organizationData?.account?.organizations ?? [];
+  if (!organizations.length) {
+    throw new Error("No Buffer organization was found for this API key. Check that the key belongs to the Buffer account where X is connected.");
   }
 
-  const result = await response.json();
-  const postId = result?.data?.id;
-  if (!postId) throw new Error("X did not return a post ID: " + JSON.stringify(result).slice(0, 700));
-  console.log("Posted website article to X: https://x.com/i/web/status/" + postId);
+  const channels = [];
+  for (const organization of organizations) {
+    const query = "query GetChannels { channels(input: { organizationId: " + JSON.stringify(organization.id) + " }) { id name service } }";
+    const channelData = await bufferGraphQL(apiKey, query);
+    for (const channel of channelData?.channels ?? []) {
+      if (String(channel.service).toLowerCase() === "twitter") {
+        channels.push({ ...channel, organizationName: organization.name });
+      }
+    }
+  }
+
+  if (channels.length === 0) {
+    throw new Error("Buffer did not return an X/Twitter channel. Confirm that your X account is connected in Buffer and that the API key belongs to the same account.");
+  }
+  if (channels.length > 1) {
+    throw new Error("More than one X/Twitter channel is connected in Buffer. Keep only the intended USA Daily News X channel connected, then rerun.");
+  }
+
+  console.log("Buffer X channel found: " + channels[0].name + " (" + channels[0].organizationName + ").");
+  return channels[0].id;
+}
+
+async function postArticleToBuffer(article, articleUrl, apiKey, channelId) {
+  const text = buildXPostText(article, articleUrl);
+  const query = "mutation CreatePost($input: CreatePostInput!) { createPost(input: $input) { ... on PostActionSuccess { post { id text status } } ... on MutationError { message } } }";
+  const data = await bufferGraphQL(apiKey, query, {
+    input: {
+      text,
+      channelId,
+      schedulingType: "automatic",
+      mode: "shareNow",
+    },
+  });
+
+  const result = data?.createPost;
+  if (result?.message) throw new Error("Buffer could not create the post: " + result.message);
+  if (!result?.post?.id) {
+    throw new Error("Buffer did not confirm the X post was created: " + JSON.stringify(result).slice(0, 700));
+  }
+
+  console.log("Sent article to Buffer for immediate X publishing. Buffer post ID: " + result.post.id);
   console.log("X post text: " + text);
 }
 
 async function publishArticles(articles, supabaseUrl, bearerToken) {
   let successCount = 0;
   const publishedUrls = [];
-  const xCredentials = {
-    apiKey: process.env.X_API_KEY?.trim() || "",
-    apiSecret: process.env.X_API_SECRET?.trim() || "",
-    accessToken: process.env.X_ACCESS_TOKEN?.trim() || "",
-    accessTokenSecret: process.env.X_ACCESS_TOKEN_SECRET?.trim() || "",
-  };
-  const xPostingEnabled = Object.values(xCredentials).every(Boolean);
+  const bufferApiKey = process.env.BUFFER_API_KEY?.trim() || "";
+  let bufferXChannelId = "";
 
-  if (!xPostingEnabled) {
-    console.log("X auto-posting is not configured. Add X_API_KEY, X_API_SECRET, X_ACCESS_TOKEN and X_ACCESS_TOKEN_SECRET as GitHub repository secrets to enable it.");
+  if (bufferApiKey) {
+    try {
+      bufferXChannelId = await findBufferXChannel(bufferApiKey);
+    } catch (error) {
+      console.error("BUFFER AUTO-POST SETUP FAILED: " + (error?.message || error));
+    }
+  } else {
+    console.log("Buffer auto-posting is not configured. Add BUFFER_API_KEY as a GitHub repository secret to enable it.");
   }
 
   for (const [index, article] of articles.entries()) {
@@ -1072,9 +1083,9 @@ async function publishArticles(articles, supabaseUrl, bearerToken) {
       const articleUrl = "https://usadailynews.space/article/" + Number(saved.id);
       publishedUrls.push(articleUrl);
 
-      if (xPostingEnabled) {
+      if (bufferApiKey && bufferXChannelId) {
         try {
-          await postArticleToX(article, articleUrl, xCredentials);
+          await postArticleToBuffer(article, articleUrl, bufferApiKey, bufferXChannelId);
         } catch (error) {
           // Keep successful website publication successful even if X is temporarily unavailable.
           console.error("X AUTO-POST FAILED for " + articleUrl + ": " + (error?.message || error));
