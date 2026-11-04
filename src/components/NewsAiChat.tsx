@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import { Bot, MessageCircle, Send, Sparkles, X, Loader2, RotateCcw } from 'lucide-react';
 
-type ChatSource = { title: string; url: string };
+type ChatSource = { title: string; url: string; publisher?: string; publishedAt?: string };
 type ChatMessage = { role: 'user' | 'assistant'; content: string; sources?: ChatSource[] };
 
 const starters = [
@@ -127,6 +127,9 @@ export function NewsAiChat() {
                             <a href={source.url} target="_blank" rel="noopener noreferrer" className="text-blue-700 underline decoration-blue-300 underline-offset-2 hover:text-blue-900">
                               [{sourceIndex + 1}] {source.title}
                             </a>
+                            <span className="ml-1 text-gray-500">
+                              {[source.publisher, source.publishedAt ? new Date(source.publishedAt).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) : ''].filter(Boolean).join(' · ')}
+                            </span>
                           </li>
                         ))}
                       </ol>
