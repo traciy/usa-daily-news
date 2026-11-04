@@ -34,6 +34,7 @@ export function SidebarEngagement({ onOpenArticle }: { onOpenArticle: (id: numbe
   const [voted, setVoted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [trending, setTrending] = useState<(ArticleSummary & { view_count: number })[]>([]);
+  const [dailyQuestions, setDailyQuestions] = useState<ArticleSummary[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -47,7 +48,8 @@ export function SidebarEngagement({ onOpenArticle }: { onOpenArticle: (id: numbe
     Promise.all([
       supabase.from('daily_poll_votes').select('option_index').eq('poll_date', day).eq('poll_key', pollKey),
       supabase.from('article_trending').select('id, title, category, image_url, seo_description, created_at, source_url, view_count').limit(5),
-    ]).then(([pollResult, trendingResult]) => {
+      supabase.from('articles').select('id, title, category, image_url, seo_description, created_at, source_url').order('created_at', { ascending: false }).limit(14),
+    ]).then(([pollResult, trendingResult, latestResult]) => {
       if (!active) return;
       const counts = Array(poll.options.length).fill(0) as number[];
       (pollResult.data ?? []).forEach((vote) => {
@@ -55,6 +57,11 @@ export function SidebarEngagement({ onOpenArticle }: { onOpenArticle: (id: numbe
       });
       setVotes(counts);
       setTrending((trendingResult.data ?? []) as (ArticleSummary & { view_count: number })[]);
+      const latest = (latestResult.data ?? []) as ArticleSummary[];
+      if (latest.length) {
+        const start = dayNumber % latest.length;
+        setDailyQuestions(Array.from({ length: Math.min(3, latest.length) }, (_, index) => latest[(start + index) % latest.length]));
+      }
       void voter;
     });
     return () => { active = false; };
@@ -132,6 +139,27 @@ export function SidebarEngagement({ onOpenArticle }: { onOpenArticle: (id: numbe
           </ol>
         ) : (
           <p className="mt-3 text-sm text-gray-500">Reader favourites will appear here as visitors explore stories.</p>
+        )}
+      </section>
+
+      <section className="rounded-sm border border-gray-200 bg-white p-4" aria-labelledby="news-questions-heading">
+        <div className="flex items-center justify-between gap-2">
+          <h2 id="news-questions-heading" className="font-serif font-bold text-gray-900">Questions People Are Asking</h2>
+          <span className="rounded-full bg-gray-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-gray-600">Daily</span>
+        </div>
+        <p className="mt-1 text-xs text-gray-500">Quick answers based on the latest stories</p>
+        {dailyQuestions.length > 0 ? (
+          <div className="mt-3 divide-y divide-gray-100">
+            {dailyQuestions.map((story) => (
+              <article key={story.id} className="py-3 first:pt-0 last:pb-0">
+                <h3 className="text-sm font-semibold leading-snug text-gray-900">What should readers know about {story.title.replace(/[?.!]+$/, '')}?</h3>
+                <p className="mt-2 text-sm leading-relaxed text-gray-600">{story.seo_description || `This latest ${story.category || 'news'} report covers ${story.title.replace(/[?.!]+$/, '')}. Open the full story for the details and developments.`}</p>
+                <button type="button" onClick={() => onOpenArticle(story.id)} className="mt-2 text-xs font-semibold text-red-700 hover:text-red-900">Read the full story →</button>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-3 text-sm text-gray-500">New questions and answers will appear as fresh stories are published.</p>
         )}
       </section>
     </div>
