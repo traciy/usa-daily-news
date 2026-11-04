@@ -1009,10 +1009,15 @@ async function publishArticles(articles, supabaseUrl, bearerToken) {
   let successCount = 0;
   const publishedUrls = [];
   const bufferApiKey = process.env.BUFFER_API_KEY?.trim() || "";
-  const bufferXChannelId = process.env.BUFFER_CHANNEL_ID?.trim() || "";
+  const bufferChannels = [
+    { name: "X", id: process.env.BUFFER_X_CHANNEL_ID?.trim() || "" },
+    { name: "Substack", id: process.env.BUFFER_SUBSTACK_CHANNEL_ID?.trim() || "" },
+  ].filter((channel) => channel.id);
 
-  if (!bufferApiKey || !bufferXChannelId) {
-    console.log("Buffer auto-posting is not configured. Add BUFFER_API_KEY and BUFFER_CHANNEL_ID as GitHub repository secrets to enable it.");
+  if (!bufferApiKey || bufferChannels.length === 0) {
+    console.log("Buffer auto-posting is not fully configured. Add BUFFER_API_KEY and the Buffer channel ID repository variables for the channels you want to publish to.");
+  } else {
+    console.log("Buffer auto-posting enabled for: " + bufferChannels.map((channel) => channel.name).join(" and ") + ".");
   }
 
   for (const [index, article] of articles.entries()) {
@@ -1038,19 +1043,22 @@ async function publishArticles(articles, supabaseUrl, bearerToken) {
     const inserted = Array.isArray(result.articles) ? result.articles : [];
     for (const saved of inserted) {
       if (!Number.isFinite(Number(saved.id))) {
-        console.warn("Website published the article but did not return an ID; skipping its X post.");
+        console.warn("Website published the article but did not return an ID; skipping social posts.");
         continue;
       }
 
       const articleUrl = "https://usadailynews.space/article/" + Number(saved.id);
       publishedUrls.push(articleUrl);
 
-      if (bufferApiKey && bufferXChannelId) {
-        try {
-          await postArticleToBuffer(article, articleUrl, bufferApiKey, bufferXChannelId);
-        } catch (error) {
-          // Keep successful website publication successful even if X is temporarily unavailable.
-          console.error("X AUTO-POST FAILED for " + articleUrl + ": " + (error?.message || error));
+      if (bufferApiKey) {
+        for (const channel of bufferChannels) {
+          try {
+            await postArticleToBuffer(article, articleUrl, bufferApiKey, channel.id);
+            console.log("Queued website article for " + channel.name + ".");
+          } catch (error) {
+            // Keep successful website publication successful even if a social channel is unavailable.
+            console.error("BUFFER AUTO-POST FAILED (" + channel.name + ") for " + articleUrl + ": " + (error?.message || error));
+          }
         }
       }
     }
