@@ -79,7 +79,7 @@ export const FAQ_SCHEMA = {
       name: 'How can I report an error?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Email info.luwigang254@gmail.com with the article URL, the detail you believe is incorrect and reliable supporting information.',
+        text: 'Email contact@usadailynews.space with the article URL, the detail you believe is incorrect and reliable supporting information.',
       },
     },
   ],
