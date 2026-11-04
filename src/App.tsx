@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { PodcastPlayer } from '@/components/PodcastPlayer';
+import { NewsAiChat } from '@/components/NewsAiChat';
 import { HomePage } from '@/pages/HomePage';
 import { ArticlePage } from '@/pages/ArticlePage';
 import { WeatherPage } from '@/pages/WeatherPage';
@@ -90,6 +91,7 @@ function App() {
       </main>
       <Footer onHome={goHome} />
       <PodcastPlayer variant="overlay" />
+      <NewsAiChat />
     </div>
   );
 }
