@@ -203,7 +203,7 @@ export function WeatherPage({ onBack }: WeatherPageProps) {
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const load = useCallback(async (lat: number, lon: number, name: string, quiet = false) => {
-    if (quiet && weather) setRefreshing(true);
+    if (quiet) setRefreshing(true);
     else setLoading(true);
     setError(null);
     const result = await fetchFullWeather(lat, lon, name);
@@ -216,7 +216,7 @@ export function WeatherPage({ onBack }: WeatherPageProps) {
     }
     setLoading(false);
     setRefreshing(false);
-  }, [weather]);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
