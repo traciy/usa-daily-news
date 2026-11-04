@@ -273,13 +273,9 @@ export function HomePage({ onOpenArticle, onNavigate, initialCategory }: HomePag
                 </li>
               </ul>
             </div>
-
+            <SidebarEngagement onOpenArticle={onOpenArticle} />
           </aside>
         </div>
-      </section>
-
-      <section className="mx-auto mt-8 max-w-3xl px-4" aria-label="Reader engagement">
-        <SidebarEngagement onOpenArticle={onOpenArticle} />
       </section>
 
       <section className="home-deferred-section mx-auto max-w-3xl px-4 py-12" aria-labelledby="faq-heading">
