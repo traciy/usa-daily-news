@@ -865,37 +865,175 @@ function validateAndNormalize(generated, sourceArticles) {
   return validated;
 }
 
+
+const X_KEYWORD_STOPWORDS = new Set([
+  "about", "after", "against", "also", "among", "another", "around", "because",
+  "before", "being", "between", "could", "first", "from", "have", "into", "just",
+  "more", "most", "news", "over", "said", "says", "than", "that", "their",
+  "there", "these", "they", "this", "those", "through", "today", "under",
+  "until", "were", "what", "when", "where", "which", "while", "will", "with",
+  "would", "your", "amid", "amidst", "report", "reports", "update", "updates",
+  "latest", "video", "photos", "explained"
+]);
+
+function extractArticleKeywords(article, maximum = 4) {
+  const title = String(article.title || "");
+  const description = String(article.seo_description || "");
+  const words = (title + " " + description).match(/[A-Za-z][A-Za-z0-9'-]{2,}/g) || [];
+  const titleWords = title.match(/[A-Za-z][A-Za-z0-9'-]{2,}/g) || [];
+  const seen = new Set();
+  const keywords = [];
+
+  for (const rawWord of [...titleWords, ...words]) {
+    const word = rawWord.replace(/^['-]+|['-]+$/g, "");
+    const normalized = word.toLowerCase();
+    if (word.length < 3 || X_KEYWORD_STOPWORDS.has(normalized) || seen.has(normalized) || /^\d+$/.test(word)) continue;
+    seen.add(normalized);
+    keywords.push(word);
+    if (keywords.length >= maximum) break;
+  }
+  return keywords;
+}
+
+function articleHashtag(value) {
+  const words = String(value || "").match(/[A-Za-z0-9]+/g) || [];
+  if (!words.length) return "";
+  const tag = words.map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join("");
+  return tag.length >= 3 && tag.length <= 30 ? "#" + tag : "";
+}
+
+function buildXPostText(article, articleUrl) {
+  // Keep the exact headline published on the website; do not generate a different story.
+  const headline = String(article.title || "Latest news").replace(/\s+/g, " ").trim();
+  const keywords = extractArticleKeywords(article, 4);
+  const categoryTags = {
+    Politics: "#Politics",
+    Tech: "#Technology",
+    Economy: "#Business",
+    Culture: "#Entertainment",
+    Sports: "#Sports",
+  };
+  const hashtags = [];
+  const categoryTag = categoryTags[article.category];
+  if (categoryTag) hashtags.push(categoryTag);
+  const subjectTag = articleHashtag(keywords[0]);
+  if (subjectTag && !hashtags.includes(subjectTag)) hashtags.push(subjectTag);
+
+  const formatTopics = () => [...keywords, ...hashtags];
+  const makeSuffix = () => {
+    const items = formatTopics();
+    const line = items.length ? "Topics: " + items.join(", ") : "";
+    return (line ? "\n" + line : "") + "\n" + articleUrl;
+  };
+
+  let suffix = makeSuffix();
+  let headlineBudget = Math.max(35, 280 - suffix.length - 1);
+  let postText = (headline.length > headlineBudget
+    ? headline.slice(0, Math.max(1, headlineBudget - 1)).trimEnd() + "…"
+    : headline) + suffix;
+
+  // Remove optional terms before shortening the headline further.
+  while (postText.length > 280 && hashtags.length > 1) {
+    hashtags.pop();
+    suffix = makeSuffix();
+    headlineBudget = Math.max(35, 280 - suffix.length - 1);
+    postText = (headline.length > headlineBudget
+      ? headline.slice(0, Math.max(1, headlineBudget - 1)).trimEnd() + "…"
+      : headline) + suffix;
+  }
+  while (postText.length > 280 && keywords.length) {
+    keywords.pop();
+    suffix = makeSuffix();
+    headlineBudget = Math.max(35, 280 - suffix.length - 1);
+    postText = (headline.length > headlineBudget
+      ? headline.slice(0, Math.max(1, headlineBudget - 1)).trimEnd() + "…"
+      : headline) + suffix;
+  }
+  if (postText.length > 280) {
+    suffix = "\n" + articleUrl;
+    headlineBudget = Math.max(1, 280 - suffix.length);
+    postText = (headline.length > headlineBudget
+      ? headline.slice(0, Math.max(1, headlineBudget - 1)).trimEnd() + "…"
+      : headline) + suffix;
+  }
+  return postText;
+}
+
+async function postArticleToX(article, articleUrl, userAccessToken) {
+  const text = buildXPostText(article, articleUrl);
+  const response = await fetchWithRetry(
+    "https://api.x.com/2/tweets",
+    {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer " + userAccessToken,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ text }),
+    },
+    "X post for article " + article.title,
+    3,
+  );
+  const result = await response.json();
+  const postId = result?.data?.id;
+  if (!postId) throw new Error("X did not return a post ID: " + JSON.stringify(result).slice(0, 700));
+  console.log("Posted website article to X: https://x.com/i/web/status/" + postId);
+  console.log("X post text: " + text);
+}
+
 async function publishArticles(articles, supabaseUrl, bearerToken) {
   let successCount = 0;
   const publishedUrls = [];
+  const xUserAccessToken = process.env.X_USER_ACCESS_TOKEN?.trim() || "";
+
+  if (!xUserAccessToken) {
+    console.log("X auto-posting is not configured. Add X_USER_ACCESS_TOKEN as a GitHub repository secret to enable it.");
+  }
+
   for (const [index, article] of articles.entries()) {
     const response = await fetchWithRetry(
       supabaseUrl,
       {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${bearerToken}`,
+          Authorization: "Bearer " + bearerToken,
           "Content-Type": "application/json",
           Accept: "application/json",
         },
         body: JSON.stringify(article),
       },
-      `Supabase publish for article ${index + 1}`,
+      "Supabase publish for article " + (index + 1),
     );
     const responseText = await response.text();
     let result = {};
     try { result = responseText ? JSON.parse(responseText) : {}; } catch { /* keep publishing diagnostics below */ }
-    console.log(`Published ${index + 1}/${articles.length}: ${article.title} (HTTP ${response.status})`);
-    if (responseText.trim()) console.log(`Supabase response: ${responseText.slice(0, 300)}`);
+    console.log("Published " + (index + 1) + "/" + articles.length + ": " + article.title + " (HTTP " + response.status + ")");
+    if (responseText.trim()) console.log("Supabase response: " + responseText.slice(0, 300));
+
     const inserted = Array.isArray(result.articles) ? result.articles : [];
     for (const saved of inserted) {
-      if (Number.isFinite(Number(saved.id))) publishedUrls.push(`https://usadailynews.space/article/${Number(saved.id)}`);
+      if (!Number.isFinite(Number(saved.id))) {
+        console.warn("Website published the article but did not return an ID; skipping its X post.");
+        continue;
+      }
+
+      const articleUrl = "https://usadailynews.space/article/" + Number(saved.id);
+      publishedUrls.push(articleUrl);
+
+      if (xUserAccessToken) {
+        try {
+          await postArticleToX(article, articleUrl, xUserAccessToken);
+        } catch (error) {
+          // Keep successful website publication successful even if X is temporarily unavailable.
+          console.error("X AUTO-POST FAILED for " + articleUrl + ": " + (error?.message || error));
+        }
+      }
     }
     successCount += 1;
   }
   return { successCount, publishedUrls };
 }
-
 async function submitToIndexNow(urls) {
   const uniqueUrls = [...new Set(urls)].filter((url) => {
     try { return new URL(url).origin === "https://usadailynews.space"; } catch { return false; }
