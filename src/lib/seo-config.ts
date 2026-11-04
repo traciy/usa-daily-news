@@ -15,10 +15,10 @@ export const SITE_CONFIG = {
   language: 'en',
   keywords: ['US news', 'USA news', 'American politics', 'business news', 'technology news'],
   sameAs: [
-    'https://twitter.com/usadailynews',
-    'https://www.facebook.com/usadailynews',
-    'https://www.youtube.com/@usadailynews',
-    'https://www.linkedin.com/company/usadailynews',
+    'https://podcasts.apple.com/us/podcast/usa-news-today/id1559275087',
+    'https://open.spotify.com/show/7xkv5QPKpwhHHSg0CNj2Rt',
+    'https://pocketcasts.com/podcast/usa-news-today/a87e3900-6b00-0139-342a-0acc26574db2',
+    'https://castbox.fm/channel/USA-News-Today-id7345467?country=us',
   ],
 } as const;
 
