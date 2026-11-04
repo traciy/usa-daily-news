@@ -181,6 +181,23 @@ const RSS_FEEDS = [
   { name: "Financial Post", url: "https://financialpost.com/feed/", category: "Economy", country: "Canada" },
   { name: "National Post", url: "https://nationalpost.com/feed/", category: "World", country: "Canada" },
 
+  // Additional Canadian regional and specialist coverage from Global News.
+  { name: "Global News BC", url: "https://globalnews.ca/bc/feed/", category: "World", country: "Canada" },
+  { name: "Global News Calgary", url: "https://globalnews.ca/calgary/feed/", category: "World", country: "Canada" },
+  { name: "Global News Edmonton", url: "https://globalnews.ca/edmonton/feed/", category: "World", country: "Canada" },
+  { name: "Global News Halifax", url: "https://globalnews.ca/halifax/feed/", category: "World", country: "Canada" },
+  { name: "Global News Montreal", url: "https://globalnews.ca/montreal/feed/", category: "World", country: "Canada" },
+  { name: "Global News Ottawa", url: "https://globalnews.ca/ottawa/feed/", category: "World", country: "Canada" },
+  { name: "Global News Toronto", url: "https://globalnews.ca/toronto/feed/", category: "World", country: "Canada" },
+  { name: "Global News Winnipeg", url: "https://globalnews.ca/winnipeg/feed/", category: "World", country: "Canada" },
+  { name: "Global News Politics", url: "https://globalnews.ca/politics/feed/", category: "Politics", country: "Canada" },
+  { name: "Global News Money", url: "https://globalnews.ca/money/feed/", category: "Economy", country: "Canada" },
+  { name: "Global News Health", url: "https://globalnews.ca/health/feed/", category: "Culture", country: "Canada" },
+  { name: "Global News Entertainment", url: "https://globalnews.ca/entertainment/feed/", category: "Culture", country: "Canada" },
+  { name: "Global News Sports", url: "https://globalnews.ca/sports/feed/", category: "Sports", country: "Canada" },
+  { name: "Global News Environment", url: "https://globalnews.ca/environment/feed/", category: "Tech", country: "Canada" },
+  { name: "CBC World", url: "https://www.cbc.ca/webfeed/rss/rss-world", category: "World", country: "Canada" },
+
   // Australia: national news, business, technology, culture and sport.
   { name: "ABC News Australia", url: "https://www.abc.net.au/news/feed/51120/rss.xml", category: "World", country: "Australia" },
   { name: "ABC News Australia Top Stories", url: "https://www.abc.net.au/news/feed/1948/rss.xml", category: "World", country: "Australia" },
