@@ -179,8 +179,8 @@ export function SidebarEngagement({ onOpenArticle }: { onOpenArticle: (id: numbe
               const report = trend.news[0];
               return (
                 <article key={trend.topic} className="py-3 first:pt-0 last:pb-0">
-                  <h3 className="text-sm font-semibold leading-snug text-gray-900">Why is {trend.topic} trending in the US today?</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-gray-700">{trend.answer}</p>
+                  <h3 className="text-sm font-semibold leading-snug text-gray-900">{trend.topic}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-gray-700">{trend.answer.length > 280 ? `${trend.answer.slice(0, 277).trimEnd()}…` : trend.answer}</p>
                   {report && (
                     <p className="mt-2 text-xs text-gray-500">
                       News source: {report.source || new URL(report.url).hostname.replace(/^www\./, '')} · {report.title}
@@ -204,7 +204,7 @@ export function SidebarEngagement({ onOpenArticle }: { onOpenArticle: (id: numbe
         ) : (
           <p className="mt-3 text-sm text-gray-500">Google Trends is temporarily unavailable. Please check back shortly.</p>
         )}
-        <p className="mt-3 text-[11px] text-gray-500">Data attribution: Google Trends US Trending Searches RSS. News explanations: the named publisher shown with each answer. Questions are editorially written and are not represented as exact Google search queries.</p>
+        <p className="mt-3 text-[11px] text-gray-500">Search topics and interest: Google Trends US. Short news summaries: the publisher named with each topic.</p>
       </section>
     </div>
   );
