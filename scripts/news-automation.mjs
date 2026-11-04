@@ -1021,8 +1021,6 @@ async function discoverPinterestTarget(apiKey) {
     const channel = channels.find((item) => String(item.service || "").toLowerCase().includes("pinterest"));
     if (!channel) continue;
 
-    // Buffer's API reference specifically exposes Pinterest boards through the
-    // single-channel query, rather than relying on the organization channel list.
     const channelDetails = await bufferGraphQL(
       apiKey,
       "query GetChannelWithSubprofiles($channelId: ChannelId!) { channel(input: { id: $channelId }) { id metadata { ... on PinterestMetadata { boards { name serviceId } } } } }",
@@ -1030,13 +1028,24 @@ async function discoverPinterestTarget(apiKey) {
     );
     const boards = channelDetails?.channel?.metadata?.boards || [];
     if (!boards.length) throw new Error("Pinterest is connected in Buffer, but no Pinterest boards were returned.");
-    const preferredName = (process.env.BUFFER_PINTEREST_BOARD_NAME || "USA Breaking News").trim().toLowerCase();
-    const board = boards.find((item) => String(item.name || "").trim().toLowerCase() === preferredName)
-      || (boards.length === 1 ? boards[0] : null);
-    if (!board) {
-      throw new Error("Pinterest channel found, but the board named '" + (process.env.BUFFER_PINTEREST_BOARD_NAME || "USA Breaking News") + "' was not found. Available boards: " + boards.map((item) => item.name).join(", "));
+
+    const boardNames = [
+      "US Breaking News",
+      "US Politics & Government",
+      "American Business & Economy",
+      "US Sports News",
+      "Entertainment & Celebrity News",
+      "Technology & Innovation",
+    ];
+    const boardsByName = {};
+    for (const name of boardNames) {
+      const board = boards.find((item) => String(item.name || "").trim().toLowerCase() === name.toLowerCase());
+      if (!board?.serviceId) {
+        throw new Error("Pinterest board not found in Buffer: '" + name + "'. Boards returned: " + boards.map((item) => item.name).join(", "));
+      }
+      boardsByName[name] = { serviceId: board.serviceId, name: board.name };
     }
-    return { channelId: channel.id, boardServiceId: board.serviceId, boardName: board.name };
+    return { channelId: channel.id, boardsByName };
   }
   throw new Error("No Pinterest channel was found in the Buffer organizations connected to this API key.");
 }
@@ -1062,6 +1071,15 @@ function buildPinterestDescription(article) {
 }
 
 async function postArticleToPinterest(article, articleUrl, apiKey, target) {
+  const categoryBoardNames = {
+    Politics: "US Politics & Government",
+    Economy: "American Business & Economy",
+    Sports: "US Sports News",
+    Culture: "Entertainment & Celebrity News",
+    Tech: "Technology & Innovation",
+  };
+  const requestedBoardName = categoryBoardNames[article.category] || "US Breaking News";
+  const board = target.boardsByName[requestedBoardName] || target.boardsByName["US Breaking News"];
   const imageUrl = typeof article.image_url === "string" && /^https:\/\/\S+$/i.test(article.image_url.trim())
     ? article.image_url.trim()
     : "https://usadailynews.space/substack-fallback.webp";
@@ -1071,13 +1089,13 @@ async function postArticleToPinterest(article, articleUrl, apiKey, target) {
     mode: "addToQueue",
     metadata: {
       pinterest: {
-        boardServiceId: target.boardServiceId,
+        boardServiceId: board.serviceId,
         title,
         url: articleUrl,
       },
     },
   });
-  console.log("Created Pinterest Pin for board '" + target.boardName + "': " + post.id);
+  console.log("Created Pinterest Pin for board '" + board.name + "': " + post.id);
   console.log("Pinterest image URL: " + imageUrl);
 }
 
@@ -1129,7 +1147,7 @@ async function publishArticles(articles, supabaseUrl, bearerToken) {
   if (bufferApiKey) {
     try {
       pinterestTarget = await discoverPinterestTarget(bufferApiKey);
-      console.log("Pinterest auto-posting enabled for board: " + pinterestTarget.boardName + ".");
+      console.log("Pinterest auto-posting enabled for all six category boards.");
     } catch (error) {
       console.warn("Pinterest auto-posting is not ready: " + (error?.message || error));
     }
