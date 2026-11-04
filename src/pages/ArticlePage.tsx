@@ -6,7 +6,8 @@ import { useMarkdown } from '@/lib/markdown';
 import { categoryColor } from '@/lib/categories';
 import { formatTimeAgo } from '@/lib/date';
 import { SITE_CONFIG } from '@/lib/seo-config';
-import type { Article } from '@/types/article';
+import type { Article, ArticleSummary } from '@/types/article';
+import { ArticleCard } from '@/components/ArticleCard';
 
 interface ArticlePageProps {
   id: number;
@@ -18,12 +19,14 @@ export function ArticlePage({ id, onBack }: ArticlePageProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [recommended, setRecommended] = useState<ArticleSummary[]>([]);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
     setArticle(null);
+    setRecommended([]);
     window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
 
     const client = supabase;
@@ -47,7 +50,20 @@ export function ArticlePage({ id, onBack }: ArticlePageProps) {
       } else if (!data) {
         setError('Article not found.');
       } else {
-        setArticle(data as Article);
+        const currentArticle = data as Article;
+        setArticle(currentArticle);
+        const { data: suggestions } = await client
+          .from('articles')
+          .select('id, title, category, image_url, seo_description, created_at, source_url')
+          .neq('id', id)
+          .order('created_at', { ascending: false })
+          .limit(12);
+        if (!cancelled) {
+          const candidates = (suggestions ?? []) as ArticleSummary[];
+          const sameCategory = candidates.filter((item) => item.category?.toLowerCase() === currentArticle.category?.toLowerCase());
+          const recent = candidates.filter((item) => item.category?.toLowerCase() !== currentArticle.category?.toLowerCase());
+          setRecommended([...sameCategory, ...recent].slice(0, 6));
+        }
       }
       setLoading(false);
     })();
@@ -225,6 +241,26 @@ export function ArticlePage({ id, onBack }: ArticlePageProps) {
             Read the original source report <ExternalLink className="h-3.5 w-3.5" />
           </a>
         </div>
+      )}
+
+      {recommended.length > 0 && (
+        <section className="mt-12 border-t-2 border-gray-900 pt-6" aria-labelledby="recommended-stories-heading">
+          <div className="mb-5 flex items-end justify-between gap-4">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-red-700">Keep reading</p>
+              <h2 id="recommended-stories-heading" className="mt-1 text-2xl font-serif font-bold text-gray-900">
+                Recommended Stories
+              </h2>
+              <p className="mt-1 text-sm text-gray-500">More coverage related to this topic, plus the latest news.</p>
+            </div>
+            <a href="/" className="shrink-0 text-sm font-semibold text-red-700 hover:text-red-900">All news</a>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {recommended.map((suggestion) => (
+              <ArticleCard key={suggestion.id} article={suggestion} />
+            ))}
+          </div>
+        </section>
       )}
     </article>
   );
