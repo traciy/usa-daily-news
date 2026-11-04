@@ -167,7 +167,10 @@ export function SidebarEngagement({ onOpenArticle }: { onOpenArticle: (id: numbe
           <h2 id="news-questions-heading" className="font-serif font-bold text-gray-900">What Americans Are Searching</h2>
           <span className="rounded-full bg-gray-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-gray-600">Google Trends · US</span>
         </div>
-        <p className="mt-1 text-xs text-gray-500">Six news-related topics from Google's US trending searches, with answers summarized from linked reporting.</p>
+        <div className="mt-2 rounded-sm border border-blue-100 bg-blue-50 px-3 py-2">
+          <p className="text-xs font-semibold text-blue-900">Primary data source: Google Trends — United States</p>
+          <p className="mt-1 text-[11px] leading-relaxed text-blue-800">Trending topics and search interest are retrieved from Google's official US Trending Searches RSS feed. Explanations are summarized from the news publishers listed under each answer.</p>
+        </div>
         {trendsLoading ? (
           <p className="mt-3 text-sm text-gray-500">Loading today's US trending searches…</p>
         ) : googleTrends.length > 0 ? (
@@ -180,7 +183,7 @@ export function SidebarEngagement({ onOpenArticle }: { onOpenArticle: (id: numbe
                   <p className="mt-2 text-sm leading-relaxed text-gray-700">{trend.answer}</p>
                   {report && (
                     <p className="mt-2 text-xs text-gray-500">
-                      Reporting: {report.title}{report.source ? ` — ${report.source}` : ''}
+                      News source: {report.source || new URL(report.url).hostname.replace(/^www\./, '')} · {report.title}
                     </p>
                   )}
                   {report && (
@@ -201,7 +204,7 @@ export function SidebarEngagement({ onOpenArticle }: { onOpenArticle: (id: numbe
         ) : (
           <p className="mt-3 text-sm text-gray-500">Google Trends is temporarily unavailable. Please check back shortly.</p>
         )}
-        <p className="mt-3 text-[11px] text-gray-400">Topics come from Google Trends US. Answers summarize the linked news report; questions are editorially written, not exact Google search queries.</p>
+        <p className="mt-3 text-[11px] text-gray-500">Data attribution: Google Trends US Trending Searches RSS. News explanations: the named publisher shown with each answer. Questions are editorially written and are not represented as exact Google search queries.</p>
       </section>
     </div>
   );
