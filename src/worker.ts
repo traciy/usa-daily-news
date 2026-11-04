@@ -308,12 +308,59 @@ const STATIC_SEO_PAGES: Record<string, StaticSeoPage> = {
     ]
   },
   "/weather": {
-    title: "Weather News & Forecasts | USA Daily News",
-    description: "Weather coverage and forecast information from USA Daily News.",
-    heading: "Weather",
+    title: "Weather Forecast Today & 10-Day Outlook | USA Daily News",
+    description: "Check current weather, hourly updates, 10-day forecasts, rain chances, wind, UV, air quality and interactive radar maps for cities worldwide.",
+    heading: "Weather Forecast Today, Hourly Updates & 10-Day Outlook",
+    keywords: [
+      "weather forecast today",
+      "current weather",
+      "local weather forecast",
+      "weather now",
+      "hourly weather forecast",
+      "10-day weather forecast",
+      "10 day forecast",
+      "weather this week",
+      "rain forecast",
+      "precipitation forecast",
+      "wind speed and direction",
+      "weather radar map",
+      "air quality index",
+      "AQI forecast",
+      "UV index",
+      "sunrise and sunset times",
+      "humidity and dew point",
+      "weather in my city",
+      "worldwide weather forecast"
+    ],
     paragraphs: [
-      "Explore weather coverage and forecast information on USA Daily News.",
-      "Weather conditions can change quickly. Check official local weather services for warnings and decisions that affect safety."
+      "Check current weather conditions and local forecasts for cities around the world with USA Daily News. Search for a city or use your device location to view the current temperature, feels-like temperature, weather conditions, humidity, wind speed and direction, wind gusts, pressure, cloud cover, precipitation and UV index.",
+      "Plan the day with an hourly weather forecast for the next 24 hours. Compare expected temperatures, feels-like conditions, precipitation probability, rainfall amounts and wind through the day. Hourly forecast times are displayed for the selected location.",
+      "The 10-day weather forecast provides daily high and low temperatures, apparent temperatures, weather descriptions, rain chances, expected precipitation, wind speed, gusts, UV index, sunrise, sunset and daylight information. Expand a forecast day to view additional details.",
+      "Explore air-quality estimates including the United States and European Air Quality Index, PM2.5, PM10, ozone and nitrogen dioxide where data is available. These are atmospheric model estimates and may differ from readings at nearby ground-based monitoring stations.",
+      "Open the interactive weather map to view radar and available weather layers around the selected location. Radar coverage and map products can vary by region. Weather forecasts are model guidance and do not replace official local weather warnings or emergency instructions.",
+      "Weather forecasts are supplied by Open-Meteo, which combines numerical weather prediction models from national weather services. Air-quality estimates are provided separately by the Open-Meteo Air Quality API; the interactive radar map is provided by Windy."
+    ],
+    faq: [
+      {
+        question: "How often is the weather forecast updated?",
+        answer: "The USA Daily News weather page refreshes its forecast data approximately every 12 minutes. Forecast providers update their underlying weather models on their own schedules, so the newest model data may not be available at every refresh."
+      },
+      {
+        question: "How far ahead can I see the weather forecast?",
+        answer: "The weather page displays an hourly outlook for the next 24 hours and a 10-day forecast with daily temperatures, precipitation chances, wind and UV information."
+      },
+      {
+        question: "Where does the weather information come from?",
+        answer: "Weather forecasts are provided by Open-Meteo, which combines numerical weather prediction models from national weather services. Air-quality readings are model-based estimates and are provided separately by the Open-Meteo Air Quality API."
+      },
+      {
+        question: "Can I check the weather in another city?",
+        answer: "Yes. Use the location search to select another city. Your selected location is saved in this browser so it can be used the next time you visit."
+      },
+      {
+        question: "Are air-quality readings the same as measurements from a local monitoring station?",
+        answer: "No. Air-quality values on this page are model estimates at the selected location. They may differ from readings at nearby ground-based monitoring stations."
+      }
     ]
   }
 };
@@ -376,7 +423,7 @@ async function handleStaticSeoPage(request: Request, env: Env, path: string): Pr
     .replace(/<link\b[^>]*\brel=["']canonical["'][^>]*>/i, "")
     .replace("</head>", tags + "\n</head>");
   const faqHtml = page.faq?.length
-    ? '<section aria-labelledby="seo-page-faq"><h2 id="seo-page-faq">Football Scores & Match Centre FAQs</h2>' +
+    ? '<section aria-labelledby="seo-page-faq"><h2 id="seo-page-faq">' + htmlEscape(page.heading + " FAQs") + '</h2>' +
       page.faq.map((entry) => "<h3>" + htmlEscape(entry.question) + "</h3><p>" + htmlEscape(entry.answer) + "</p>").join("") +
       "</section>"
     : "";
