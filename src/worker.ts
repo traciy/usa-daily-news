@@ -211,7 +211,7 @@ const STATIC_SEO_PAGES: Record<string, StaticSeoPage> = {
     description: "How to report an error and how USA Daily News reviews and corrects inaccurate or incomplete information.",
     heading: "Corrections Policy",
     paragraphs: [
-      "If you believe an article contains a factual error, misleading wording or incorrect attribution, email info.luwigang254@gmail.com.",
+      "If you believe an article contains a factual error, misleading wording or incorrect attribution, email contact@usadailynews.space.",
       "Include the article URL, the exact statement you believe is incorrect, what you believe the correct information should be, and links to reliable supporting sources or documents.",
       "We assess correction reports against available evidence. If a material error is confirmed, we may correct the article, clarify wording, update attribution or remove content when appropriate."
     ]
@@ -231,7 +231,7 @@ const STATIC_SEO_PAGES: Record<string, StaticSeoPage> = {
     description: "Contact USA Daily News with news tips, corrections, feedback and general enquiries.",
     heading: "Contact USA Daily News",
     paragraphs: [
-      "Have a question, news tip, correction or feedback about something published on this site? Email info.luwigang254@gmail.com.",
+      "Have a question, news tip, correction or feedback about something published on this site? Email contact@usadailynews.space.",
       "For a correction request, include the article URL, the specific detail you believe is inaccurate and a link or document that can help us review it."
     ]
   },
