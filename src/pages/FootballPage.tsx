@@ -66,12 +66,25 @@ function MatchDetailsPanel({ match, open }: { match: FootballMatch; open: boolea
     away: awayValues.find((other) => (other.name || other.displayName) === (stat.name || stat.displayName))?.displayValue || '—',
   }));
   const events = details.keyEvents ?? [];
+  const commentary = details.commentary ?? [];
   const rosters = details.rosters ?? [];
   const venue = details.gameInfo?.venue;
+  const officials = details.gameInfo?.officials ?? [];
   const h2h = details.seasonseries ?? [];
-  const hasDetails = events.length > 0 || statRows.length > 0 || rosters.length > 0 || Boolean(venue) || h2h.length > 0;
+  const matchState = details.header?.competitions?.[0]?.status?.type?.detail;
+  const hasDetails = events.length > 0 || commentary.length > 0 || statRows.length > 0 || rosters.length > 0 || Boolean(venue) || officials.length > 0 || h2h.length > 0;
   return (
     <div className="border-t border-gray-200 bg-gray-50 px-4 py-5 sm:px-6 space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white p-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <TeamMark name={match.homeTeam} logo={match.homeLogo} />
+          <span className="text-sm font-semibold text-gray-900">{match.homeTeam}</span>
+          <strong className="font-serif text-lg tabular-nums text-gray-900">{match.homeScore ?? '—'} - {match.awayScore ?? '—'}</strong>
+          <span className="text-sm font-semibold text-gray-900">{match.awayTeam}</span>
+          <TeamMark name={match.awayTeam} logo={match.awayLogo} />
+        </div>
+        <span className="text-xs font-medium text-gray-500">{matchState || statusLabel(match.status, match.minute) || formatKickoff(match.utcDate)}</span>
+      </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <section>
           <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3">Match timeline</h3>
@@ -81,6 +94,7 @@ function MatchDetailsPanel({ match, open }: { match: FootballMatch; open: boolea
               <span className="font-semibold text-gray-800">{event.clock?.displayValue || 'Event'}</span>
               <span className="text-gray-600"> · {event.text || event.type?.text || event.type?.abbreviation || 'Match event'}</span>
               {event.team?.displayName && <span className="block text-xs text-gray-400">{event.team.displayName}</span>}
+              {event.participants?.length ? <span className="block text-xs text-gray-500">{event.participants.map((participant) => participant.athlete?.displayName).filter(Boolean).join(', ')}</span> : null}
             </li>)}
           </ol> : <p className="text-sm text-gray-500">No event timeline has been published for this match yet.</p>}
         </section>
@@ -103,34 +117,95 @@ function MatchDetailsPanel({ match, open }: { match: FootballMatch; open: boolea
           </div>)}
         </div>
       </section>}
-      {h2h.length > 0 && <section>
-        <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Season head-to-head</h3>
-        {h2h.map((series, index) => <div key={index} className="text-sm text-gray-600">{series.summary || 'Previous meetings'}{series.events?.slice(0, 3).map((event) => <p key={event.id || event.date}>{event.name || event.date}</p>)}</div>)}
+      {commentary.length > 0 && <section>
+        <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3">Match commentary</h3>
+        <ol className="space-y-2">
+          {commentary.slice(-8).reverse().map((entry, index) => <li key={index} className="rounded border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
+            {entry.time?.displayValue && <span className="mr-2 font-semibold text-gray-500">{entry.time.displayValue}</span>}
+            {entry.text || 'Match update'}
+          </li>)}
+        </ol>
       </section>}
-      {venue && <p className="text-xs text-gray-500 flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> {venue.fullName}{venue.address?.city ? `, ${venue.address.city}` : ''}{venue.address?.country ? `, ${venue.address.country}` : ''}{details.gameInfo?.attendance ? ` · Attendance: ${details.gameInfo.attendance.toLocaleString()}` : ''}</p>}
+      {h2h.length > 0 && <section>
+        <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Previous head-to-head meetings</h3>
+        {h2h.map((series, index) => <div key={index} className="text-sm text-gray-600">{series.summary || 'Previous meetings'}{series.events?.slice(0, 5).map((event) => <p key={event.id || event.date}>{event.name || event.date}</p>)}</div>)}
+      </section>}
+      {(venue || officials.length > 0 || details.gameInfo?.attendance) && <section className="flex flex-wrap gap-x-5 gap-y-2 text-xs text-gray-500">
+        {venue && <p className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> {venue.fullName}{venue.address?.city ? `, ${venue.address.city}` : ''}{venue.address?.country ? `, ${venue.address.country}` : ''}</p>}
+        {details.gameInfo?.attendance ? <p>Attendance: {details.gameInfo.attendance.toLocaleString()}</p> : null}
+        {officials.map((official, index) => <p key={official.fullName || index}>Match official: {official.fullName || 'Official'}</p>)}
+      </section>}
       {!hasDetails && <p className="text-sm text-gray-500">The data provider has not released a detailed report for this fixture yet. Match information will appear here when available.</p>}
       <p className="text-[11px] text-gray-400">Match data supplied by ESPN. Statistics and line-ups appear only when the provider publishes them.</p>
     </div>
   );
 }
 
+function TeamMark({ name, logo }: { name: string; logo?: string | null }) {
+  const initials = name.split(' ').filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
+  return (
+    <span className="relative inline-flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full border border-gray-200 bg-white text-[9px] font-bold text-gray-500" aria-hidden="true">
+      <span>{initials || 'FC'}</span>
+      {logo && <img src={logo} alt="" width="28" height="28" loading="lazy" decoding="async" className="absolute inset-0 h-full w-full bg-white object-contain" onError={(event) => { event.currentTarget.style.display = 'none'; }} />}
+    </span>
+  );
+}
+
 function ExpandableMatch({ match }: { match: FootballMatch }) {
   const [open, setOpen] = useState(false);
   const live = isLive(match.status);
+  const scheduled = match.status === 'SCHEDULED' || match.status === 'TIMED';
+  const score = match.homeScore !== null && match.awayScore !== null
+    ? `${match.homeScore} - ${match.awayScore}`
+    : scheduled ? 'vs' : '—';
+
   return <li id={`match-${match.id}`} className="border-b border-gray-100 last:border-b-0">
     <button type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open} aria-controls={`match-details-${match.id}`}
-      className="w-full flex items-center gap-2 sm:gap-3 py-3 px-4 text-left hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600"
-      aria-label={`${match.homeTeam} vs ${match.awayTeam}. ${open ? 'Hide' : 'Show'} match details.`}>
-      <span className="text-xs text-gray-400 w-20 shrink-0 truncate hidden sm:block" title={match.competition}>{match.competition}</span>
-      <span className="text-xs text-gray-400 sm:hidden shrink-0">{match.competitionCode}</span>
-      <span className="font-semibold text-gray-900 flex-1 min-w-0 text-xs sm:text-sm text-right" title={match.homeTeam}>{match.homeTeam}</span>
-      <span className="font-serif font-bold text-gray-900 tabular-nums px-1.5 shrink-0">{match.homeScore ?? (match.status === 'SCHEDULED' || match.status === 'TIMED' ? 'vs' : '—')}{match.homeScore !== null && match.awayScore !== null ? ' – ' : ''}{match.awayScore ?? ''}</span>
-      <span className="font-semibold text-gray-900 flex-1 min-w-0 text-xs sm:text-sm" title={match.awayTeam}>{match.awayTeam}</span>
-      <span className={`ml-auto text-xs font-medium tabular-nums shrink-0 ${live ? 'text-red-700' : 'text-gray-500'}`}>{live && <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-700 mr-1 animate-pulse" aria-hidden="true" />}{live ? statusLabel(match.status, match.minute) : match.status === 'FINISHED' ? 'FT' : formatKickoff(match.utcDate)}</span>
+      className="w-full flex items-center gap-2 sm:gap-3 py-3 px-3 sm:px-4 text-left hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600">
+      <span className="hidden sm:block w-28 shrink-0 truncate text-xs text-gray-500" title={match.competition}>{match.competition}</span>
+      <span className="flex min-w-0 flex-1 items-center justify-end gap-1.5 sm:gap-2">
+        <span className="min-w-0 truncate text-right text-xs font-semibold text-gray-900 sm:text-sm" title={match.homeTeam}>{match.homeTeam}</span>
+        <TeamMark name={match.homeTeam} logo={match.homeLogo} />
+      </span>
+      <span className={`shrink-0 rounded-md px-2 py-1 font-serif text-sm font-bold tabular-nums sm:text-base ${live ? 'bg-red-50 text-red-700' : 'bg-gray-100 text-gray-900'}`}>{score}</span>
+      <span className="flex min-w-0 flex-1 items-center gap-1.5 sm:gap-2">
+        <TeamMark name={match.awayTeam} logo={match.awayLogo} />
+        <span className="min-w-0 truncate text-xs font-semibold text-gray-900 sm:text-sm" title={match.awayTeam}>{match.awayTeam}</span>
+      </span>
+      <span className={`w-[4.5rem] shrink-0 text-right text-[11px] font-medium tabular-nums sm:w-24 sm:text-xs ${live ? 'text-red-700' : 'text-gray-500'}`}>
+        {live && <span className="mr-1 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-red-700" aria-hidden="true" />}
+        {live ? statusLabel(match.status, match.minute) : match.status === 'FINISHED' ? 'Full time' : formatKickoff(match.utcDate)}
+      </span>
       <ChevronDown className={`h-4 w-4 shrink-0 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
     </button>
+    <div className="px-3 pb-2 text-[10px] text-gray-400 sm:hidden">{match.competition}</div>
     <div id={`match-details-${match.id}`} hidden={!open}><MatchDetailsPanel match={match} open={open} /></div>
   </li>;
+}
+
+function MatchList({ matches, label }: { matches: FootballMatch[]; label: string }) {
+  const grouped = new Map<string, { competition: string; date: string; matches: FootballMatch[] }>();
+  for (const match of matches) {
+    const date = new Date(match.utcDate).toLocaleDateString('en-US', {
+      weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
+    });
+    const key = `${date}|${match.competition}`;
+    const group = grouped.get(key) ?? { competition: match.competition, date, matches: [] };
+    group.matches.push(match);
+    grouped.set(key, group);
+  }
+
+  return <div aria-label={label} className="divide-y divide-gray-100">
+    {Array.from(grouped.values()).map((group) => (
+      <section key={group.date + group.competition}>
+        <div className="flex flex-wrap items-center justify-between gap-2 bg-gray-50 px-4 py-2">
+          <h3 className="text-xs font-bold text-gray-800">{group.competition}</h3>
+          <span className="text-[11px] text-gray-500">{group.date}</span>
+        </div>
+        <ul>{group.matches.map((match) => <ExpandableMatch key={match.id} match={match} />)}</ul>
+      </section>
+    ))}
+  </div>;
 }
 
 function RecentSportsNews() {
@@ -163,6 +238,25 @@ function RecentSportsNews() {
   </section>;
 }
 
+const FOOTBALL_FAQS = [
+  {
+    question: 'How often are live football scores updated?',
+    answer: 'The live football score centre checks for updates every 30 seconds. The data provider may delay or revise individual match updates.',
+  },
+  {
+    question: 'Which football competitions are covered?',
+    answer: 'The score centre currently covers the Premier League, La Liga, Bundesliga, Serie A, Ligue 1 and the UEFA Champions League.',
+  },
+  {
+    question: 'What can I see in the expanded match centre?',
+    answer: 'When available, match reports include key events, player names, line-ups, team statistics, commentary, venue details, attendance, officials and previous meetings.',
+  },
+  {
+    question: 'Are match statistics available for every fixture?',
+    answer: 'No. Match statistics and other details are displayed only when the provider makes them available. Missing figures are not estimated.',
+  },
+];
+
 export function FootballPage({ onBack }: FootballPageProps) {
   const [competitions, setCompetitions] = useState<Competition[]>(FREE_COMPETITIONS);
   const [activeComp, setActiveCom] = useState<string>('all');
@@ -178,32 +272,26 @@ export function FootballPage({ onBack }: FootballPageProps) {
     setError(null);
     const compCode = comp === 'all' ? undefined : comp;
 
-    const [liveRes, scheduledRes, finishedRes] = await Promise.all([
-      fetchMatches(compCode, 'LIVE'),
-      fetchMatches(compCode, 'SCHEDULED'),
-      fetchMatches(compCode, 'FINISHED'),
-    ]);
+    const allRes = await fetchMatches(compCode);
 
-    // If all three failed, show error.
-    if (liveRes.error && scheduledRes.error && finishedRes.error) {
-      setError(liveRes.error);
+    if (allRes.error) {
+      setError(allRes.error);
       setLive([]);
       setFixtures([]);
       setResults([]);
     } else {
-      setLive(liveRes.matches ?? []);
-      // Sort fixtures by date ascending (nearest first), take first 12.
-      const sortedFixtures = (scheduledRes.matches ?? [])
-        .filter((m) => m.status === 'SCHEDULED' || m.status === 'TIMED')
+      const matches = allRes.matches ?? [];
+      setLive(matches
+        .filter((match) => isLive(match.status))
+        .sort((a, b) => new Date(a.utcDate).getTime() - new Date(b.utcDate).getTime()));
+      setFixtures(matches
+        .filter((match) => match.status === 'SCHEDULED' || match.status === 'TIMED')
         .sort((a, b) => new Date(a.utcDate).getTime() - new Date(b.utcDate).getTime())
-        .slice(0, 12);
-      setFixtures(sortedFixtures);
-      // Sort results by date descending (most recent first), take first 12.
-      const sortedResults = (finishedRes.matches ?? [])
-        .filter((m) => m.status === 'FINISHED')
+        .slice(0, 24));
+      setResults(matches
+        .filter((match) => match.status === 'FINISHED')
         .sort((a, b) => new Date(b.utcDate).getTime() - new Date(a.utcDate).getTime())
-        .slice(0, 12);
-      setResults(sortedResults);
+        .slice(0, 24));
     }
     setLoading(false);
     setLastUpdated(new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }));
@@ -227,8 +315,8 @@ export function FootballPage({ onBack }: FootballPageProps) {
   }, [activeComp]);
 
   // SEO — stable metadata, does not change per refresh.
-  const seoTitle = 'Live Football Scores & Match Analysis | USA Daily News';
-  const seoDescription = 'Follow live football scores, fixtures, results and match analysis. Expand games for goals, line-ups, team statistics, head-to-head and the latest sports news.';
+  const seoTitle = 'Live Football Scores & Fixtures | USA Daily News';
+  const seoDescription = 'Follow live football scores, today’s fixtures and results. Explore match timelines, team line-ups, statistics, head-to-head records and sports news.';
   const canonicalUrl = `${SITE_CONFIG.url}/football`;
 
   const jsonLd = useMemo(() => ([
@@ -236,26 +324,32 @@ export function FootballPage({ onBack }: FootballPageProps) {
     WEBSITE_SCHEMA,
     {
       '@context': 'https://schema.org',
-      '@type': 'WebPage',
+      '@type': 'CollectionPage',
       name: seoTitle,
       url: canonicalUrl,
       description: seoDescription,
       inLanguage: 'en-US',
-      keywords: ['live football scores', 'football fixtures today', 'soccer results', 'match analysis', 'Premier League scores', 'La Liga scores', 'Bundesliga scores', 'Serie A scores', 'Ligue 1 scores', 'Champions League scores', 'sports news'],
+      keywords: [
+        'live football scores', 'football fixtures today', 'soccer results',
+        'football match centre', 'football match analysis', 'team line-ups',
+        'football statistics', 'Premier League scores', 'La Liga scores',
+        'Bundesliga scores', 'Serie A scores', 'Ligue 1 scores',
+        'Champions League scores', 'latest sports news',
+      ],
       isPartOf: { '@type': 'WebSite', name: SITE_CONFIG.name, url: SITE_CONFIG.url },
       breadcrumb: {
         '@type': 'BreadcrumbList',
         itemListElement: [
           { '@type': 'ListItem', position: 1, name: 'Home', item: SITE_CONFIG.url },
-          { '@type': 'ListItem', position: 2, name: 'Football Scores & Sports News', item: canonicalUrl },
+          { '@type': 'ListItem', position: 2, name: 'Live Football Scores & Fixtures', item: canonicalUrl },
         ],
       },
     },
     {
       '@context': 'https://schema.org',
       '@type': 'ItemList',
-      name: 'Live football scores, upcoming fixtures and recent results',
-      itemListElement: [...live, ...fixtures, ...results].slice(0, 30).map((match, index) => ({
+      name: 'Live football scores, fixtures and results',
+      itemListElement: [...live, ...fixtures, ...results].slice(0, 60).map((match, index) => ({
         '@type': 'ListItem',
         position: index + 1,
         url: `${canonicalUrl}#match-${match.id}`,
@@ -266,9 +360,24 @@ export function FootballPage({ onBack }: FootballPageProps) {
           startDate: match.utcDate,
           homeTeam: { '@type': 'SportsTeam', name: match.homeTeam },
           awayTeam: { '@type': 'SportsTeam', name: match.awayTeam },
-          eventStatus: match.status === 'FINISHED' ? 'https://schema.org/EventCompleted' : isLive(match.status) ? 'https://schema.org/EventInProgress' : 'https://schema.org/EventScheduled',
+          eventStatus: match.status === 'FINISHED'
+            ? 'https://schema.org/EventCompleted'
+            : isLive(match.status)
+              ? 'https://schema.org/EventInProgress'
+              : ['CANCELLED', 'POSTPONED'].includes(match.status)
+                ? 'https://schema.org/EventCancelled'
+                : 'https://schema.org/EventScheduled',
           description: `${match.competition}: ${match.homeTeam} vs ${match.awayTeam}${match.homeScore !== null && match.awayScore !== null ? `, score ${match.homeScore}-${match.awayScore}` : ''}`,
         },
+      })),
+    },
+    {
+      '@context': 'https://schema.org',
+      '@type': 'FAQPage',
+      mainEntity: FOOTBALL_FAQS.map((entry) => ({
+        '@type': 'Question',
+        name: entry.question,
+        acceptedAnswer: { '@type': 'Answer', text: entry.answer },
       })),
     },
   ]), [seoTitle, seoDescription, canonicalUrl, live, fixtures, results]);
@@ -278,6 +387,7 @@ export function FootballPage({ onBack }: FootballPageProps) {
     description: seoDescription,
     type: 'website',
     url: canonicalUrl,
+    image: SITE_CONFIG.ogImage,
     jsonLd,
   });
 
@@ -291,11 +401,31 @@ export function FootballPage({ onBack }: FootballPageProps) {
       </button>
 
       <h1 className="text-3xl sm:text-4xl font-serif font-bold text-gray-900 mb-2">
-        Live Football Scores, Fixtures & Match Analysis
+        Live Football Scores, Fixtures & Match Centre
       </h1>
-      <p className="text-gray-600 mb-6">
-        Real-time scores, upcoming fixtures, and recent results from major football competitions. Live scores update every 30 seconds.
+      <p className="max-w-3xl text-gray-600 leading-relaxed mb-5">
+        Follow live soccer scores, today's football fixtures and recent results from the Premier League, La Liga, Bundesliga, Serie A, Ligue 1 and UEFA Champions League. Open a match for available events, line-ups, team statistics, commentary and head-to-head information.
       </p>
+      <div className="mb-6 grid grid-cols-3 gap-2 sm:gap-3" aria-label="Football match overview">
+        <a href="#live-heading" className="rounded-lg border border-red-100 bg-red-50 p-3 transition hover:border-red-300">
+          <span className="block text-2xl font-bold tabular-nums text-red-700">{live.length}</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-red-800">Live now</span>
+        </a>
+        <a href="#fixtures-heading" className="rounded-lg border border-gray-200 bg-white p-3 transition hover:border-gray-400">
+          <span className="block text-2xl font-bold tabular-nums text-gray-900">{fixtures.length}</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-600">Upcoming</span>
+        </a>
+        <a href="#results-heading" className="rounded-lg border border-gray-200 bg-white p-3 transition hover:border-gray-400">
+          <span className="block text-2xl font-bold tabular-nums text-gray-900">{results.length}</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-600">Results</span>
+        </a>
+      </div>
+      <nav aria-label="Football score centre sections" className="mb-5 flex flex-wrap gap-2 text-xs font-semibold">
+        <a href="#live-heading" className="rounded-full border border-gray-200 bg-white px-3 py-2 text-gray-700 hover:border-red-300 hover:text-red-700">Live matches</a>
+        <a href="#fixtures-heading" className="rounded-full border border-gray-200 bg-white px-3 py-2 text-gray-700 hover:border-red-300 hover:text-red-700">Upcoming fixtures</a>
+        <a href="#results-heading" className="rounded-full border border-gray-200 bg-white px-3 py-2 text-gray-700 hover:border-red-300 hover:text-red-700">Recent results</a>
+        <a href="#recent-sports-news" className="rounded-full border border-gray-200 bg-white px-3 py-2 text-gray-700 hover:border-red-300 hover:text-red-700">Sports news</a>
+      </nav>
 
       {/* Competition filter */}
       <nav aria-label="Filter by competition" className="mb-8">
@@ -359,7 +489,7 @@ export function FootballPage({ onBack }: FootballPageProps) {
                   <Radio className="relative h-4 w-4 text-red-700" aria-hidden="true" />
                 </span>
                 <h2 id="live-heading" className="text-sm font-bold uppercase tracking-[0.15em] text-gray-700">
-                  Live Matches
+                  Live Matches ({live.length})
                 </h2>
               </div>
               {lastUpdated && (
@@ -376,65 +506,64 @@ export function FootballPage({ onBack }: FootballPageProps) {
                 </p>
               </div>
             ) : (
-              <ul aria-label="Live football matches">
-                {live.map((m) => <ExpandableMatch key={m.id} match={m} />)}
-              </ul>
+              <MatchList matches={live} label="Live football matches grouped by competition and date" />
             )}
           </section>
 
           {/* Upcoming fixtures */}
           <section aria-labelledby="fixtures-heading" className="bg-white rounded-sm border border-gray-200 shadow-sm mb-8">
             <h2 id="fixtures-heading" className="text-sm font-bold uppercase tracking-[0.15em] text-gray-700 px-4 py-3 border-b border-gray-100">
-              Upcoming Fixtures
+              Upcoming Fixtures ({fixtures.length})
             </h2>
             {fixtures.length === 0 ? (
               <div className="flex items-center justify-center py-10 px-4 text-center" role="status">
                 <p className="text-sm text-gray-500">No upcoming fixtures scheduled.</p>
               </div>
             ) : (
-              <ul aria-label="Upcoming football fixtures">
-                {fixtures.map((m) => (
-                  <ExpandableMatch key={m.id} match={m} />
-                ))}
-              </ul>
+              <MatchList matches={fixtures} label="Upcoming football fixtures grouped by competition and date" />
             )}
           </section>
 
           {/* Recent results */}
           <section aria-labelledby="results-heading" className="bg-white rounded-sm border border-gray-200 shadow-sm mb-8">
             <h2 id="results-heading" className="text-sm font-bold uppercase tracking-[0.15em] text-gray-700 px-4 py-3 border-b border-gray-100">
-              Recent Results
+              Recent Results ({results.length})
             </h2>
             {results.length === 0 ? (
               <div className="flex items-center justify-center py-10 px-4 text-center" role="status">
                 <p className="text-sm text-gray-500">No recent results available.</p>
               </div>
             ) : (
-              <ul aria-label="Recent football results">
-                {results.map((m) => (
-                  <ExpandableMatch key={m.id} match={m} />
-                ))}
-              </ul>
+              <MatchList matches={results} label="Recent football results grouped by competition and date" />
             )}
           </section>
 
-          {/* SEO content block */}
-          <section className="mt-8" aria-labelledby="football-info-heading">
-            <h2 id="football-info-heading" className="text-xl font-serif font-bold text-gray-900 mb-3">
-              Live Football Scores & Match Updates
+          <section className="mt-8 rounded-lg border border-gray-200 bg-white p-5 sm:p-6" aria-labelledby="football-info-heading">
+            <h2 id="football-info-heading" className="mb-3 text-xl font-serif font-bold text-gray-900">
+              Football Scores, Fixtures & Match Analysis
             </h2>
-            <p className="text-gray-700 leading-relaxed mb-4">
-              Follow live football scores today with real-time match updates from the Premier League, La Liga, Bundesliga, Serie A, Ligue 1, and the UEFA Champions League.
-              Check today's football fixtures, live soccer scores, and recent results as they happen. Matches in progress show the current minute, while upcoming fixtures display kickoff times in your local timezone.
+            <p className="mb-4 leading-relaxed text-gray-700">
+              Use the USA Daily News football score centre to follow live Premier League scores, La Liga results, Bundesliga fixtures, Serie A matches, Ligue 1 games and UEFA Champions League action. Each match row displays the teams, competition, kickoff time or current score and match status. Upcoming kickoff times use your device's local timezone.
             </p>
-            <div className="flex items-start gap-1.5 text-xs text-gray-400">
-              <Info className="h-3 w-3 mt-0.5 shrink-0" aria-hidden="true" />
-              <p className="leading-snug">
-                Match scores, match reports and available statistics are supplied by ESPN. Live scores refresh every 30 seconds; detailed data appears when the provider makes it available.
-              </p>
+            <p className="mb-4 leading-relaxed text-gray-700">
+              Expand a match to review the available match timeline, goals and cards, player details, team line-ups, match statistics, commentary, stadium information, attendance, officials and previous head-to-head meetings. The depth of each match report depends on the information released by the data provider.
+            </p>
+            <div className="flex items-start gap-2 text-xs text-gray-500">
+              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              <p className="leading-snug">Scores and match-centre information are supplied by ESPN. The page checks live scores every 30 seconds. Some competitions or fixtures may have delayed or limited coverage.</p>
             </div>
           </section>
-        </>
+          <section className="mt-8" aria-labelledby="football-faq-heading">
+            <h2 id="football-faq-heading" className="mb-4 text-xl font-serif font-bold text-gray-900">Football Scores FAQs</h2>
+            <div className="space-y-4">
+              {FOOTBALL_FAQS.map((entry) => (
+                <article key={entry.question} className="border-b border-gray-200 pb-4">
+                  <h3 className="mb-1 font-semibold text-gray-900">{entry.question}</h3>
+                  <p className="text-sm leading-relaxed text-gray-600">{entry.answer}</p>
+                </article>
+              ))}
+            </div>
+          </section>        </>
       )}
       <RecentSportsNews />
     </div>
