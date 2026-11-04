@@ -4,13 +4,6 @@ on:
   schedule:
     - cron: "*/5 * * * *"
   workflow_dispatch:
-    inputs:
-      publish:
-        description: "Publish generated articles to the website"
-        required: true
-        type: boolean
-        default: false
-
 
 permissions:
   contents: read
@@ -32,7 +25,7 @@ jobs:
       ARTICLE_WORDS: "250"
       SUPABASE_FUNCTION_URL: https://dyabpvcqedeioarkgjlz.supabase.co/functions/v1/api-articles
       SUPABASE_BEARER_TOKEN: ${{ secrets.SUPABASE_BEARER_TOKEN }}
-      PUBLISH_ENABLED: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.publish == true) }}
+      PUBLISH_ENABLED: "true"
 
     steps:
       - name: Download repository code
