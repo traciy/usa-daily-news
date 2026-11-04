@@ -1051,14 +1051,14 @@ function buildPinterestDescription(article) {
     const tag = articleHashtag(keyword);
     if (tag && !tags.includes(tag)) tags.push(tag);
   }
-  return (base + (tags.length ? "\\n\\n" + tags.join(" ") : "")).slice(0, 500);
+  return (base + (tags.length ? "\n\n" + tags.join(" ") : "")).slice(0, 500);
 }
 
 async function postArticleToPinterest(article, articleUrl, apiKey, target) {
-  const imageUrl = typeof article.image_url === "string" && /^https:\/\/\\S+$/i.test(article.image_url.trim())
+  const imageUrl = typeof article.image_url === "string" && /^https:\/\/\S+$/i.test(article.image_url.trim())
     ? article.image_url.trim()
     : "https://usadailynews.space/substack-fallback.webp";
-  const title = String(article.title || "USA Daily News").replace(/\\s+/g, " ").trim().slice(0, 100);
+  const title = String(article.title || "USA Daily News").replace(/\s+/g, " ").trim().slice(0, 100);
   const description = buildPinterestDescription(article);
   const post = await createBufferPost(apiKey, target.channelId, description, imageUrl, {
     mode: "addToQueue",
