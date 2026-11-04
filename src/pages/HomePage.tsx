@@ -7,6 +7,7 @@ import { SITE_CONFIG } from '@/lib/seo-config';
 import type { ArticleSummary } from '@/types/article';
 import { ArticleCard } from '@/components/ArticleCard';
 import { CategoryFilter } from '@/components/CategoryFilter';
+import { PodcastPlayer } from '@/components/PodcastPlayer';
 
 interface HomePageProps {
   onOpenArticle: (id: number) => void;
@@ -185,7 +186,8 @@ export function HomePage({ onOpenArticle, onNavigate, initialCategory }: HomePag
             )}
           </section>
 
-          <aside className="lg:col-span-1 order-1 lg:order-2 space-y-8" aria-label="Recent stories and sections" aria-busy={loading}>
+          <aside className="lg:col-span-1 order-1 lg:order-2 space-y-4" aria-label="Recent stories and sections" aria-busy={loading}>
+            <PodcastPlayer variant="compact" />
             <div>
               <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-gray-500 border-b-2 border-gray-900 pb-2 mb-4">
                 Most Recent
