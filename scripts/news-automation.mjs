@@ -198,6 +198,15 @@ const RSS_FEEDS = [
   { name: "BBC Scotland", url: "https://feeds.bbci.co.uk/news/scotland/rss.xml", category: "World", country: "United Kingdom" },
   { name: "BBC Wales", url: "https://feeds.bbci.co.uk/news/wales/rss.xml", category: "World", country: "United Kingdom" },
 
+  // Additional UK coverage: devolved nations, public services and specialist sport.
+  { name: "BBC Northern Ireland", url: "https://feeds.bbci.co.uk/news/northern_ireland/rss.xml", category: "World", country: "United Kingdom" },
+  { name: "BBC Politics", url: "https://feeds.bbci.co.uk/news/politics/rss.xml", category: "Politics", country: "United Kingdom" },
+  { name: "BBC Health", url: "https://feeds.bbci.co.uk/news/health/rss.xml", category: "Culture", country: "United Kingdom" },
+  { name: "BBC Education", url: "https://feeds.bbci.co.uk/news/education/rss.xml", category: "Culture", country: "United Kingdom" },
+  { name: "BBC Cricket", url: "https://feeds.bbci.co.uk/sport/cricket/rss.xml", category: "Sports", country: "United Kingdom" },
+  { name: "BBC Golf", url: "https://feeds.bbci.co.uk/sport/golf/rss.xml", category: "Sports", country: "United Kingdom" },
+  { name: "BBC Rugby Union", url: "https://feeds.bbci.co.uk/sport/rugby-union/rss.xml", category: "Sports", country: "United Kingdom" },
+
   // New Zealand.
   { name: "RNZ", url: "https://www.rnz.co.nz/rss/national.xml", category: "World", country: "New Zealand" },
 
