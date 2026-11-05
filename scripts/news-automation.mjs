@@ -1015,10 +1015,7 @@ async function discoverBufferChannels(apiKey) {
   const serviceOf = (channel) => String(channel.service || "").toLowerCase().replace(/[^a-z]/g, "");
   const xChannels = discovered.filter((channel) => ["x", "twitter", "twitterx"].includes(serviceOf(channel)));
   const substackChannels = discovered.filter((channel) => serviceOf(channel).includes("substack"));
-  const preferredX = xChannels.find((channel) =>
-    [channel.name, channel.displayName].some((value) => String(value || "").trim().toLowerCase() === "kenya_yyetu")
-  );
-  const xChannel = preferredX || xChannels[0] || null;
+  const xChannel = xChannels[0] || null;
   const substackChannel = substackChannels[0] || null;
 
   console.log("Buffer channels discovered: " + discovered.map((channel) =>
