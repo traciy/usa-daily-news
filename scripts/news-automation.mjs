@@ -993,6 +993,43 @@ async function bufferGraphQL(apiKey, query, variables = {}) {
   return payload?.data ?? {};
 }
 
+async function discoverBufferChannels(apiKey) {
+  const organizationsData = await bufferGraphQL(
+    apiKey,
+    "query GetOrganizations { account { organizations { id name } } }",
+  );
+  const organizations = organizationsData?.account?.organizations || [];
+  const discovered = [];
+
+  for (const organization of organizations) {
+    const channelsData = await bufferGraphQL(
+      apiKey,
+      "query GetChannels($organizationId: OrganizationId!) { channels(input: { organizationId: $organizationId }) { id name displayName service } }",
+      { organizationId: organization.id },
+    );
+    for (const channel of channelsData?.channels || []) {
+      discovered.push({ ...channel, organizationName: organization.name });
+    }
+  }
+
+  const serviceOf = (channel) => String(channel.service || "").toLowerCase().replace(/[^a-z]/g, "");
+  const xChannels = discovered.filter((channel) => ["x", "twitter", "twitterx"].includes(serviceOf(channel)));
+  const substackChannels = discovered.filter((channel) => serviceOf(channel).includes("substack"));
+  const preferredX = xChannels.find((channel) =>
+    [channel.name, channel.displayName].some((value) => String(value || "").trim().toLowerCase() === "kenya_yyetu")
+  );
+  const xChannel = preferredX || xChannels[0] || null;
+  const substackChannel = substackChannels[0] || null;
+
+  console.log("Buffer channels discovered: " + discovered.map((channel) =>
+    String(channel.displayName || channel.name || "Unnamed") + " [" + String(channel.service || "unknown") + "]"
+  ).join(", "));
+  return [
+    ...(xChannel ? [{ name: "X", id: xChannel.id }] : []),
+    ...(substackChannel ? [{ name: "Substack", id: substackChannel.id }] : []),
+  ];
+}
+
 async function createBufferPost(apiKey, channelId, text, imageUrl = "", options = {}) {
   const input = {
     text,
@@ -1148,13 +1185,19 @@ async function publishArticles(articles, supabaseUrl, bearerToken) {
   let successCount = 0;
   const publishedUrls = [];
   const bufferApiKey = process.env.BUFFER_API_KEY?.trim() || "";
-  const bufferChannels = [
-    { name: "X", id: process.env.BUFFER_X_CHANNEL_ID?.trim() || "" },
-    { name: "Substack", id: process.env.BUFFER_SUBSTACK_CHANNEL_ID?.trim() || "" },
-  ].filter((channel) => channel.id);
+  let bufferChannels = [];
   let pinterestTarget = null;
 
   if (bufferApiKey) {
+    try {
+      bufferChannels = await discoverBufferChannels(bufferApiKey);
+      if (!bufferChannels.length) {
+        console.warn("No X or Substack channels were found in the Buffer account connected to BUFFER_API_KEY.");
+      }
+    } catch (error) {
+      console.warn("Buffer channel discovery failed: " + (error?.message || error));
+    }
+
     try {
       pinterestTarget = await discoverPinterestTarget(bufferApiKey);
       console.log("Pinterest auto-posting enabled for all six category boards.");
@@ -1164,7 +1207,7 @@ async function publishArticles(articles, supabaseUrl, bearerToken) {
   }
 
   if (!bufferApiKey || (bufferChannels.length === 0 && !pinterestTarget)) {
-    console.log("Buffer auto-posting is not fully configured. Add BUFFER_API_KEY and the Buffer channel ID repository variables for the channels you want to publish to.");
+    console.log("Buffer auto-posting is not fully configured. Check BUFFER_API_KEY and confirm the X/Substack channels are connected to that Buffer account.");
   } else {
     console.log("Buffer auto-posting enabled for: " + bufferChannels.map((channel) => channel.name).join(" and ") + ".");
   }
