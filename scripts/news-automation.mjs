@@ -661,8 +661,8 @@ async function getHeadlines(publishedArticles = [], trendTopics = []) {
 async function generateArticles(geminiApiKey, sourceArticles, retryFeedback = "", provider = "gemini", trendTopics = []) {
   // Keep Gemini comprehensive; compact evidence for free-tier fallback providers.
   const fallbackMode = provider !== "gemini";
-  const candidateLimit = fallbackMode ? 6 : sourceArticles.length;
-  const evidenceLimit = fallbackMode ? 2200 : 4500;
+  const candidateLimit = fallbackMode ? 4 : sourceArticles.length;
+  const evidenceLimit = fallbackMode ? 1400 : 4500;
   const selectedSources = sourceArticles.slice(0, candidateLimit);
   const candidates = selectedSources.map((article, index) => {
     const evidenceParts = [article.article_text, article.content, article.description]
@@ -691,7 +691,7 @@ async function generateArticles(geminiApiKey, sourceArticles, retryFeedback = ""
   });
 
   const trendBrief = trendTopics.length
-    ? JSON.stringify(trendTopics.slice(0, fallbackMode ? 5 : trendTopics.length).map((trend) => ({
+    ? JSON.stringify(trendTopics.slice(0, fallbackMode ? 3 : trendTopics.length).map((trend) => ({
         topic: trend.topic,
         category: trend.editorial?.category,
         priority: trend.editorial?.priority,
@@ -703,7 +703,7 @@ async function generateArticles(geminiApiKey, sourceArticles, retryFeedback = ""
       })))
     : "No current trending-topic report is available.";
 
-  const compactRetryFeedback = fallbackMode ? String(retryFeedback || "").slice(0, 400) : retryFeedback;
+  const compactRetryFeedback = fallbackMode ? String(retryFeedback || "").slice(0, 300) : retryFeedback;
   const prompt = `You are an evidence-led news editor for USA Daily News.
 Review every numbered source candidate independently. Select and write up to ${ARTICLE_COUNT} distinct stories that provide genuine reader value. Returning fewer than the target is acceptable. Never force ten stories and never return an empty array if suitable candidates exist.
 
@@ -744,21 +744,12 @@ SOURCE CANDIDATES:
 ${JSON.stringify(candidates)}
 ${compactRetryFeedback ? "\nRETRY GUIDANCE FROM THE PREVIOUS ATTEMPT:\n" + compactRetryFeedback + "\nCorrect the stated issues while reassessing the full candidate list. Do not weaken evidence or safety rules." : ""}`;
 
-  const providerConfigs = {
-    groq: {
-      name: "Groq",
-      apiKey: process.env.GROQ_API_KEY?.trim(),
-      url: "https://api.groq.com/openai/v1/chat/completions",
-      model: process.env.GROQ_MODEL || "openai/gpt-oss-120b",
-    },
-    cerebras: {
-      name: "Cerebras",
-      apiKey: process.env.CEREBRAS_API_KEY?.trim(),
-      url: "https://api.cerebras.ai/v1/chat/completions",
-      model: process.env.CEREBRAS_MODEL || "gpt-oss-120b",
-    },
-  };
-  const config = provider === "gemini" ? null : providerConfigs[provider];
+  const config = provider === "groq" ? {
+    name: "Groq",
+    apiKey: process.env.GROQ_API_KEY?.trim(),
+    url: "https://api.groq.com/openai/v1/chat/completions",
+    model: process.env.GROQ_MODEL || "openai/gpt-oss-120b",
+  } : null;
   if (provider !== "gemini" && !config) throw new Error("Unsupported article-generation provider: " + provider);
   const apiKey = config?.apiKey || geminiApiKey;
   if (!apiKey) throw new Error(config ? config.name + " API key is not configured." : "GEMINI_API_KEY is not configured.");
@@ -1414,7 +1405,6 @@ async function main() {
     const primaryError = lastGeminiError;
     const fallbacks = [
       { name: "Groq", provider: "groq", configured: Boolean(process.env.GROQ_API_KEY?.trim()) },
-      { name: "Cerebras", provider: "cerebras", configured: Boolean(process.env.CEREBRAS_API_KEY?.trim()) },
     ];
     const fallbackErrors = [];
     for (const fallback of fallbacks) {
