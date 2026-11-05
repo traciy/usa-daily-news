@@ -96,7 +96,7 @@ function editorialAssessment(t, articleCount) {
     "Why " + topic + " is trending — key details explained"
   ];
   const keywords = filtered ? [] : [...new Set([topic, category, ...words(topic), ...words(evidence).slice(0, 8)])].slice(0, 12);
-  return { category, priority, score, relatedSourceCount: relatedCount, hasCredibleContext: relatedCount > 0, editorialDecision: filtered ? "Do not auto-publish. Check whether this is a genuine, relevant news story." : coverageFound ? "Review existing coverage first; update or add a genuinely new angle." : "Potential coverage gap. Verify with reliable sources before drafting.", headlineIdeas: headlines, suggestedKeywords: keywords };
+  return { category, priority, score, filtered, relatedSourceCount: relatedCount, hasCredibleContext: relatedCount > 0, editorialDecision: filtered ? "Do not auto-publish. Check whether this is a genuine, relevant news story." : coverageFound ? "Review existing coverage first; update or add a genuinely new angle." : "Potential coverage gap. Verify with reliable sources before drafting.", headlineIdeas: headlines, suggestedKeywords: keywords };
 }
 function report(d) {
   const lines = ["# USA Daily News — US Trending Topics", "", "Source: Google's public US Trending Now RSS feed. Traffic figures are approximate buckets, not exact counts. Trend searches are signals of interest, not verified news.", "", "Collected: " + d.collectedAt, "Topics returned: " + d.trends.length, "Recent article titles checked: " + d.recentArticlesChecked, "", "## Editorial shortlist", ""];
