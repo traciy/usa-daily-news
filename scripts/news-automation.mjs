@@ -659,14 +659,17 @@ async function getHeadlines(publishedArticles = [], trendTopics = []) {
 }
 
 async function generateArticles(geminiApiKey, sourceArticles, retryFeedback = "", provider = "gemini", trendTopics = []) {
-  // Send one compact, deduplicated evidence packet. Repeating the same RSS
-  // text in description/content/article_text wastes free-tier input tokens.
-  const candidates = sourceArticles.map((article, index) => {
+  // Keep Gemini comprehensive; compact evidence for free-tier fallback providers.
+  const fallbackMode = provider !== "gemini";
+  const candidateLimit = fallbackMode ? 6 : sourceArticles.length;
+  const evidenceLimit = fallbackMode ? 2200 : 4500;
+  const selectedSources = sourceArticles.slice(0, candidateLimit);
+  const candidates = selectedSources.map((article, index) => {
     const evidenceParts = [article.article_text, article.content, article.description]
       .filter((part) => typeof part === "string" && part.trim())
       .map((part) => part.trim());
     const uniqueEvidence = [...new Set(evidenceParts)];
-    const evidence = uniqueEvidence.join("\n").slice(0, 4500);
+    const evidence = uniqueEvidence.join("\n").slice(0, evidenceLimit);
     return {
       id: index + 1,
       publisher: article.source?.name || "Unknown publisher",
@@ -688,16 +691,19 @@ async function generateArticles(geminiApiKey, sourceArticles, retryFeedback = ""
   });
 
   const trendBrief = trendTopics.length
-    ? JSON.stringify(trendTopics.map((trend) => ({
+    ? JSON.stringify(trendTopics.slice(0, fallbackMode ? 5 : trendTopics.length).map((trend) => ({
         topic: trend.topic,
         category: trend.editorial?.category,
         priority: trend.editorial?.priority,
         score: trend.editorial?.score,
-        coverage: trend.coverage?.status,
-        related_reporting: (trend.related || []).map((item) => ({ title: item.title, publisher: item.source, url: item.url })),
+        ...(fallbackMode ? {} : {
+          coverage: trend.coverage?.status,
+          related_reporting: (trend.related || []).slice(0, 2).map((item) => ({ title: item.title, publisher: item.source, url: item.url })),
+        }),
       })))
     : "No current trending-topic report is available.";
 
+  const compactRetryFeedback = fallbackMode ? String(retryFeedback || "").slice(0, 400) : retryFeedback;
   const prompt = `You are an evidence-led news editor for USA Daily News.
 Review every numbered source candidate independently. Select and write up to ${ARTICLE_COUNT} distinct stories that provide genuine reader value. Returning fewer than the target is acceptable. Never force ten stories and never return an empty array if suitable candidates exist.
 
@@ -736,58 +742,75 @@ Before returning, check that each report is factual, useful, clearly written, su
 
 SOURCE CANDIDATES:
 ${JSON.stringify(candidates)}
-${retryFeedback ? "\nRETRY GUIDANCE FROM THE PREVIOUS ATTEMPT:\n" + retryFeedback + "\nCorrect the stated issues while reassessing the full candidate list. Do not weaken evidence or safety rules." : ""}`;
+${compactRetryFeedback ? "\nRETRY GUIDANCE FROM THE PREVIOUS ATTEMPT:\n" + compactRetryFeedback + "\nCorrect the stated issues while reassessing the full candidate list. Do not weaken evidence or safety rules." : ""}`;
 
-  const useGroq = provider === "groq";
-  const apiKey = useGroq ? process.env.GROQ_API_KEY?.trim() : geminiApiKey;
-  if (!apiKey) throw new Error(useGroq ? "GROQ_API_KEY is not configured." : "GEMINI_API_KEY is not configured.");
+  const providerConfigs = {
+    groq: {
+      name: "Groq",
+      apiKey: process.env.GROQ_API_KEY?.trim(),
+      url: "https://api.groq.com/openai/v1/chat/completions",
+      model: process.env.GROQ_MODEL || "openai/gpt-oss-120b",
+    },
+    cerebras: {
+      name: "Cerebras",
+      apiKey: process.env.CEREBRAS_API_KEY?.trim(),
+      url: "https://api.cerebras.ai/v1/chat/completions",
+      model: process.env.CEREBRAS_MODEL || "gpt-oss-120b",
+    },
+  };
+  const config = provider === "gemini" ? null : providerConfigs[provider];
+  if (provider !== "gemini" && !config) throw new Error("Unsupported article-generation provider: " + provider);
+  const apiKey = config?.apiKey || geminiApiKey;
+  if (!apiKey) throw new Error(config ? config.name + " API key is not configured." : "GEMINI_API_KEY is not configured.");
+  const openAiCompatible = provider !== "gemini";
 
   const response = await fetchWithRetry(
-    useGroq
-      ? "https://api.groq.com/openai/v1/chat/completions"
+    openAiCompatible
+      ? config.url
       : `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(MODEL)}:generateContent`,
     {
       method: "POST",
-      headers: useGroq
+      headers: openAiCompatible
         ? { "Content-Type": "application/json", Authorization: "Bearer " + apiKey }
         : { "Content-Type": "application/json", "x-goog-api-key": apiKey },
-      body: JSON.stringify(useGroq
+      body: JSON.stringify(openAiCompatible
         ? {
-            model: process.env.GROQ_MODEL || "openai/gpt-oss-120b",
+            model: config.model,
             messages: [{ role: "user", content: prompt }],
             response_format: { type: "json_object" },
-            max_tokens: 30000,
+            max_tokens: 12000,
           }
         : {
             contents: [{ role: "user", parts: [{ text: prompt }] }],
             generationConfig: { responseMimeType: "application/json", maxOutputTokens: 30000 },
           }),
     },
-    useGroq ? "Groq article generation" : "Gemini article generation",
+    (config?.name || "Gemini") + " article generation",
     1,
   );
 
   const data = await response.json();
-  const text = useGroq
+  const text = openAiCompatible
     ? String(data?.choices?.[0]?.message?.content || "").trim()
     : (data?.candidates?.[0]?.content?.parts ?? []).map((part) => part.text || "").join("").trim();
   if (!text) {
     const detail = data?.error?.message || data?.promptFeedback?.blockReason || "The provider returned no text.";
-    throw new Error(`${useGroq ? "Groq" : "Gemini"} returned no text: ${detail}`);
+    throw new Error(`${config?.name || "Gemini"} returned no text: ${detail}`);
   }
 
   const parsed = parseModelJson(text);
   if (parsed.length === 0) {
-    console.error((useGroq ? "Groq" : "Gemini") + " diagnostic:", JSON.stringify({
-      model: useGroq ? (process.env.GROQ_MODEL || "openai/gpt-oss-120b") : MODEL,
-      finishReason: useGroq ? data?.choices?.[0]?.finish_reason : data?.candidates?.[0]?.finishReason,
-      promptFeedback: useGroq ? undefined : data?.promptFeedback,
-      candidateCount: useGroq ? data?.choices?.length ?? 0 : data?.candidates?.length ?? 0,
+    console.error((config?.name || "Gemini") + " diagnostic:", JSON.stringify({
+      model: openAiCompatible ? config.model : MODEL,
+      finishReason: openAiCompatible ? data?.choices?.[0]?.finish_reason : data?.candidates?.[0]?.finishReason,
+      promptFeedback: openAiCompatible ? undefined : data?.promptFeedback,
+      candidateCount: openAiCompatible ? data?.choices?.length ?? 0 : data?.candidates?.length ?? 0,
       responseTextLength: text.length,
       responsePreview: text.slice(0, 500),
       candidateCountSent: candidates.length,
+      provider,
     }, null, 2));
-    throw new Error((useGroq ? "Groq" : "Gemini") + " found no publishable stories in the supplied evidence. No articles were published.");
+    throw new Error((config?.name || "Gemini") + " found no publishable stories in the supplied evidence. No articles were published.");
   }
   return parsed;
 }
@@ -1387,20 +1410,33 @@ async function main() {
   }
 
   let generationProvider = "Gemini";
-  if (lastGeminiError && process.env.GROQ_API_KEY?.trim()) {
-    console.warn("Gemini exhausted its retries. Trying Groq as the free-tier fallback.");
-    try {
-      generated = await generateArticles(geminiApiKey, sourceArticles, retryFeedback, "groq", trendTopics);
-      articles = validateAndNormalize(generated, sourceArticles);
-      lastGeminiError = null;
-      generationProvider = "Groq";
-    } catch (groqError) {
-      throw new Error(`Gemini failed after ${GEMINI_MAX_RETRIES} retries (${lastGeminiError.message || lastGeminiError}); Groq fallback also failed: ${groqError.message || groqError}`);
-    }
-  }
-
   if (lastGeminiError) {
-    throw new Error(`Gemini failed after ${GEMINI_MAX_RETRIES} retries: ${lastGeminiError.message || lastGeminiError}. Add GROQ_API_KEY to enable the free fallback.`);
+    const primaryError = lastGeminiError;
+    const fallbacks = [
+      { name: "Groq", provider: "groq", configured: Boolean(process.env.GROQ_API_KEY?.trim()) },
+      { name: "Cerebras", provider: "cerebras", configured: Boolean(process.env.CEREBRAS_API_KEY?.trim()) },
+    ];
+    const fallbackErrors = [];
+    for (const fallback of fallbacks) {
+      if (!fallback.configured) {
+        console.log(fallback.name + " fallback skipped: API key is not configured.");
+        continue;
+      }
+      console.warn("Gemini exhausted its retries. Trying " + fallback.name + " with a compact evidence packet.");
+      try {
+        generated = await generateArticles(geminiApiKey, sourceArticles, retryFeedback, fallback.provider, trendTopics);
+        articles = validateAndNormalize(generated, sourceArticles);
+        lastGeminiError = null;
+        generationProvider = fallback.name;
+        break;
+      } catch (fallbackError) {
+        fallbackErrors.push(fallback.name + ": " + (fallbackError.message || fallbackError));
+        console.warn(fallback.name + " fallback failed: " + (fallbackError.message || fallbackError));
+      }
+    }
+    if (lastGeminiError) {
+      throw new Error("Gemini failed after " + GEMINI_MAX_RETRIES + " retries (" + (primaryError.message || primaryError) + "). All configured fallbacks failed or were unavailable. " + fallbackErrors.join(" | "));
+    }
   }
 
   const minimumArticles = positiveInteger(process.env.MIN_ARTICLES, 1);
