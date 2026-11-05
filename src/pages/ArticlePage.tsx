@@ -52,19 +52,30 @@ export function ArticlePage({ id, onBack }: ArticlePageProps) {
       } else {
         const currentArticle = data as Article;
         setArticle(currentArticle);
-        try {
-          const visitorKey = 'usadailynews-article-reader';
-          let visitorId = window.localStorage.getItem(visitorKey);
-          if (!visitorId) {
-            visitorId = window.crypto.randomUUID();
-            window.localStorage.setItem(visitorKey, visitorId);
+        // Trending Now is intended to reflect readers, not search/social crawlers.
+        const userAgent = window.navigator.userAgent || '';
+        const isAutomatedVisitor =
+          window.navigator.webdriver === true ||
+          /bot|crawler|spider|headless|preview|slurp|facebookexternalhit|twitterbot|linkedinbot|discordbot|slackbot|telegrambot|whatsapp|curl|wget|python-requests/i.test(userAgent);
+
+        if (!isAutomatedVisitor) {
+          try {
+            const visitorKey = 'usadailynews-article-reader';
+            let visitorId = window.localStorage.getItem(visitorKey);
+            if (!visitorId) {
+              visitorId = window.crypto.randomUUID();
+              window.localStorage.setItem(visitorKey, visitorId);
+            }
+            const { error: trackingError } = await client.from('article_views').upsert(
+              { article_id: currentArticle.id, visitor_id: visitorId, is_human: true },
+              { onConflict: 'article_id,viewed_on,visitor_id', ignoreDuplicates: true },
+            );
+            if (trackingError) {
+              console.warn('USA Daily News article view could not be recorded:', trackingError.message);
+            }
+          } catch (trackingError) {
+            console.warn('USA Daily News article view tracking is unavailable:', trackingError);
           }
-          await client.from('article_views').upsert(
-            { article_id: currentArticle.id, visitor_id: visitorId },
-            { onConflict: 'article_id,viewed_on,visitor_id', ignoreDuplicates: true },
-          );
-        } catch {
-          // Reading the article should continue even if view tracking is unavailable.
         }
         const { data: suggestions } = await client
           .from('articles')
