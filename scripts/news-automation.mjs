@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+
 /**
  * Replaces the uploaded n8n flow:
  * Publisher RSS feeds -> Gemini -> JSON validation -> Supabase Edge Function.
@@ -636,7 +638,7 @@ async function getHeadlines(publishedArticles = []) {
   return evidenceEligible;
 }
 
-async function generateArticles(geminiApiKey, sourceArticles, retryFeedback = "", provider = "gemini") {
+async function generateArticles(geminiApiKey, sourceArticles, retryFeedback = "", provider = "gemini", trendTopics = []) {
   // Send one compact, deduplicated evidence packet. Repeating the same RSS
   // text in description/content/article_text wastes free-tier input tokens.
   const candidates = sourceArticles.map((article, index) => {
@@ -653,13 +655,37 @@ async function generateArticles(geminiApiKey, sourceArticles, retryFeedback = ""
       published_at: article.publishedAt,
       source_url: article.url,
       evidence,
+      trending_topics: trendTopics.filter((trend) => {
+        const topic = String(trend.topic || "").toLowerCase();
+        const headline = String(article.title || "").toLowerCase();
+        const topicWords = topic.split(/[^a-z0-9]+/).filter((word) => word.length > 2);
+        if (!topicWords.length) return false;
+        if (headline.includes(topic)) return true;
+        const overlap = topicWords.filter((word) => headline.split(/[^a-z0-9]+/).includes(word));
+        return overlap.length >= Math.min(2, topicWords.length);
+      }).map((trend) => ({ topic: trend.topic, category: trend.editorial?.category, priority: trend.editorial?.priority, score: trend.editorial?.score })),
     };
   });
+
+  const trendBrief = trendTopics.length
+    ? JSON.stringify(trendTopics.map((trend) => ({
+        topic: trend.topic,
+        category: trend.editorial?.category,
+        priority: trend.editorial?.priority,
+        score: trend.editorial?.score,
+        coverage: trend.coverage?.status,
+        related_reporting: (trend.related || []).map((item) => ({ title: item.title, publisher: item.source, url: item.url })),
+      })))
+    : "No current trending-topic report is available.";
 
   const prompt = `You are an evidence-led news editor for USA Daily News.
 Review every numbered source candidate independently. Select and write up to ${ARTICLE_COUNT} distinct stories that provide genuine reader value. Returning fewer than the target is acceptable. Never force ten stories and never return an empty array if suitable candidates exist.
 
-Editorial and evidence rules:
+Trending US topic context (editorial prioritization only; NOT source evidence):
+${trendBrief}
+- When a candidate genuinely matches a high- or medium-priority trend, prioritize it over an otherwise similar non-trending candidate.
+- Do not create an article from a trend alone. Every published fact must still come from that candidate's own supplied publisher evidence.
+- Do not claim that a trend is newsworthy merely because it is popular. Ignore unrelated or weak matches.
 - Use only facts explicitly supported by that candidate's own evidence. Do not use another candidate as corroboration or borrow facts from it.
 - Attribute the central report to the named publisher in the opening paragraph and use the exact supplied source_url. Keep that source link visible to readers.
 - Do not invent an author, reporter, eyewitness, exclusive access, interview, or original on-the-ground reporting. Do not imply USA Daily News independently witnessed or verified events unless the evidence says so.
@@ -1293,6 +1319,16 @@ async function main() {
   const publishedResponse = await fetchWithRetry(supabaseUrl, { method: "GET", headers: { Authorization: "Bearer " + bearerToken, Accept: "application/json" } }, "Previously published article lookup");
   const publishedData = await publishedResponse.json();
   const publishedArticles = Array.isArray(publishedData?.articles) ? publishedData.articles : [];
+  let trendTopics = [];
+  try {
+    const trendReport = JSON.parse(await readFile("reports/us-trends/trending-us-topics.json", "utf8"));
+    trendTopics = Array.isArray(trendReport.trends)
+      ? trendReport.trends.filter((trend) => trend?.topic && trend?.editorial && trend.editorial.filtered !== true)
+      : [];
+    console.log("Loaded " + trendTopics.length + " editorially qualified US trending topics for article prioritization.");
+  } catch (error) {
+    console.warn("US trending-topic report unavailable; continuing with the normal RSS workflow: " + (error?.message || error));
+  }
   console.log("Loaded " + publishedArticles.length + " previously published articles for duplicate protection.");
   await backfillMissingArticleImages(supabaseUrl, bearerToken);
   if (process.env.IMAGE_BACKFILL_ONLY === "true") {
@@ -1315,7 +1351,7 @@ async function main() {
   for (let attempt = 1; attempt <= GEMINI_MAX_RETRIES + 1; attempt += 1) {
     try {
       console.log(`Gemini attempt ${attempt}/${GEMINI_MAX_RETRIES + 1}.`);
-      generated = await generateArticles(geminiApiKey, sourceArticles, retryFeedback);
+      generated = await generateArticles(geminiApiKey, sourceArticles, retryFeedback, "gemini", trendTopics);
       articles = validateAndNormalize(generated, sourceArticles);
       lastGeminiError = null;
       break;
@@ -1334,7 +1370,7 @@ async function main() {
   if (lastGeminiError && process.env.GROQ_API_KEY?.trim()) {
     console.warn("Gemini exhausted its retries. Trying Groq as the free-tier fallback.");
     try {
-      generated = await generateArticles(geminiApiKey, sourceArticles, retryFeedback, "groq");
+      generated = await generateArticles(geminiApiKey, sourceArticles, retryFeedback, "groq", trendTopics);
       articles = validateAndNormalize(generated, sourceArticles);
       lastGeminiError = null;
       generationProvider = "Groq";
