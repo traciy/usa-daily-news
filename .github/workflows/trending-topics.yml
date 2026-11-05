@@ -1,0 +1,35 @@
+name: US Trending Topic Discovery
+on:
+  schedule:
+    - cron: "17 */3 * * *"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: us-trending-topic-discovery
+  cancel-in-progress: true
+jobs:
+  discover-trends:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - name: Check discovery script syntax
+        run: node --check scripts/trending-us-topics.mjs
+      - name: Collect US trending topics
+        run: node scripts/trending-us-topics.mjs
+      - name: Add report to workflow summary
+        run: |
+          cat reports/us-trends/trending-us-topics.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Save trend report
+        uses: actions/upload-artifact@v4
+        with:
+          name: us-trending-topics-\${{ github.run_number }}
+          path: reports/us-trends/
+          if-no-files-found: error
+          retention-days: 14
