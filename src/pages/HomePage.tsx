@@ -36,6 +36,9 @@ const FAQ_ENTRIES = [
 
 export function HomePage({ onOpenArticle, onNavigate, initialCategory }: HomePageProps) {
   const [active, setActive] = useState<Category>(initialCategory ?? 'All');
+  const [page, setPage] = useState(1);
+  const [totalArticles, setTotalArticles] = useState(0);
+  const PAGE_SIZE = 20;
   const categoryDescriptions: Record<Category, string> = {
     All: 'Digital news coverage and source-attributed summaries across US and international affairs, politics, business, technology, culture, weather and sports.',
     Politics: 'Read politics news, government coverage, policy developments and election updates from USA Daily News.',
@@ -71,9 +74,9 @@ export function HomePage({ onOpenArticle, onNavigate, initialCategory }: HomePag
     (async () => {
       let query = client
         .from('articles')
-        .select('id, title, category, image_url, seo_description, created_at, source_url')
+        .select('id, title, category, image_url, seo_description, created_at, source_url', { count: 'exact' })
         .order('created_at', { ascending: false })
-        .limit(1000);
+        .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
       if (active !== 'All') {
         query = query.ilike('category', active);
       }
@@ -82,16 +85,30 @@ export function HomePage({ onOpenArticle, onNavigate, initialCategory }: HomePag
       if (err) {
         setError(err.message);
         setArticles([]);
+        setTotalArticles(0);
       } else {
         setArticles((data ?? []) as ArticleSummary[]);
+        setTotalArticles(count ?? 0);
       }
       setLoading(false);
     })();
     return () => {
       cancelled = true;
     };
-  }, [active]);
+  }, [active, page]);
 
+  const totalPages = Math.max(1, Math.ceil(totalArticles / PAGE_SIZE));
+  const pageNumbers = useMemo<(number | 'ellipsis')[]>(() => {
+    if (totalPages <= 7) return Array.from({ length: totalPages }, (_, index) => index + 1);
+    const numbers: (number | 'ellipsis')[] = [1];
+    if (page > 4) numbers.push('ellipsis');
+    const start = Math.max(2, page - 2);
+    const end = Math.min(totalPages - 1, page + 2);
+    for (let number = start; number <= end; number += 1) numbers.push(number);
+    if (page < totalPages - 3) numbers.push('ellipsis');
+    numbers.push(totalPages);
+    return numbers;
+  }, [page, totalPages]);
   const feature = useMemo(() => articles[0] ?? null, [articles]);
   const rest = useMemo(() => (feature ? articles.slice(1) : articles), [articles, feature]);
   const sidebar = useMemo(() => rest.slice(0, 5), [rest]);
@@ -119,7 +136,7 @@ export function HomePage({ onOpenArticle, onNavigate, initialCategory }: HomePag
 
   return (
     <>
-      <CategoryFilter active={active} onSelect={setActive} onNavigate={onNavigate} />
+      <CategoryFilter active={active} onSelect={(category) => { setActive(category); setPage(1); }} onNavigate={onNavigate} />
 
       <section className="mx-auto max-w-6xl px-4 py-8" aria-labelledby="latest-heading">
         <h1 id="latest-heading" className="sr-only">
@@ -202,6 +219,47 @@ export function HomePage({ onOpenArticle, onNavigate, initialCategory }: HomePag
                       </div>
                     ))}
                   </div>
+                )}
+
+                {totalPages > 1 && (
+                  <nav className="mt-10 border-t border-gray-200 pt-6" aria-label="Article pages">
+                    <p className="mb-4 text-center text-xs text-gray-500">
+                      Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, totalArticles)} of {totalArticles.toLocaleString()} articles
+                    </p>
+                    <div className="flex flex-wrap items-center justify-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setPage((current) => Math.max(1, current - 1))}
+                        disabled={page === 1 || loading}
+                        className="rounded-sm border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 hover:border-gray-900 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        Previous
+                      </button>
+                      {pageNumbers.map((number, index) => number === 'ellipsis' ? (
+                        <span key={`ellipsis-${index}`} className="px-1 text-gray-500" aria-hidden="true">…</span>
+                      ) : (
+                        <button
+                          key={number}
+                          type="button"
+                          onClick={() => setPage(number)}
+                          disabled={number === page || loading}
+                          aria-label={`Page ${number}`}
+                          aria-current={number === page ? 'page' : undefined}
+                          className={`min-w-10 rounded-sm border px-3 py-2 text-sm font-semibold transition-colors ${number === page ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-300 text-gray-700 hover:border-gray-900 hover:text-gray-900'}`}
+                        >
+                          {number}
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                        disabled={page === totalPages || loading}
+                        className="rounded-sm border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 hover:border-gray-900 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </nav>
                 )}
               </>
             )}
