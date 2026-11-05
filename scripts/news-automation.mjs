@@ -565,7 +565,25 @@ function selectUsPublisherFirst(items, limit) {
     .sort((a, b) => (Date.parse(b.publishedAt || "") || 0) - (Date.parse(a.publishedAt || "") || 0));
 }
 
-async function getHeadlines(publishedArticles = []) {
+function trendingMatchScore(article, trendTopics = []) {
+  const text = String(article.title || "") + " " + String(article.description || "");
+  const normalized = text.toLowerCase();
+  const titleWords = new Set(normalized.split(/[^a-z0-9]+/).filter((word) => word.length > 2));
+  let best = 0;
+  for (const trend of trendTopics) {
+    const topic = String(trend.topic || "").toLowerCase().trim();
+    const topicWords = topic.split(/[^a-z0-9]+/).filter((word) => word.length > 2);
+    if (!topicWords.length) continue;
+    const exact = normalized.includes(topic);
+    const overlap = topicWords.filter((word) => titleWords.has(word)).length;
+    if (!exact && overlap < Math.min(2, topicWords.length)) continue;
+    const priorityWeight = trend.editorial?.priority === "High" ? 3 : trend.editorial?.priority === "Medium" ? 2 : 1;
+    best = Math.max(best, priorityWeight * (exact ? 3 : 1 + overlap));
+  }
+  return best;
+}
+
+async function getHeadlines(publishedArticles = [], trendTopics = []) {
   const publishedUrls = new Set(publishedArticles.map((item) => normalizedUrl(item.source_url)).filter(Boolean));
   const publishedTitles = publishedArticles.map((item) => String(item.title || "")).filter(Boolean);
   const results = await Promise.allSettled(RSS_FEEDS.map(async (feed) => {
@@ -626,7 +644,10 @@ async function getHeadlines(publishedArticles = []) {
     if (publishedUrls.has(normalizedUrl(article.url))) return false;
     return !publishedTitles.some((title) => titleSimilarity(title, article.title) >= 0.65);
   });
-  const evidenceEligible = selectUsPublisherFirst(notPreviouslyPublished, 10);
+  const trendRanked = [...notPreviouslyPublished].sort((a, b) =>
+    trendingMatchScore(b, trendTopics) - trendingMatchScore(a, trendTopics)
+  );
+  const evidenceEligible = selectUsPublisherFirst(trendRanked, 10);
   console.log("Previously published stories skipped: " + (evidenceQualified.length - notPreviouslyPublished.length) + ".");
   const evidenceCountries = [...new Set(evidenceEligible.map((article) => article.source?.country).filter(Boolean))];
   console.log("Evidence-qualified country coverage: " + evidenceCountries.length + " countries/regions: " + evidenceCountries.join(", "));
@@ -1339,7 +1360,7 @@ async function main() {
   // Run the full collection and publishing check on every scheduled tick.
   // Duplicate protection below prevents already-published stories from being reused.
   console.log("Starting the scheduled five-minute publishing check.");
-  const sourceArticles = await getHeadlines(publishedArticles);
+  const sourceArticles = await getHeadlines(publishedArticles, trendTopics);
   const GEMINI_MAX_RETRIES = 6;
   let generated;
   let articles;
