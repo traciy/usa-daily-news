@@ -80,7 +80,7 @@ export function HomePage({ onOpenArticle, onNavigate, initialCategory }: HomePag
       if (active !== 'All') {
         query = query.ilike('category', active);
       }
-      const { data, error: err } = await query;
+      const { data, count, error: err } = await query;
       if (cancelled) return;
       if (err) {
         setError(err.message);
