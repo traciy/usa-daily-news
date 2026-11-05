@@ -636,7 +636,7 @@ async function getHeadlines(publishedArticles = []) {
   return evidenceEligible;
 }
 
-async function generateArticles(geminiApiKey, sourceArticles, retryFeedback = "") {
+async function generateArticles(geminiApiKey, sourceArticles, retryFeedback = "", provider = "gemini") {
   // Send one compact, deduplicated evidence packet. Repeating the same RSS
   // text in description/content/article_text wastes free-tier input tokens.
   const candidates = sourceArticles.map((article, index) => {
@@ -692,46 +692,56 @@ SOURCE CANDIDATES:
 ${JSON.stringify(candidates)}
 ${retryFeedback ? "\nRETRY GUIDANCE FROM THE PREVIOUS ATTEMPT:\n" + retryFeedback + "\nCorrect the stated issues while reassessing the full candidate list. Do not weaken evidence or safety rules." : ""}`;
 
+  const useGroq = provider === "groq";
+  const apiKey = useGroq ? process.env.GROQ_API_KEY?.trim() : geminiApiKey;
+  if (!apiKey) throw new Error(useGroq ? "GROQ_API_KEY is not configured." : "GEMINI_API_KEY is not configured.");
+
   const response = await fetchWithRetry(
-    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(MODEL)}:generateContent`,
+    useGroq
+      ? "https://api.groq.com/openai/v1/chat/completions"
+      : `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(MODEL)}:generateContent`,
     {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-goog-api-key": geminiApiKey,
-      },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: {
-          responseMimeType: "application/json",
-          maxOutputTokens: 30000,
-        },
-      }),
+      headers: useGroq
+        ? { "Content-Type": "application/json", Authorization: "Bearer " + apiKey }
+        : { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+      body: JSON.stringify(useGroq
+        ? {
+            model: process.env.GROQ_MODEL || "openai/gpt-oss-120b",
+            messages: [{ role: "user", content: prompt }],
+            response_format: { type: "json_object" },
+            max_tokens: 30000,
+          }
+        : {
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            generationConfig: { responseMimeType: "application/json", maxOutputTokens: 30000 },
+          }),
     },
-    "Gemini article generation",
+    useGroq ? "Groq article generation" : "Gemini article generation",
     1,
   );
 
   const data = await response.json();
-  const parts = data?.candidates?.[0]?.content?.parts ?? [];
-  const text = parts.map((part) => part.text || "").join("").trim();
+  const text = useGroq
+    ? String(data?.choices?.[0]?.message?.content || "").trim()
+    : (data?.candidates?.[0]?.content?.parts ?? []).map((part) => part.text || "").join("").trim();
   if (!text) {
-    const blockReason = data?.promptFeedback?.blockReason;
-    throw new Error(`Gemini returned no text.${blockReason ? ` Block reason: ${blockReason}` : " Check your API key, model, or API quota."}`);
+    const detail = data?.error?.message || data?.promptFeedback?.blockReason || "The provider returned no text.";
+    throw new Error(`${useGroq ? "Groq" : "Gemini"} returned no text: ${detail}`);
   }
 
   const parsed = parseModelJson(text);
   if (parsed.length === 0) {
-    console.error("Gemini diagnostic:", JSON.stringify({
-      model: MODEL,
-      finishReason: data?.candidates?.[0]?.finishReason,
-      promptFeedback: data?.promptFeedback,
-      candidateCount: data?.candidates?.length ?? 0,
+    console.error((useGroq ? "Groq" : "Gemini") + " diagnostic:", JSON.stringify({
+      model: useGroq ? (process.env.GROQ_MODEL || "openai/gpt-oss-120b") : MODEL,
+      finishReason: useGroq ? data?.choices?.[0]?.finish_reason : data?.candidates?.[0]?.finishReason,
+      promptFeedback: useGroq ? undefined : data?.promptFeedback,
+      candidateCount: useGroq ? data?.choices?.length ?? 0 : data?.candidates?.length ?? 0,
       responseTextLength: text.length,
       responsePreview: text.slice(0, 500),
       candidateCountSent: candidates.length,
     }, null, 2));
-    throw new Error("Gemini found no publishable stories in the supplied evidence. No articles were published.");
+    throw new Error((useGroq ? "Groq" : "Gemini") + " found no publishable stories in the supplied evidence. No articles were published.");
   }
   return parsed;
 }
@@ -1280,12 +1290,25 @@ async function main() {
     }
   }
 
+  let generationProvider = "Gemini";
+  if (lastGeminiError && process.env.GROQ_API_KEY?.trim()) {
+    console.warn("Gemini exhausted its retries. Trying Groq as the free-tier fallback.");
+    try {
+      generated = await generateArticles(geminiApiKey, sourceArticles, retryFeedback, "groq");
+      articles = validateAndNormalize(generated, sourceArticles);
+      lastGeminiError = null;
+      generationProvider = "Groq";
+    } catch (groqError) {
+      throw new Error(`Gemini failed after ${GEMINI_MAX_RETRIES} retries (${lastGeminiError.message || lastGeminiError}); Groq fallback also failed: ${groqError.message || groqError}`);
+    }
+  }
+
   if (lastGeminiError) {
-    throw new Error(`Gemini failed after ${GEMINI_MAX_RETRIES} retries: ${lastGeminiError.message || lastGeminiError}`);
+    throw new Error(`Gemini failed after ${GEMINI_MAX_RETRIES} retries: ${lastGeminiError.message || lastGeminiError}. Add GROQ_API_KEY to enable the free fallback.`);
   }
 
   const minimumArticles = positiveInteger(process.env.MIN_ARTICLES, 1);
-  console.log(`Gemini generated ${generated.length} result(s); ${articles.length} article(s) passed validation.`);
+  console.log(`${generationProvider} generated ${generated.length} result(s); ${articles.length} article(s) passed validation.`);
   if (articles.length < minimumArticles) {
     throw new Error(`Only ${articles.length} article(s) passed validation; at least ${minimumArticles} are required. Nothing will be published this run.`);
   }
