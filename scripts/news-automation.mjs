@@ -778,7 +778,7 @@ ${compactRetryFeedback ? "\nRETRY GUIDANCE FROM THE PREVIOUS ATTEMPT:\n" + compa
             model: config.model,
             messages: [{ role: "user", content: prompt }],
             response_format: { type: "json_object" },
-            max_tokens: 12000,
+            max_tokens: 3500,
           }
         : {
             contents: [{ role: "user", parts: [{ text: prompt }] }],
