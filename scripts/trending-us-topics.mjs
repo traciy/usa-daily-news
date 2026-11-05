@@ -3,6 +3,10 @@ import { mkdir, writeFile } from "node:fs/promises";
 const FEED = "https://trends.google.com/trending/rss?geo=US";
 const SITEMAP = process.env.SITEMAP_URL || "https://usadailynews.space/sitemap.xml";
 const OUT = "reports/us-trends";
+// Check only the newest 20 article URLs. This keeps duplicate detection useful
+// while avoiding hundreds of article-page requests on frequent automation runs.
+const MAX_ARTICLE_PAGES = 20;
+const ARTICLE_FETCH_CONCURRENCY = 4;
 const CATEGORY_RULES = {
   "US Politics": /\b(president|presidential|white house|congress|senate|house of representatives|election|vote|voting|democrat|republican|trump|biden|harris|governor|supreme court|political|politics|immigration|border|fbi|doj|justice department|state department|rubio|melania|dhillon)\b/i,
   Sports: /\b(nba|nfl|mlb|nhl|wnba|ncaa|soccer|football|basketball|baseball|hockey|tennis|golf|formula 1|f1|ufc|wwe|olympics|champions league|premier league|la liga|serie a|bundesliga|milan|match| vs |game|playoff|playoffs|coach|quarterback|goal|tournament|athlete|team)\b/i,
@@ -38,7 +42,7 @@ function words(s) {
 async function recentArticles() {
   try {
     const xml = await get(SITEMAP, "Sitemap");
-    const urls = [...xml.matchAll(/<loc(?:\s[^>]*)?>([\s\S]*?)<\/loc>/gi)].map(m => decode(m[1])).filter(u => /^https?:\/\//i.test(u) && /\/article\/\d+/.test(u)).slice(0, 100);
+    const urls = [...xml.matchAll(/<loc(?:\s[^>]*)?>([\s\S]*?)<\/loc>/gi)].map(m => decode(m[1])).filter(u => /^https?:\/\//i.test(u) && /\/article\/\d+/.test(u)).slice(0, MAX_ARTICLE_PAGES);
     const results = []; let cursor = 0;
     async function worker() {
       while (cursor < urls.length) {
@@ -50,7 +54,7 @@ async function recentArticles() {
         } catch (e) { console.warn("Skipping article page " + url + ": " + e.message); }
       }
     }
-    await Promise.all(Array.from({ length: 8 }, () => worker()));
+    await Promise.all(Array.from({ length: ARTICLE_FETCH_CONCURRENCY }, () => worker()));
     return results;
   } catch (e) { console.warn("Recent article comparison unavailable: " + e.message); return []; }
 }
