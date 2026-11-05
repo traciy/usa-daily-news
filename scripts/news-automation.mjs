@@ -519,7 +519,7 @@ function parseRssFeed(xml, feed) {
   });
 }
 
-function selectBalancedByCountry(items, limit) {
+function selectBalancedByCountry(items, limit, priorityScore = null) {
   const groups = new Map();
   for (const item of items) {
     const country = item.source?.country || "International";
@@ -528,10 +528,11 @@ function selectBalancedByCountry(items, limit) {
   }
   for (const group of groups.values()) {
     group.sort((a, b) => {
+      const priorityDifference = priorityScore ? priorityScore(b) - priorityScore(a) : 0;
       const evidenceA = [a.article_text, a.content, a.description].filter(Boolean).join(" ").length;
       const evidenceB = [b.article_text, b.content, b.description].filter(Boolean).join(" ").length;
-      // Prefer candidates with substantial primary-source material; use recency as the tie-breaker.
-      return evidenceB - evidenceA || (Date.parse(b.publishedAt || "") || 0) - (Date.parse(a.publishedAt || "") || 0);
+      // Trend relevance can move a matching story forward, but evidence quality remains the next criterion.
+      return priorityDifference || evidenceB - evidenceA || (Date.parse(b.publishedAt || "") || 0) - (Date.parse(a.publishedAt || "") || 0);
     });
   }
   const countries = [...groups.keys()].sort((a, b) => {
@@ -555,14 +556,15 @@ function selectBalancedByCountry(items, limit) {
   return selected;
 }
 
-function selectUsPublisherFirst(items, limit) {
+function selectUsPublisherFirst(items, limit, trendTopics = []) {
   const usPublishers = items.filter((item) => item.source?.country === "United States");
   const otherPublishers = items.filter((item) => item.source?.country !== "United States");
   const preferredUsCount = Math.min(usPublishers.length, Math.ceil(limit * 0.7));
-  const usSelection = selectBalancedByCountry(usPublishers, preferredUsCount);
-  const internationalSelection = selectBalancedByCountry(otherPublishers, limit - usSelection.length);
+  const score = (article) => trendingMatchScore(article, trendTopics);
+  const usSelection = selectBalancedByCountry(usPublishers, preferredUsCount, score);
+  const internationalSelection = selectBalancedByCountry(otherPublishers, limit - usSelection.length, score);
   return [...usSelection, ...internationalSelection]
-    .sort((a, b) => (Date.parse(b.publishedAt || "") || 0) - (Date.parse(a.publishedAt || "") || 0));
+    .sort((a, b) => score(b) - score(a) || (Date.parse(b.publishedAt || "") || 0) - (Date.parse(a.publishedAt || "") || 0));
 }
 
 function trendingMatchScore(article, trendTopics = []) {
@@ -644,10 +646,7 @@ async function getHeadlines(publishedArticles = [], trendTopics = []) {
     if (publishedUrls.has(normalizedUrl(article.url))) return false;
     return !publishedTitles.some((title) => titleSimilarity(title, article.title) >= 0.65);
   });
-  const trendRanked = [...notPreviouslyPublished].sort((a, b) =>
-    trendingMatchScore(b, trendTopics) - trendingMatchScore(a, trendTopics)
-  );
-  const evidenceEligible = selectUsPublisherFirst(trendRanked, 10);
+  const evidenceEligible = selectUsPublisherFirst(notPreviouslyPublished, 10, trendTopics);
   console.log("Previously published stories skipped: " + (evidenceQualified.length - notPreviouslyPublished.length) + ".");
   const evidenceCountries = [...new Set(evidenceEligible.map((article) => article.source?.country).filter(Boolean))];
   console.log("Evidence-qualified country coverage: " + evidenceCountries.length + " countries/regions: " + evidenceCountries.join(", "));
