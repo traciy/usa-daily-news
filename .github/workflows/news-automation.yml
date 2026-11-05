@@ -44,5 +44,13 @@ jobs:
       - name: Check automation script syntax
         run: node --check scripts/news-automation.mjs
 
+      - name: Check trending-topic script syntax
+        run: node --check scripts/trending-us-topics.mjs
+
+      - name: Discover and score current US trends
+        id: trends
+        continue-on-error: true
+        run: node scripts/trending-us-topics.mjs
+
       - name: Run news automation
         run: node scripts/news-automation.mjs
