@@ -7,7 +7,7 @@ export const SITE_CONFIG = {
   name: 'USA Daily News',
   tagline: 'News · Context · Coverage',
   description:
-    'Digital news coverage and source-attributed summaries across US and international affairs, politics, business, technology, culture, weather and sports.',
+    'Latest U.S. news, politics, business, technology, culture and sports, with concise, source-attributed coverage and context from USA Daily News.',
   url: 'https://usadailynews.space',
   logo: 'https://usadailynews.space/logo.svg',
   ogImage: 'https://usadailynews.space/og-default.svg',
