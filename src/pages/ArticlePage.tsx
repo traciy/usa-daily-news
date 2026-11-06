@@ -103,7 +103,7 @@ export function ArticlePage({ id, onBack }: ArticlePageProps) {
 
   const articleUrl = article ? `${SITE_CONFIG.url}/article/${article.id}` : SITE_CONFIG.url;
   const safeSourceUrl = article ? safeHttpUrl(article.source_url, true) : null;
-  const articleImage = article ? safeHttpUrl(article.image_url) || SITE_CONFIG.ogImage : SITE_CONFIG.ogImage;
+  const articleImage = article ? safeHttpUrl(article.image_url) : null;
   const savedDescription = article?.seo_description?.trim() || '';
   const savedDescriptionComplete = /[.!?…][”’"')\]]?$/.test(savedDescription);
   const seoDescription = article
@@ -118,7 +118,7 @@ export function ArticlePage({ id, onBack }: ArticlePageProps) {
         articleBody: article.content.replace(/[#*_>]/g, ' ').replace(/\s+/g, ' ').trim(),
         citation: safeSourceUrl || undefined,
         description: seoDescription,
-        image: [{ '@type': 'ImageObject', url: articleImage, caption: article.title, representativeOfPage: true }],
+        image: articleImage ? [{ '@type': 'ImageObject', url: articleImage, caption: article.title, representativeOfPage: true }] : undefined,
         datePublished: article.created_at,
         dateModified: article.created_at,
         inLanguage: 'en-US',
@@ -232,28 +232,23 @@ export function ArticlePage({ id, onBack }: ArticlePageProps) {
         </button>
       </div>
 
-      <figure className="mt-6 -mx-4 sm:mx-0">
-        <img
-          src={articleImage}
-          onError={(event) => {
-            if (event.currentTarget.dataset.fallbackApplied !== 'true') {
-              event.currentTarget.dataset.fallbackApplied = 'true';
-              event.currentTarget.src = SITE_CONFIG.ogImage;
-              event.currentTarget.alt = 'USA Daily News — news, context and coverage';
-            }
-          }}
-          alt={article.image_url ? `${article.title} — ${article.category} news` : 'USA Daily News — news, context and coverage'}
-          title={article.title}
-          sizes="(max-width: 768px) 100vw, 768px"
-          itemProp="image"
-          width={1600}
-          height={900}
-          loading="eager"
-          fetchPriority="high"
-          decoding="async"
-          className="w-full h-auto object-cover sm:rounded-sm"
-        />
-      </figure>
+      {articleImage && (
+        <figure className="mt-6 -mx-4 sm:mx-0">
+          <img
+            src={articleImage}
+            alt={`${article.title} — ${article.category} news`}
+            title={article.title}
+            sizes="(max-width: 768px) 100vw, 768px"
+            itemProp="image"
+            width={1600}
+            height={900}
+            loading="eager"
+            fetchPriority="high"
+            decoding="async"
+            className="w-full h-auto object-cover sm:rounded-sm"
+          />
+        </figure>
+      )}
 
       <div
         className="mt-8 prose-serif max-w-none"
