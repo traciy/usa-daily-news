@@ -236,6 +236,9 @@ export function ArticlePage({ id, onBack }: ArticlePageProps) {
         <figure className="mt-6 -mx-4 sm:mx-0">
           <img
             src={articleImage}
+            onError={(event) => {
+              event.currentTarget.style.display = 'none';
+            }}
             alt={`${article.title} — ${article.category} news`}
             title={article.title}
             sizes="(max-width: 768px) 100vw, 768px"
