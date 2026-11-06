@@ -48,6 +48,16 @@ function optionalString(v: unknown): string | null {
   return null;
 }
 
+function isSafeUrl(value: string, allowHttp = false): boolean {
+  try {
+    const url = new URL(value.trim());
+    return (url.protocol === "https:" || (allowHttp && url.protocol === "http:")) &&
+      !url.username && !url.password;
+  } catch {
+    return false;
+  }
+}
+
 function json(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -79,15 +89,32 @@ function validateItem(raw: unknown): { ok: true; row: Record<string, unknown> } 
   if (!isNonEmptyString(a.category)) {
     return { ok: false, reason: "Field 'category' is required and must be a non-empty string." };
   }
+
+  const title = a.title.trim();
+  const content = a.content.trim();
+  const requestedCategory = a.category.trim();
+  const allowedCategories = ["Politics", "Tech", "Economy", "Culture", "Sports"];
+  const category = allowedCategories.find((item) => item.toLowerCase() === requestedCategory.toLowerCase());
+  const sourceUrl = optionalString(a.source_url);
+  const imageUrl = optionalString(a.image_url);
+  const seoDescription = optionalString(a.seo_description);
+
+  if (title.length > 110) return { ok: false, reason: "Headline must be 110 characters or fewer." };
+  if (content.length > 20000) return { ok: false, reason: "Article content exceeds the 20,000-character limit." };
+  if (!category) return { ok: false, reason: "Category must be Politics, Tech, Economy, Culture, or Sports." };
+  if (sourceUrl && !isSafeUrl(sourceUrl, true)) return { ok: false, reason: "Source URL must be a valid HTTP(S) URL." };
+  if (imageUrl && !isSafeUrl(imageUrl)) return { ok: false, reason: "Article images must use a valid HTTPS URL." };
+  if (seoDescription && seoDescription.length > 180) return { ok: false, reason: "SEO description must be 180 characters or fewer." };
+
   return {
     ok: true,
     row: {
-      title: a.title.trim(),
-      content: a.content,
-      category: a.category.trim(),
-      source_url: optionalString(a.source_url),
-      image_url: optionalString(a.image_url),
-      seo_description: optionalString(a.seo_description),
+      title,
+      content,
+      category,
+      source_url: sourceUrl,
+      image_url: imageUrl,
+      seo_description: seoDescription,
     },
   };
 }
@@ -153,7 +180,7 @@ Deno.serve(async (req: Request) => {
         const id = Number(update.id);
         const imageUrl = typeof update.image_url === "string" ? update.image_url.trim() : "";
         let validUrl = false;
-        try { const parsed = new URL(imageUrl); validUrl = parsed.protocol === "https:" || parsed.protocol === "http:"; } catch { /* invalid URL */ }
+        try { const parsed = new URL(imageUrl); validUrl = parsed.protocol === "https:" && !parsed.username && !parsed.password; } catch { /* invalid URL */ }
         if (!Number.isSafeInteger(id) || id <= 0 || !validUrl) { rejected.push({ index, reason: "A valid article ID and HTTP(S) image URL are required." }); continue; }
         const { data, error } = await supabase.from("articles").update({ image_url: imageUrl }).eq("id", id).is("image_url", null).select("id");
         if (error) { rejected.push({ index, reason: error.message }); continue; }
