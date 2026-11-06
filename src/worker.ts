@@ -142,8 +142,7 @@ function injectArticleSeo(documentHtml: string, article: SeoArticle, relatedArti
       ? '<section class="seo-related" aria-labelledby="seo-related-heading"><h2 id="seo-related-heading">Related stories</h2><ul>' +
         relatedArticles.map((related) => '<li><a href="' + SITE_URL + '/article/' + encodeURIComponent(String(related.id)) + '">' +
           htmlEscape(related.title) + '</a><span> — ' + htmlEscape(related.category || "Latest News") + '</span></li>').join("") +
-        '</ul><p><a href="' + SITE_URL + '/' + encodeURIComponent(article.category.toLowerCase()) + '">More ' +
-          htmlEscape(article.category) + ' news</a></p></section>'
+        '</ul><p><a href="' + SITE_URL + '/">More news from USA Daily News</a></p></section>'
       : "") +
     "</article></main>";
   html = html.replace("</head>", tags + "\n</head>");
