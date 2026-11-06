@@ -281,6 +281,58 @@ function cleanFeedText(value = "") {
     .replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 }
 
+function isUsableArticleImage(value) {
+  if (typeof value !== "string" || !value.trim()) return false;
+  try {
+    const url = new URL(value.trim());
+    return url.protocol === "https:" &&
+      !/(?:logo|avatar|icon|favicon|sprite|placeholder|pixel|default|spacer)/i.test(url.pathname) &&
+      !/\.(?:svg|gif)(?:[?#]|$)/i.test(url.pathname);
+  } catch {
+    return false;
+  }
+}
+
+function isPromotionalStory(article) {
+  const text = [article?.title, article?.description, article?.url].filter(Boolean).join(" ");
+  let pathname = "";
+  try { pathname = new URL(article?.url || "").pathname.toLowerCase(); } catch { /* invalid URLs are rejected elsewhere */ }
+  if (/\/(?:betting|sportsbook|casino)(?:\/|$)/i.test(pathname)) return true;
+  return /\b(?:sportsbook|sports betting|casino)\b.{0,100}\b(?:bonuses?|promos?|offers?|claim up to|free bets?)\b/i.test(text) ||
+    /\b(?:claim up to \$?[\d,]+|free bets?|promo codes?)\b/i.test(text);
+}
+
+function plainDescriptionText(value) {
+  return String(value || "")
+    .replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/[#*_>`]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function truncateDescription(value, maximum = 180) {
+  if (value.length <= maximum) return value;
+  const firstSentence = value.match(/^.{40,}?[.!?](?=\s|$)/)?.[0]?.trim();
+  if (firstSentence && firstSentence.length <= maximum) return firstSentence;
+  const shortened = value.slice(0, maximum - 1).replace(/\s+\S*$/, "").trimEnd();
+  return shortened ? shortened + "…" : value.slice(0, maximum - 1).trimEnd() + "…";
+}
+
+function normalizeSeoDescription(candidate, content) {
+  const candidateText = plainDescriptionText(candidate);
+  const contentText = plainDescriptionText(content);
+  const candidateSentence = candidateText.match(/^.{40,}?[.!?](?=\s|$)/)?.[0]?.trim() || "";
+  const contentSentence = contentText.match(/^.{40,}?[.!?](?=\s|$)/)?.[0]?.trim() || "";
+  const candidateIsComplete = candidateText.length >= 60 &&
+    /[.!?…][”’"')\]]?$/.test(candidateText) &&
+    !/\b(?:current ad|advertisement|sponsored content|subscribe now|sign up now|download our app|click here to continue)\b/i.test(candidateText);
+  const selected = candidateIsComplete ? (candidateSentence || candidateText) : (contentSentence || contentText || candidateText);
+  return truncateDescription(selected, 180);
+}
+
 function getXmlTag(block, tagNames) {
   for (const tag of tagNames) {
     const match = block.match(new RegExp("<" + tag + "\\b[^>]*>([\\s\\S]*?)<\\/" + tag + "\\s*>", "i"));
@@ -559,7 +611,7 @@ function selectBalancedByCountry(items, limit, priorityScore = null) {
 function selectUsPublisherFirst(items, limit, trendTopics = []) {
   const usPublishers = items.filter((item) => item.source?.country === "United States");
   const otherPublishers = items.filter((item) => item.source?.country !== "United States");
-  const preferredUsCount = Math.min(usPublishers.length, Math.ceil(limit * 0.7));
+  const preferredUsCount = Math.min(usPublishers.length, Math.ceil(limit * 0.8));
   const score = (article) => trendingMatchScore(article, trendTopics);
   const usSelection = selectBalancedByCountry(usPublishers, preferredUsCount, score);
   const internationalSelection = selectBalancedByCountry(otherPublishers, limit - usSelection.length, score);
@@ -623,9 +675,14 @@ async function getHeadlines(publishedArticles = [], trendTopics = []) {
   if (articles.length === 0) {
     throw new Error("No usable RSS stories were collected. Feed errors: " + (failures.join(" | ") || "Feeds returned no recent stories."));
   }
-  // Keep the Gemini/free-tier workload bounded while drawing from the expanded
-  // international news pool and preserving a separate sports allocation.
-  const recent = [...articles].sort((a, b) => (Date.parse(b.publishedAt || "") || 0) - (Date.parse(a.publishedAt || "") || 0));
+  // Exclude commercial betting/affiliate roundups: this is a news publication, not a promotions feed.
+  const editorialArticles = articles.filter((article) => !isPromotionalStory(article));
+  console.log("Commercial betting/promotion stories skipped: " + (articles.length - editorialArticles.length) + ".");
+  if (editorialArticles.length === 0) {
+    throw new Error("No editorial news stories remained after excluding promotional content.");
+  }
+  // Keep the Gemini/free-tier workload bounded while prioritizing U.S.-relevant coverage.
+  const recent = [...editorialArticles].sort((a, b) => (Date.parse(b.publishedAt || "") || 0) - (Date.parse(a.publishedAt || "") || 0));
   // Round-robin by publisher country so high-volume US/UK feeds cannot crowd out other markets.
   const generalNews = selectBalancedByCountry(recent.filter((item) => item.source_category !== "Sports"), 20);
   const sports = selectBalancedByCountry(recent.filter((item) => item.source_category === "Sports"), 20);
@@ -673,6 +730,7 @@ async function generateArticles(geminiApiKey, sourceArticles, retryFeedback = ""
     return {
       id: index + 1,
       publisher: article.source?.name || "Unknown publisher",
+      source_country: article.source?.country || "International",
       category: article.source_category,
       headline: article.title,
       published_at: article.publishedAt,
@@ -706,6 +764,17 @@ async function generateArticles(geminiApiKey, sourceArticles, retryFeedback = ""
   const compactRetryFeedback = fallbackMode ? String(retryFeedback || "").slice(0, 300) : retryFeedback;
   const prompt = `You are an evidence-led news editor for USA Daily News.
 Review every numbered source candidate independently. Select and write up to ${ARTICLE_COUNT} distinct stories that provide genuine reader value. Returning fewer than the target is acceptable. Never force ten stories and never return an empty array if suitable candidates exist.
+
+U.S. audience and editorial focus:
+- USA Daily News is primarily a U.S. news publication. Prioritize U.S. domestic news and stories with a clear, material connection to people in the United States.
+- Each candidate includes source_country, which identifies the publisher's country, not necessarily the location of the story.
+- Include international stories only when the supplied evidence shows a meaningful U.S. connection, such as U.S. policy, diplomacy, people, markets, national security, or a major direct impact on U.S. readers.
+- Do not publish unrelated local developments from foreign countries simply because they are recent or trending. If fewer than the target number qualify, return fewer.
+
+Advertising and deceptive-content safeguards:
+- Exclude advertisements, sponsored posts, affiliate roundups, sportsbook or casino promotions, shopping deals, newsletter blurbs, cookie notices, navigation text, and publisher page boilerplate.
+- Never include fragments such as "current ad" or incomplete advertising text in a headline, article, or meta description.
+- Do not include instructions that ask readers to download software, install extensions, enter passwords, verify accounts, or click deceptive prompts. Omit a candidate if its evidence is mainly promotional or deceptive.
 
 Trending US topic context (editorial prioritization only; NOT source evidence):
 ${trendBrief}
@@ -838,7 +907,8 @@ function validateAndNormalize(generated, sourceArticles) {
 
     const title = typeof article.title === "string" ? article.title.trim() : "";
     const content = typeof article.content === "string" ? article.content.trim() : "";
-    const seoDescription = typeof article.seo_description === "string" ? article.seo_description.trim() : "";
+    const rawSeoDescription = typeof article.seo_description === "string" ? article.seo_description.trim() : "";
+    const seoDescription = normalizeSeoDescription(rawSeoDescription, content);
     const requestedCategory = typeof article.category === "string" ? article.category.trim() : "";
     const category = [...allowedCategories].find((allowed) => allowed.toLowerCase() === requestedCategory.toLowerCase());
 
@@ -874,9 +944,10 @@ function validateAndNormalize(generated, sourceArticles) {
     if (!title) qualityIssues.push("missing headline");
     if (title.length > 110) qualityIssues.push("headline exceeds Google's 110-character News headline guidance");
     if (/[!?]{2,}|\b(you won.t believe|shocking|must see|unbelievable)\b/i.test(title)) qualityIssues.push("headline uses clickbait wording");
-    if (!content || content.length < 350) qualityIssues.push("article body is missing or too short");
-    if (!seoDescription) qualityIssues.push("missing meta description");
+    if (!content || content.length < 350 || wordCount < 100) qualityIssues.push("article body is missing, too short, or under 100 words");
+    if (descriptionLength < 50 || !/[.!?…][”’"')\]]?$/.test(seoDescription)) qualityIssues.push("meta description is missing, incomplete, or too short");
     if (!category) qualityIssues.push("category is missing or unsupported");
+    if (isPromotionalStory(original)) qualityIssues.push("source is a commercial betting or affiliate promotion");
     if (!hasSubstantialEvidence) qualityIssues.push("source evidence is below the 800-character threshold");
     if (repeatedParagraphs) qualityIssues.push("article repeats one or more paragraphs");
     if (qualityIssues.length) {
@@ -922,8 +993,8 @@ function validateAndNormalize(generated, sourceArticles) {
       content,
       category,
       source_url: original.url,
-      image_url: original.urlToImage || null,
-      seo_description: seoDescription.slice(0, 180),
+      image_url: isUsableArticleImage(original.urlToImage) ? original.urlToImage : null,
+      seo_description: seoDescription,
     });
     if (validated.length >= ARTICLE_COUNT) break;
   }
