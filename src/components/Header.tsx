@@ -17,7 +17,7 @@ export function Header({ onHome }: HeaderProps) {
       <div className="mx-auto max-w-6xl px-4">
         <div className="flex items-center justify-between py-2 text-xs text-gray-500 border-b border-gray-200">
           <span>{today}</span>
-          <span className="hidden sm:inline">The American Paper of Record</span>
+          <span className="hidden sm:inline">U.S. News · Context · Coverage</span>
         </div>
         <button
           onClick={onHome}
