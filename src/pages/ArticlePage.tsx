@@ -6,6 +6,7 @@ import { useMarkdown } from '@/lib/markdown';
 import { categoryColor } from '@/lib/categories';
 import { formatTimeAgo } from '@/lib/date';
 import { SITE_CONFIG } from '@/lib/seo-config';
+import { safeHttpUrl } from '@/lib/safe-url';
 import type { Article, ArticleSummary } from '@/types/article';
 import { ArticleCard } from '@/components/ArticleCard';
 
@@ -101,7 +102,13 @@ export function ArticlePage({ id, onBack }: ArticlePageProps) {
   const color = article ? categoryColor(article.category) : categoryColor('');
 
   const articleUrl = article ? `${SITE_CONFIG.url}/article/${article.id}` : SITE_CONFIG.url;
-  const seoDescription = article ? createSeoDescription(article.seo_description && article.seo_description.length >= 60 ? article.seo_description : article.content, article.title) : undefined;
+  const safeSourceUrl = article ? safeHttpUrl(article.source_url, true) : null;
+  const articleImage = article ? safeHttpUrl(article.image_url) || SITE_CONFIG.ogImage : SITE_CONFIG.ogImage;
+  const savedDescription = article?.seo_description?.trim() || '';
+  const savedDescriptionComplete = /[.!?…][”’"')\]]?$/.test(savedDescription);
+  const seoDescription = article
+    ? createSeoDescription(savedDescription.length >= 60 && savedDescriptionComplete ? savedDescription : article.content, article.title)
+    : undefined;
 
   const articleSchema = article
     ? {
@@ -109,11 +116,9 @@ export function ArticlePage({ id, onBack }: ArticlePageProps) {
         '@type': 'NewsArticle',
         headline: article.title,
         articleBody: article.content.replace(/[#*_>]/g, ' ').replace(/\s+/g, ' ').trim(),
-        citation: article.source_url && /^https?:\/\//i.test(article.source_url) ? article.source_url : undefined,
+        citation: safeSourceUrl || undefined,
         description: seoDescription,
-        image: article.image_url
-          ? [{ '@type': 'ImageObject', url: article.image_url, caption: article.title, representativeOfPage: true }]
-          : [{ '@type': 'ImageObject', url: SITE_CONFIG.ogImage, caption: 'USA Daily News — news, context and coverage', representativeOfPage: true }],
+        image: [{ '@type': 'ImageObject', url: articleImage, caption: article.title, representativeOfPage: true }],
         datePublished: article.created_at,
         dateModified: article.created_at,
         inLanguage: 'en-US',
@@ -135,7 +140,7 @@ export function ArticlePage({ id, onBack }: ArticlePageProps) {
   useSeo({
     title: article ? createSeoTitle(article.title) : 'USA Daily News',
     description: seoDescription,
-    image: article?.image_url || SITE_CONFIG.ogImage,
+    image: articleImage,
     type: 'article',
     url: articleUrl,
     publishedTime: article?.created_at,
@@ -201,9 +206,9 @@ export function ArticlePage({ id, onBack }: ArticlePageProps) {
         {article.title}
       </h1>
 
-      {article.seo_description && (
+      {seoDescription && (
         <p className="mt-3 text-lg text-gray-600 font-serif italic leading-relaxed">
-          {article.seo_description}
+          {seoDescription}
         </p>
       )}
 
@@ -229,7 +234,7 @@ export function ArticlePage({ id, onBack }: ArticlePageProps) {
 
       <figure className="mt-6 -mx-4 sm:mx-0">
         <img
-          src={article.image_url || SITE_CONFIG.ogImage}
+          src={articleImage}
           onError={(event) => {
             if (event.currentTarget.dataset.fallbackApplied !== 'true') {
               event.currentTarget.dataset.fallbackApplied = 'true';
@@ -255,10 +260,10 @@ export function ArticlePage({ id, onBack }: ArticlePageProps) {
         dangerouslySetInnerHTML={{ __html: html }}
       />
 
-      {article.source_url && (
+      {safeSourceUrl && (
         <div className="mt-10 pt-6 border-t border-gray-200">
           <a
-            href={article.source_url}
+            href={safeSourceUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 text-sm text-blue-700 hover:text-blue-900 hover:underline"
