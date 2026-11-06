@@ -3,8 +3,8 @@ import { mkdir, writeFile } from "node:fs/promises";
 const FEED = "https://trends.google.com/trending/rss?geo=US";
 const SITEMAP = process.env.SITEMAP_URL || "https://usadailynews.space/sitemap.xml";
 const OUT = "reports/us-trends";
-// Check only the newest 20 article URLs. This keeps duplicate detection useful
-// while avoiding hundreds of article-page requests on frequent automation runs.
+// Check only the newest 10 article URLs. This keeps duplicate detection useful
+// while cutting article-page requests during frequent automation runs.
 const MAX_ARTICLE_PAGES = 10;
 const ARTICLE_FETCH_CONCURRENCY = 3;
 const CATEGORY_RULES = {
