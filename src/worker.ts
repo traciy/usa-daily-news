@@ -584,6 +584,7 @@ async function handleSitemap(env: Env): Promise<Response> {
     } as RequestInit & { cf: { cacheTtl: number; cacheEverything: boolean } });
 
     if (!response.ok) {
+      console.error("Sitemap Supabase request failed:", response.status, "offset:", offset);
       return new Response("The article sitemap is temporarily unavailable.", {
         status: 502,
         headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" },
@@ -636,7 +637,10 @@ async function handleNewsSitemap(env: Env): Promise<Response> {
       headers: { apikey: env.SUPABASE_ANON_KEY, Authorization: "Bearer " + env.SUPABASE_ANON_KEY, Accept: "application/json" },
       cf: { cacheTtl: 120, cacheEverything: true },
     } as RequestInit & { cf: { cacheTtl: number; cacheEverything: boolean } });
-    if (!response.ok) return new Response("News sitemap could not load recent articles.", { status: 502 });
+    if (!response.ok) {
+      console.error("News sitemap Supabase request failed:", response.status);
+      return new Response("News sitemap could not load recent articles.", { status: 502 });
+    }
     const articles = await response.json() as Array<{ id: number; title: string; created_at: string }>;
     const entries = articles.filter((article) => article.id && article.title && Number.isFinite(Date.parse(article.created_at))).map((article) => {
       const date = new Date(article.created_at).toISOString();
@@ -730,6 +734,7 @@ async function handleGoogleTrends(): Promise<Response> {
       cf: { cacheTtl: 86400, cacheEverything: true },
     } as RequestInit & { cf: { cacheTtl: number; cacheEverything: boolean } });
     if (!response.ok) {
+      console.error("Google Trends upstream returned HTTP", response.status);
       return new Response(JSON.stringify({ error: "Google Trends is temporarily unavailable." }), { status: 502, headers });
     }
     const xml = await response.text();
@@ -780,6 +785,7 @@ async function handlePodcastLatest(): Promise<Response> {
     } as RequestInit & { cf: { cacheTtl: number; cacheEverything: boolean } });
 
     if (!response.ok) {
+      console.error("Podcast provider returned HTTP", response.status);
       return new Response(JSON.stringify({ error: "Podcast feed is temporarily unavailable." }), { status: 502, headers });
     }
 
@@ -1044,7 +1050,10 @@ async function handleSportsNewsRequest(request: Request, env: Env): Promise<Resp
       headers: { apikey: env.SUPABASE_ANON_KEY, Authorization: "Bearer " + env.SUPABASE_ANON_KEY, Accept: "application/json" },
       cf: { cacheTtl: 120, cacheEverything: true },
     } as RequestInit & { cf: { cacheTtl: number; cacheEverything: boolean } });
-    if (!response.ok) return json(502, { error: "Sports news is temporarily unavailable." });
+    if (!response.ok) {
+      console.error("Sports news Supabase request failed:", response.status);
+      return json(502, { error: "Sports news is temporarily unavailable." });
+    }
     return json(200, { data: { articles: await response.json() } });
   } catch {
     return json(502, { error: "Sports news is temporarily unavailable." });
@@ -1128,6 +1137,7 @@ async function handleFootballRequest(request: Request): Promise<Response> {
     return json(200, { data: { matches } });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Football data service is temporarily unavailable.";
+    console.error("Football upstream request failed:", message);
     return json(502, { error: message });
   }
 }
@@ -1447,7 +1457,34 @@ export default {
     if (articleMatch && request.method === "GET") {
       return handleArticlePage(request, env, articleMatch[1]);
     }
-    return env.ASSETS.fetch(request);
+    const assetResponse = await env.ASSETS.fetch(request);
+    if (request.method !== "GET" && request.method !== "HEAD") return assetResponse;
+
+    // Vite asset filenames include content hashes, so they can be cached for a year.
+    // Other public static files get a shorter browser TTL and a longer edge TTL.
+    const isHashedBuildAsset =
+      url.pathname.startsWith("/assets/") &&
+      /-[A-Za-z0-9_-]{8,}\.(?:js|css|woff2?|ttf|otf|png|jpe?g|webp|svg)$/i.test(url.pathname);
+    const isPublicStaticFile =
+      !url.pathname.startsWith("/api/") &&
+      url.pathname !== "/sw.js" &&
+      /\.(?:svg|ico|png|jpe?g|webp|woff2?|ttf|otf)$/i.test(url.pathname);
+
+    if (!assetResponse.ok || (!isHashedBuildAsset && !isPublicStaticFile)) return assetResponse;
+
+    const assetHeaders = new Headers(assetResponse.headers);
+    assetHeaders.set(
+      "Cache-Control",
+      isHashedBuildAsset
+        ? "public, max-age=31536000, immutable"
+        : "public, max-age=86400, s-maxage=604800"
+    );
+    assetHeaders.set("X-Static-Asset-Cache", isHashedBuildAsset ? "immutable" : "public");
+    return new Response(assetResponse.body, {
+      status: assetResponse.status,
+      statusText: assetResponse.statusText,
+      headers: assetHeaders,
+    });
   },
 
 
