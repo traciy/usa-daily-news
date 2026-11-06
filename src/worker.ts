@@ -6,6 +6,8 @@ interface Env {
   // read-only site access; never use a service-role key here.
   SUPABASE_URL?: string;
   SUPABASE_ANON_KEY?: string;
+  GA4_SERVICE_ACCOUNT_JSON?: string;
+  GA4_PROPERTY_ID?: string;
 }
 
 const SITE_URL = "https://usadailynews.space";
@@ -1489,6 +1491,113 @@ async function handleAiChatRequest(request: Request, env: Env & { AI?: WorkersAi
   }
 }
 
+
+function base64UrlEncode(value: string | Uint8Array): string {
+  const bytes = typeof value === "string" ? new TextEncoder().encode(value) : value;
+  let binary = "";
+  for (let index = 0; index < bytes.length; index += 1) binary += String.fromCharCode(bytes[index]);
+  return btoa(binary).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+}
+
+async function createGa4AccessToken(serviceAccountJson: string): Promise<string> {
+  const account = JSON.parse(serviceAccountJson) as { client_email?: string; private_key?: string; token_uri?: string };
+  if (!account.client_email || !account.private_key) throw new Error("GA4 service account credentials are incomplete");
+  const now = Math.floor(Date.now() / 1000);
+  const header = base64UrlEncode(JSON.stringify({ alg: "RS256", typ: "JWT" }));
+  const claims = base64UrlEncode(JSON.stringify({
+    iss: account.client_email,
+    scope: "https://www.googleapis.com/auth/analytics.readonly",
+    aud: account.token_uri || "https://oauth2.googleapis.com/token",
+    iat: now,
+    exp: now + 3600,
+  }));
+  const unsigned = header + "." + claims;
+  const pem = account.private_key.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\s/g, "");
+  const keyBytes = Uint8Array.from(atob(pem), (char) => char.charCodeAt(0));
+  const key = await crypto.subtle.importKey("pkcs8", keyBytes, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["sign"]);
+  const signature = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", key, new TextEncoder().encode(unsigned));
+  const assertion = unsigned + "." + base64UrlEncode(new Uint8Array(signature));
+  const tokenResponse = await fetch(account.token_uri || "https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion }),
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!tokenResponse.ok) throw new Error("Google OAuth token request failed");
+  const tokenData = await tokenResponse.json() as { access_token?: string };
+  if (!tokenData.access_token) throw new Error("Google OAuth did not return an access token");
+  return tokenData.access_token;
+}
+
+async function handleGa4Trending(_request: Request, env: Env): Promise<Response> {
+  const headers = { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" };
+  if (!env.GA4_SERVICE_ACCOUNT_JSON || !env.GA4_PROPERTY_ID || !env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) {
+    return new Response(JSON.stringify({ error: "GA4 trending is not configured" }), { status: 503, headers });
+  }
+  if (!/^\d+$/.test(env.GA4_PROPERTY_ID)) {
+    return new Response(JSON.stringify({ error: "GA4 property configuration is invalid" }), { status: 503, headers });
+  }
+  const cacheKey = new Request("https://usadailynews.space/__ga4_trending_cache/v1");
+  const cache = caches.default;
+  const cached = await cache.match(cacheKey);
+  if (cached) return new Response(cached.body, { status: 200, headers: cached.headers });
+
+  try {
+    const accessToken = await createGa4AccessToken(env.GA4_SERVICE_ACCOUNT_JSON);
+    const reportResponse = await fetch("https://analyticsdata.googleapis.com/v1beta/properties/" + env.GA4_PROPERTY_ID + ":runReport", {
+      method: "POST",
+      headers: { Authorization: "Bearer " + accessToken, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        dateRanges: [{ startDate: "7daysAgo", endDate: "today" }],
+        dimensions: [{ name: "pagePath" }],
+        metrics: [{ name: "screenPageViews" }],
+        dimensionFilter: { filter: { fieldName: "pagePath", stringFilter: {
+          matchType: "FULL_REGEXP", value: "^/article/[1-9][0-9]*$", caseSensitive: true,
+        } } },
+        orderBys: [{ metric: { metricName: "screenPageViews" }, desc: true }],
+        limit: "1000",
+      }),
+      signal: AbortSignal.timeout(12000),
+    });
+    if (!reportResponse.ok) throw new Error("GA4 report request failed");
+    const report = await reportResponse.json() as {
+      rows?: Array<{ dimensionValues?: Array<{ value?: string }>; metricValues?: Array<{ value?: string }> }>;
+    };
+    const counts = (report.rows ?? []).map((row) => {
+      const match = /^\/article\/([1-9][0-9]*)$/.exec(row.dimensionValues?.[0]?.value || "");
+      const count = Number(row.metricValues?.[0]?.value || 0);
+      return match && Number.isSafeInteger(Number(match[1])) && Number.isFinite(count) && count > 0
+        ? { id: Number(match[1]), view_count: Math.floor(count) } : null;
+    }).filter((item): item is { id: number; view_count: number } => item !== null);
+    if (counts.length === 0) {
+      const empty = new Response(JSON.stringify({ trending: [] }), { status: 200, headers: { ...headers, "Cache-Control": "public, max-age=300" } });
+      await cache.put(cacheKey, empty.clone());
+      return empty;
+    }
+    const articlesUrl = new URL(env.SUPABASE_URL.replace(/\/$/, "") + "/rest/v1/articles");
+    articlesUrl.searchParams.set("select", "id,title,category,image_url,seo_description,created_at,source_url");
+    articlesUrl.searchParams.set("id", "in.(" + counts.map((item) => item.id).join(",") + ")");
+    const articlesResponse = await fetch(articlesUrl.toString(), {
+      headers: { apikey: env.SUPABASE_ANON_KEY, Authorization: "Bearer " + env.SUPABASE_ANON_KEY, Accept: "application/json" },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!articlesResponse.ok) throw new Error("Supabase article lookup failed");
+    const articles = await articlesResponse.json() as Array<{
+      id: number; title: string; category: string; image_url: string | null;
+      seo_description: string | null; created_at: string; source_url: string | null;
+    }>;
+    const countById = new Map(counts.map((item) => [item.id, item.view_count]));
+    const trending = articles.filter((article) => countById.has(article.id))
+      .map((article) => ({ ...article, view_count: countById.get(article.id) || 0 }))
+      .sort((a, b) => b.view_count - a.view_count).slice(0, 5);
+    const response = new Response(JSON.stringify({ trending }), { status: 200, headers: { ...headers, "Cache-Control": "public, max-age=600" } });
+    await cache.put(cacheKey, response.clone());
+    return response;
+  } catch {
+    return new Response(JSON.stringify({ error: "GA4 trending data is temporarily unavailable" }), { status: 502, headers });
+  }
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
@@ -1505,6 +1614,9 @@ export default {
     if (url.hostname === "usa-daily-news.info-luwigang254.workers.dev" || url.hostname === "www.usadailynews.space") {
       const destination = new URL(url.pathname + url.search, SITE_URL);
       return Response.redirect(destination.toString(), 301);
+    }
+    if (url.pathname === "/api/trending" && request.method === "GET") {
+      return handleGa4Trending(request, env);
     }
     if (url.pathname === "/api/ai-chat") {
       return handleAiChatRequest(request, env);

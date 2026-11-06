@@ -54,16 +54,21 @@ export function SidebarEngagement({ onOpenArticle }: { onOpenArticle: (id: numbe
     }
     Promise.all([
       supabase.from('daily_poll_votes').select('option_index').eq('poll_date', day).eq('poll_key', pollKey),
-      supabase.from('article_trending').select('id, title, category, image_url, seo_description, created_at, source_url, view_count').order('view_count', { ascending: false }).limit(5),
       supabase.from('articles').select('id, title, category, image_url, seo_description, created_at, source_url').order('created_at', { ascending: false }).limit(5),
-    ]).then(([pollResult, trendingResult, recentResult]) => {
+      fetch('/api/trending', { headers: { Accept: 'application/json' } })
+        .then((response) => {
+          if (!response.ok) throw new Error('GA4 trending feed unavailable');
+          return response.json() as Promise<{ trending?: Array<ArticleSummary & { view_count: number }> }>;
+        })
+        .catch(() => ({ trending: [] as Array<ArticleSummary & { view_count: number }> })),
+    ]).then(([pollResult, recentResult, ga4TrendingResult]) => {
       if (!active) return;
       const counts = Array(poll.options.length).fill(0) as number[];
       (pollResult.data ?? []).forEach((vote) => {
         if (vote.option_index >= 0 && vote.option_index < counts.length) counts[vote.option_index] += 1;
       });
       setVotes(counts);
-      const verified = (trendingResult.data ?? []) as (ArticleSummary & { view_count: number })[];
+      const verified = (ga4TrendingResult.trending ?? []) as (ArticleSummary & { view_count: number })[];
       const seen = new Set(verified.map((story) => story.id));
       const remaining = Math.max(0, 5 - verified.length);
       const recentFallback = ((recentResult.data ?? []) as ArticleSummary[])
@@ -158,7 +163,7 @@ export function SidebarEngagement({ onOpenArticle }: { onOpenArticle: (id: numbe
         <p className="mt-1 text-xs text-gray-500">
           {trending.some((story) => story.isRecentFallback)
             ? 'Ranked by verified reads, with the latest stories filling remaining spots'
-            : 'Most-read stories over the last 7 days'}
+            : 'Most-viewed stories over the last 7 days · Google Analytics'}
         </p>
         {trending.length > 0 ? (
           <ol className="mt-3 space-y-3">
@@ -168,7 +173,7 @@ export function SidebarEngagement({ onOpenArticle }: { onOpenArticle: (id: numbe
                 <button type="button" onClick={() => onOpenArticle(story.id)} className="min-w-0 text-left">
                   <span className="block text-sm font-semibold leading-snug text-gray-800 hover:text-red-700">{story.title}</span>
                   <span className="mt-1 block text-[11px] text-gray-500">
-                    {story.isRecentFallback ? 'Latest story' : story.view_count.toLocaleString() + ' reads'} · {story.category}
+                    {story.isRecentFallback ? 'Latest story' : story.view_count.toLocaleString() + ' views'} · {story.category}
                   </span>
                 </button>
               </li>
