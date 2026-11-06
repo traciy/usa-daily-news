@@ -77,13 +77,13 @@ function injectArticleSeo(documentHtml: string, article: SeoArticle, relatedArti
   const canonical = SITE_URL + "/article/" + article.id;
   const description = articleSeoDescription(article);
   const pageTitle = articleSeoTitle(article.title);
-  const image = article.image_url && /^https:\/\//i.test(article.image_url) ? article.image_url : SITE_URL + "/og-default.svg";
+  const image = article.image_url && /^https:\/\//i.test(article.image_url) ? article.image_url : "";
   const published = new Date(article.created_at);
   const publishedIso = Number.isNaN(published.getTime()) ? "" : published.toISOString();
   const schema = {
     "@context": "https://schema.org", "@type": "NewsArticle",
     headline: article.title, description,
-    image: [{ "@type": "ImageObject", url: image, caption: article.image_url ? article.title : "USA Daily News — news, context and coverage", representativeOfPage: true }],
+    image: image ? [{ "@type": "ImageObject", url: image, caption: article.title, representativeOfPage: true }] : undefined,
 
     articleBody: plainArticleText(article.content),
     wordCount: plainArticleText(article.content).split(/\s+/).filter(Boolean).length,
@@ -94,7 +94,7 @@ function injectArticleSeo(documentHtml: string, article: SeoArticle, relatedArti
     author: { "@type": "Organization", name: "USA Daily News", url: SITE_URL + "/about" },
     publisher: { "@type": "Organization", name: "USA Daily News", logo: { "@type": "ImageObject", url: SITE_URL + "/logo.svg" } },
     mainEntityOfPage: { "@type": "WebPage", "@id": canonical },
-    articleSection: article.category, keywords: [article.category, "USA Daily News"], thumbnailUrl: image, url: canonical,
+    articleSection: article.category, keywords: [article.category, "USA Daily News"], thumbnailUrl: image || undefined, url: canonical,
   };
   const schemaJson = JSON.stringify(schema).replace(/</g, "\\u003c");
   let html = documentHtml
@@ -115,15 +115,15 @@ function injectArticleSeo(documentHtml: string, article: SeoArticle, relatedArti
     '<meta property="og:title" content="' + htmlEscape(article.title) + '">',
     '<meta property="og:description" content="' + htmlEscape(description) + '">',
     '<meta property="og:url" content="' + htmlEscape(canonical) + '">',
-    '<meta property="og:image" content="' + htmlEscape(image) + '">',
-    '<meta property="og:image:alt" content="' + htmlEscape(article.title) + '">',
+    image ? '<meta property="og:image" content="' + htmlEscape(image) + '">' : "",
+    image ? '<meta property="og:image:alt" content="' + htmlEscape(article.title) + '">' : "",
     '<meta property="og:locale" content="en_US">',
     '<meta property="article:section" content="' + htmlEscape(article.category) + '">',
-    '<meta name="twitter:card" content="summary_large_image">',
+    '<meta name="twitter:card" content="' + (image ? "summary_large_image" : "summary") + '">',
     '<meta name="twitter:title" content="' + htmlEscape(article.title) + '">',
     '<meta name="twitter:description" content="' + htmlEscape(description) + '">',
-    '<meta name="twitter:image" content="' + htmlEscape(image) + '">',
-    '<meta name="twitter:image:alt" content="' + htmlEscape(article.title) + '">',
+    image ? '<meta name="twitter:image" content="' + htmlEscape(image) + '">' : "",
+    image ? '<meta name="twitter:image:alt" content="' + htmlEscape(article.title) + '">' : "",
     publishedIso ? '<meta property="article:published_time" content="' + publishedIso + '">' : "",
     '<script type="application/ld+json" data-server-article-jsonld="true">' + schemaJson + "</script>",
   ].join("\n");
@@ -132,9 +132,9 @@ function injectArticleSeo(documentHtml: string, article: SeoArticle, relatedArti
     '</p><p class="seo-byline">By <a href="/about">USA Daily News</a></p><time datetime="' + htmlEscape(article.created_at) + '">' +
     htmlEscape(publishedIso ? published.toLocaleString("en-US", { dateStyle: "long", timeStyle: "short", timeZone: "UTC" }) + " UTC" : article.created_at) +
     "</time></header>" +
-    '<figure><img itemprop="image" src="' + htmlEscape(image) + '" alt="' +
-      htmlEscape(article.image_url ? article.title + " — " + article.category + " news" : "USA Daily News — news, context and coverage") +
-      '" title="' + htmlEscape(article.title) + '" width="1600" height="900" sizes="(max-width: 768px) 100vw, 768px" loading="eager" fetchpriority="high" decoding="async"></figure>' +
+    (image ? '<figure><img itemprop="image" src="' + htmlEscape(image) + '" alt="' +
+      htmlEscape(article.title + " — " + article.category + " news") +
+      '" title="' + htmlEscape(article.title) + '" width="1600" height="900" sizes="(max-width: 768px) 100vw, 768px" loading="eager" fetchpriority="high" decoding="async"></figure>' : "") +
     "<div>" + renderArticleMarkdown(article.content || "") + "</div>" +
     (article.source_url && (article.source_url.startsWith("https://") || article.source_url.startsWith("http://"))
       ? '<p class="seo-source"><a href="' + htmlEscape(article.source_url) + '" target="_blank" rel="noopener noreferrer">Read the original source report</a></p>'
