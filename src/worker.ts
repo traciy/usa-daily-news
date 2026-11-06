@@ -72,7 +72,7 @@ function articleSeoTitle(title: string): string {
     : title;
   return headline + suffix;
 }
-function injectArticleSeo(documentHtml: string, article: SeoArticle): string {
+function injectArticleSeo(documentHtml: string, article: SeoArticle, relatedArticles: Array<Pick<SeoArticle, "id" | "title" | "category">> = []): string {
   const canonical = SITE_URL + "/article/" + article.id;
   const description = articleSeoDescription(article);
   const pageTitle = articleSeoTitle(article.title);
@@ -137,6 +137,13 @@ function injectArticleSeo(documentHtml: string, article: SeoArticle): string {
     "<div>" + renderArticleMarkdown(article.content || "") + "</div>" +
     (article.source_url && (article.source_url.startsWith("https://") || article.source_url.startsWith("http://"))
       ? '<p class="seo-source"><a href="' + htmlEscape(article.source_url) + '" target="_blank" rel="noopener noreferrer">Read the original source report</a></p>'
+      : "") +
+    (relatedArticles.length
+      ? '<section class="seo-related" aria-labelledby="seo-related-heading"><h2 id="seo-related-heading">Related stories</h2><ul>' +
+        relatedArticles.map((related) => '<li><a href="' + SITE_URL + '/article/' + encodeURIComponent(String(related.id)) + '">' +
+          htmlEscape(related.title) + '</a><span> — ' + htmlEscape(related.category || "Latest News") + '</span></li>').join("") +
+        '</ul><p><a href="' + SITE_URL + '/' + encodeURIComponent(article.category.toLowerCase()) + '">More ' +
+          htmlEscape(article.category) + ' news</a></p></section>'
       : "") +
     "</article></main>";
   html = html.replace("</head>", tags + "\n</head>");
@@ -591,7 +598,33 @@ async function handleArticlePage(request: Request, env: Env, articleId: string):
     if (!assetResponse.ok) return assetResponse;
     const documentHtml = await assetResponse.text();
     if (!documentHtml.includes('<div id="root"></div>')) return new Response(documentHtml, { status: assetResponse.status, headers: assetResponse.headers });
-    return new Response(injectArticleSeo(documentHtml, article), {
+
+    // Put related-story links in the server HTML so search crawlers can discover them
+    // without needing to execute the client-side React application.
+    let relatedArticles: Array<Pick<SeoArticle, "id" | "title" | "category">> = [];
+    try {
+      const relatedEndpoint = new URL(env.SUPABASE_URL.replace(/\/$/, "") + "/rest/v1/articles");
+      relatedEndpoint.searchParams.set("select", "id,title,category");
+      relatedEndpoint.searchParams.set("id", "neq." + articleId);
+      relatedEndpoint.searchParams.set("order", "created_at.desc");
+      relatedEndpoint.searchParams.set("limit", "12");
+      const relatedResponse = await fetch(relatedEndpoint.toString(), {
+        headers: { apikey: env.SUPABASE_ANON_KEY, Authorization: "Bearer " + env.SUPABASE_ANON_KEY, Accept: "application/json" },
+        cf: { cacheTtl: 60, cacheEverything: true },
+      } as RequestInit & { cf: { cacheTtl: number; cacheEverything: boolean } });
+      if (relatedResponse.ok) {
+        const candidates = await relatedResponse.json() as Array<Pick<SeoArticle, "id" | "title" | "category">>;
+        const sameCategory = candidates.filter((item) => item.category?.toLowerCase() === article.category?.toLowerCase());
+        const otherCategories = candidates.filter((item) => item.category?.toLowerCase() !== article.category?.toLowerCase());
+        relatedArticles = [...sameCategory, ...otherCategories].slice(0, 5);
+      } else {
+        console.warn("Related article links could not be loaded:", relatedResponse.status);
+      }
+    } catch (relatedError) {
+      console.warn("Related article links are unavailable:", relatedError);
+    }
+
+    return new Response(injectArticleSeo(documentHtml, article, relatedArticles), {
       status: 200,
       headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "public, max-age=0, s-maxage=60", "X-Content-Type-Options": "nosniff" },
     });
