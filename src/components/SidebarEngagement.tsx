@@ -54,16 +54,21 @@ export function SidebarEngagement({ onOpenArticle }: { onOpenArticle: (id: numbe
     }
     Promise.all([
       supabase.from('daily_poll_votes').select('option_index').eq('poll_date', day).eq('poll_key', pollKey),
-      supabase.from('article_trending').select('id, title, category, image_url, seo_description, created_at, source_url, view_count').order('view_count', { ascending: false }).limit(5),
       supabase.from('articles').select('id, title, category, image_url, seo_description, created_at, source_url').order('created_at', { ascending: false }).limit(5),
-    ]).then(([pollResult, trendingResult, recentResult]) => {
+      fetch('/api/trending', { headers: { Accept: 'application/json' } })
+        .then((response) => {
+          if (!response.ok) throw new Error('GA4 trending feed unavailable');
+          return response.json() as Promise<{ trending?: Array<ArticleSummary & { view_count: number }> }>;
+        })
+        .catch(() => ({ trending: [] as Array<ArticleSummary & { view_count: number }> })),
+    ]).then(([pollResult, recentResult, ga4TrendingResult]) => {
       if (!active) return;
       const counts = Array(poll.options.length).fill(0) as number[];
       (pollResult.data ?? []).forEach((vote) => {
         if (vote.option_index >= 0 && vote.option_index < counts.length) counts[vote.option_index] += 1;
       });
       setVotes(counts);
-      const verified = (trendingResult.data ?? []) as (ArticleSummary & { view_count: number })[];
+      const verified = (ga4TrendingResult.trending ?? []) as (ArticleSummary & { view_count: number })[];
       const seen = new Set(verified.map((story) => story.id));
       const remaining = Math.max(0, 5 - verified.length);
       const recentFallback = ((recentResult.data ?? []) as ArticleSummary[])
