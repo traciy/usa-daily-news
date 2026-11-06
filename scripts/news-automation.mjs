@@ -366,7 +366,7 @@ function extractArticleImage(html, pageUrl) {
     if (!value || typeof value !== 'string') return;
     let url;
     try { url = new URL(decodeXml(value.trim()), pageUrl).toString(); } catch { return; }
-    if (!/^https?:/i.test(url) || /\b(logo|avatar|icon|favicon|sprite|placeholder|pixel)\b/i.test(url) || /\.(svg|gif)(?:[?#]|$)/i.test(url)) return;
+    if (url.protocol !== "https:" || /\b(logo|avatar|icon|favicon|sprite|placeholder|pixel)\b/i.test(url.pathname) || /\.(svg|gif)(?:[?#]|$)/i.test(url.pathname)) return;
     if (!values.includes(url)) values.push(url);
   };
   const patterns = [
