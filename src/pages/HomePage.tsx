@@ -40,14 +40,14 @@ export function HomePage({ onOpenArticle, onNavigate, initialCategory }: HomePag
   const [totalArticles, setTotalArticles] = useState(0);
   const PAGE_SIZE = 20;
   const categoryDescriptions: Record<Category, string> = {
-    All: 'Digital news coverage and source-attributed summaries across US and international affairs, politics, business, technology, culture, weather and sports.',
+    All: 'Latest U.S. news, politics, business, technology, culture and sports, with concise, source-attributed coverage and context from USA Daily News.',
     Politics: 'Read politics news, government coverage, policy developments and election updates from USA Daily News.',
     Tech: 'Read technology news, AI developments, innovation and digital industry coverage from USA Daily News.',
     Economy: 'Read business and economy news, markets, jobs, finance and economic policy coverage from USA Daily News.',
     Culture: 'Read culture news, entertainment, arts, society and lifestyle coverage from USA Daily News.',
   };
   useSeo({
-    title: active === 'All' ? 'Latest US News, Politics, Technology & Economy | USA Daily News' : `${active} News | USA Daily News`,
+    title: active === 'All' ? 'Latest US News: Politics, Business & Tech | USA Daily News' : `${active} News | USA Daily News`,
     description: categoryDescriptions[active],
     type: 'website',
     url: SITE_CONFIG.url + (window.location.pathname === '/' ? '/' : window.location.pathname),
