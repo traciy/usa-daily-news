@@ -184,6 +184,7 @@ interface StaticSeoPage {
   heading: string;
   paragraphs: string[];
   keywords?: string[];
+  category?: string;
   faq?: Array<{ question: string; answer: string }>;
 }
 const STATIC_SEO_PAGES: Record<string, StaticSeoPage> = {
@@ -240,30 +241,35 @@ const STATIC_SEO_PAGES: Record<string, StaticSeoPage> = {
     title: "US Politics News | USA Daily News",
     description: "US politics news, government coverage, policy developments and election updates from USA Daily News.",
     heading: "US Politics News",
+    category: "Politics",
     paragraphs: ["Follow US politics, government decisions, public policy and election developments with news summaries and links to source reporting."]
   },
   "/tech": {
     title: "Technology News | USA Daily News",
     description: "Technology news, AI developments, innovation and digital industry coverage from USA Daily News.",
     heading: "Technology News",
+    category: "Tech",
     paragraphs: ["Explore technology coverage including artificial intelligence, innovation, digital platforms and developments across the technology industry."]
   },
   "/economy": {
     title: "Business & Economy News | USA Daily News",
     description: "Business and economy news, markets, jobs, finance and economic policy coverage from USA Daily News.",
     heading: "Business & Economy News",
+    category: "Economy",
     paragraphs: ["Follow business and economic developments, markets, employment, finance and policy with source-attributed news summaries."]
   },
   "/culture": {
     title: "Culture & Entertainment News | USA Daily News",
     description: "Culture news, entertainment, arts, society and lifestyle coverage from USA Daily News.",
     heading: "Culture News",
+    category: "Culture",
     paragraphs: ["Read coverage of entertainment, arts, media, society and cultural developments in the United States and around the world."]
   },
   "/football": {
     title: "Live Football Scores & Fixtures | USA Daily News",
     description: "Follow live football scores, today's fixtures and recent results. Explore match timelines, team line-ups, statistics, head-to-head records and sports news.",
     heading: "Live Football Scores, Fixtures, Results & Match Centre",
+    category: "Sports",
     keywords: [
       "live football scores",
       "football scores today",
@@ -383,20 +389,63 @@ async function handleStaticSeoPage(request: Request, env: Env, path: string): Pr
     isPartOf: { "@type": "WebSite", name: "USA Daily News", url: SITE_URL },
     publisher: { "@type": "NewsMediaOrganization", name: "USA Daily News", url: SITE_URL, logo: { "@type": "ImageObject", url: SITE_URL + "/logo.svg" } }
   };
-  const schema = JSON.stringify(page.faq?.length ? {
-    "@context": "https://schema.org",
-    "@graph": [
-      pageSchema,
-      {
-        "@type": "FAQPage",
-        mainEntity: page.faq.map((entry) => ({
-          "@type": "Question",
-          name: entry.question,
-          acceptedAnswer: { "@type": "Answer", text: entry.answer }
-        }))
-      }
-    ]
-  } : pageSchema).replace(/</g, "\\u003c");
+  let latestArticles: SeoArticle[] = [];
+  if (page.category && env.SUPABASE_URL && env.SUPABASE_ANON_KEY) {
+    try {
+      const endpoint = new URL(env.SUPABASE_URL.replace(/\/$/, "") + "/rest/v1/articles");
+      endpoint.searchParams.set("select", "id,title,category,image_url,seo_description,created_at,source_url");
+      endpoint.searchParams.set("category", "eq." + page.category);
+      endpoint.searchParams.set("order", "created_at.desc");
+      endpoint.searchParams.set("limit", "12");
+      const response = await fetch(endpoint.toString(), {
+        headers: { apikey: env.SUPABASE_ANON_KEY, Authorization: "Bearer " + env.SUPABASE_ANON_KEY, Accept: "application/json" },
+        cf: { cacheTtl: 120, cacheEverything: true },
+      } as RequestInit & { cf: { cacheTtl: number; cacheEverything: boolean } });
+      if (response.ok) latestArticles = await response.json() as SeoArticle[];
+      else console.error("Category SEO article request failed:", path, response.status);
+    } catch (error) {
+      console.error("Category SEO article rendering failed:", path, error);
+    }
+  }
+  const storyCards = latestArticles.map((article) => {
+    const title = htmlEscape(article.title);
+    const description = htmlEscape(article.seo_description || "");
+    const date = new Date(article.created_at);
+    const dateTime = Number.isNaN(date.getTime()) ? "" : date.toISOString();
+    const imageUrl = article.image_url && /^https?:\/\//i.test(article.image_url) ? article.image_url : SITE_URL + "/og-default.svg";
+    return '<article class="seo-category-card"><a href="/article/' + Number(article.id) + '">' +
+      '<img src="' + htmlEscape(imageUrl) + '" alt="' + title + '" width="640" height="360" loading="lazy" decoding="async">' +
+      '<h2>' + title + '</h2>' + (description ? '<p>' + description + '</p>' : "") +
+      (dateTime ? '<time datetime="' + dateTime + '">' + date.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }) + '</time>' : "") +
+      '</a></article>';
+  }).join("");
+  const storySection = page.category
+    ? '<section aria-labelledby="latest-category-stories"><h2 id="latest-category-stories">Latest ' + htmlEscape(page.category === "Sports" ? "Sports" : page.category) + ' News</h2>' +
+      (storyCards ? '<div class="seo-category-stories">' + storyCards + '</div>' : '<p>New stories in this section will appear here as they are published.</p>') + '</section>'
+    : "";
+  const itemListSchema = latestArticles.length ? {
+    "@type": "ItemList",
+    name: "Latest " + page.category + " news from USA Daily News",
+    itemListElement: latestArticles.map((article, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      url: SITE_URL + "/article/" + Number(article.id),
+      name: article.title
+    }))
+  } : null;
+  const graph = [
+    pageSchema,
+    ...(itemListSchema ? [itemListSchema] : []),
+    ...(page.faq?.length ? [{
+      "@type": "FAQPage",
+      mainEntity: page.faq.map((entry) => ({
+        "@type": "Question",
+        name: entry.question,
+        acceptedAnswer: { "@type": "Answer", text: entry.answer }
+      }))
+    }] : [])
+  ];
+  const schema = JSON.stringify({ "@context": "https://schema.org", "@graph": graph }).replace(/</g, "\\u003c");
   const tags = [
     "<title>" + htmlEscape(page.title) + "</title>",
     '<meta name="description" content="' + description + '">',
@@ -429,6 +478,7 @@ async function handleStaticSeoPage(request: Request, env: Env, path: string): Pr
     : "";
   const body = '<main id="seo-static-content"><article><h1>' + htmlEscape(page.heading) + '</h1>' +
     page.paragraphs.map((paragraph) => "<p>" + htmlEscape(paragraph) + "</p>").join("") +
+    storySection +
     faqHtml +
     '<nav aria-label="News sections"><a href="/">Latest news</a> · <a href="/politics">Politics</a> · <a href="/tech">Technology</a> · <a href="/economy">Economy</a> · <a href="/culture">Culture</a> · <a href="/football">Sports</a> · <a href="/weather">Weather</a></nav><p><a href="/about">About</a> · <a href="/editorial-policy">Editorial policy</a> · <a href="/corrections">Corrections</a> · <a href="/privacy-policy">Privacy</a> · <a href="/contact">Contact</a></p></article></main>';
   html = html.replace('<div id="root"></div>', '<div id="root">' + body + '</div>');
