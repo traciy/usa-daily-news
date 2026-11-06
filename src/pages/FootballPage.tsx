@@ -316,7 +316,7 @@ export function FootballPage({ onBack }: FootballPageProps) {
 
   // SEO — stable metadata, does not change per refresh.
   const seoTitle = 'Live Football Scores & Fixtures | USA Daily News';
-  const seoDescription = 'Follow live football scores, today’s fixtures and results. Explore match timelines, team line-ups, statistics, head-to-head records and sports news.';
+  const seoDescription = 'Check live football scores, upcoming fixtures and recent results from major European leagues and competitions, with match updates and available team statistics.';
   const canonicalUrl = `${SITE_CONFIG.url}/football`;
 
   const jsonLd = useMemo(() => ([
