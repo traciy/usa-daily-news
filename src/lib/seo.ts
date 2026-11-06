@@ -4,7 +4,7 @@ import { SITE_CONFIG } from '@/lib/seo-config';
 export interface SeoOptions {
   title: string;
   description?: string;
-  image?: string;
+  image?: string | null;
   url?: string;
   type?: string;
   /** When provided, injects this object as a JSON-LD structured data block. */
@@ -97,6 +97,7 @@ export function useSeo(opts: SeoOptions) {
   const title = clamp(opts.title, MAX_TITLE);
   const description = opts.description ? clamp(opts.description, MAX_DESC) : SITE_CONFIG.description;
   const url = opts.url || window.location.href.split('#')[0];
+  const omitImage = opts.image === null;
   const image = opts.image || SITE_CONFIG.ogImage;
   const type = opts.type || 'website';
 
@@ -109,16 +110,23 @@ export function useSeo(opts: SeoOptions) {
     setMeta('property', 'og:description', description);
     setMeta('property', 'og:type', type);
     setMeta('property', 'og:url', url);
-    setMeta('property', 'og:image', image);
-    setMeta('property', 'og:image:alt', opts.title);
+    if (omitImage) {
+      removeMeta('property', 'og:image');
+      removeMeta('property', 'og:image:alt');
+      removeMeta('name', 'twitter:image');
+      removeMeta('name', 'twitter:image:alt');
+      setMeta('name', 'twitter:card', 'summary');
+    } else {
+      setMeta('property', 'og:image', image);
+      setMeta('property', 'og:image:alt', opts.title);
+      setMeta('name', 'twitter:card', 'summary_large_image');
+      setMeta('name', 'twitter:image', image);
+      setMeta('name', 'twitter:image:alt', opts.title);
+    }
     setMeta('property', 'og:site_name', SITE_CONFIG.name);
     setMeta('property', 'og:locale', 'en_US');
-
-    setMeta('name', 'twitter:card', 'summary_large_image');
     setMeta('name', 'twitter:title', title);
     setMeta('name', 'twitter:description', description);
-    setMeta('name', 'twitter:image', image);
-    setMeta('name', 'twitter:image:alt', opts.title);
 
     if (opts.publishedTime) {
       setMeta('property', 'article:published_time', opts.publishedTime);
@@ -138,5 +146,5 @@ export function useSeo(opts: SeoOptions) {
     } else {
       removeStaleJsonLd();
     }
-  }, [title, description, url, image, type, opts.publishedTime, opts.section, opts.jsonLd]);
+  }, [title, description, url, image, omitImage, type, opts.publishedTime, opts.section, opts.jsonLd]);
 }
