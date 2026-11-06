@@ -40,14 +40,14 @@ export function HomePage({ onOpenArticle, onNavigate, initialCategory }: HomePag
   const [totalArticles, setTotalArticles] = useState(0);
   const PAGE_SIZE = 20;
   const categoryDescriptions: Record<Category, string> = {
-    All: 'Latest U.S. news, politics, business, technology, culture and sports, with concise, source-attributed coverage and context from USA Daily News.',
-    Politics: 'Read politics news, government coverage, policy developments and election updates from USA Daily News.',
-    Tech: 'Read technology news, AI developments, innovation and digital industry coverage from USA Daily News.',
-    Economy: 'Read business and economy news, markets, jobs, finance and economic policy coverage from USA Daily News.',
-    Culture: 'Read culture news, entertainment, arts, society and lifestyle coverage from USA Daily News.',
+    All: 'Read the latest US news today, including breaking U.S. headlines, politics, business, technology, culture and sports, with source links and useful context.',
+    Politics: 'Follow US politics news, White House and Congress developments, government policy, elections and decisions affecting Americans.',
+    Tech: 'Follow US technology news, artificial intelligence, major tech companies, cybersecurity and the latest developments in digital innovation.',
+    Economy: 'Read US business and economy news, financial markets, jobs, inflation, companies and economic policy developments.',
+    Culture: 'Explore US culture news, entertainment, arts, media, society and the stories shaping American life.',
   };
   useSeo({
-    title: active === 'All' ? 'Latest US News: Politics, Business & Tech | USA Daily News' : `${active} News | USA Daily News`,
+    title: active === 'All' ? 'Latest US News & Breaking Headlines | USA Daily News' : ({ Politics: 'US Politics News & Policy | USA Daily News', Tech: 'US Technology News & AI | USA Daily News', Economy: 'US Business & Economy News | USA Daily News', Culture: 'US Culture & Entertainment News | USA Daily News' } as Record<Category, string>)[active],
     description: categoryDescriptions[active],
     type: 'website',
     url: SITE_CONFIG.url + (window.location.pathname === '/' ? '/' : window.location.pathname),
