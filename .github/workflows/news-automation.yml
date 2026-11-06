@@ -2,7 +2,7 @@ name: USA Daily News Automation
 
 on:
   schedule:
-    - cron: "7,37 * * * *"
+    - cron: "7 * * * *" # Once per hour (GitHub Actions cron uses UTC)
   workflow_dispatch:
 
 permissions:
