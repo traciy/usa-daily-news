@@ -2,6 +2,7 @@ import { Link } from 'lucide-react';
 import type { ArticleSummary } from '@/types/article';
 import { categoryColor } from '@/lib/categories';
 import { formatTimeAgo } from '@/lib/date';
+import { safeHttpUrl } from '@/lib/safe-url';
 
 interface ArticleImageProps {
   article: ArticleSummary;
@@ -14,10 +15,11 @@ interface ArticleImageProps {
 }
 
 function ArticleImage({ article, className, width, height, loading = 'lazy', priority = false, sizes }: ArticleImageProps) {
-  const hasPublisherImage = Boolean(article.image_url);
+  const imageUrl = safeHttpUrl(article.image_url) || '/og-default.svg';
+  const hasPublisherImage = imageUrl !== '/og-default.svg';
   return (
     <img
-      src={article.image_url || '/og-default.svg'}
+      src={imageUrl}
       alt={hasPublisherImage ? article.title : 'USA Daily News — news, context and coverage'}
       title={hasPublisherImage ? article.title : 'USA Daily News'}
       width={width}
