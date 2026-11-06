@@ -5,8 +5,8 @@ const SITEMAP = process.env.SITEMAP_URL || "https://usadailynews.space/sitemap.x
 const OUT = "reports/us-trends";
 // Check only the newest 20 article URLs. This keeps duplicate detection useful
 // while avoiding hundreds of article-page requests on frequent automation runs.
-const MAX_ARTICLE_PAGES = 20;
-const ARTICLE_FETCH_CONCURRENCY = 4;
+const MAX_ARTICLE_PAGES = 10;
+const ARTICLE_FETCH_CONCURRENCY = 3;
 const CATEGORY_RULES = {
   "US Politics": /\b(president|presidential|white house|congress|senate|house of representatives|election|vote|voting|democrat|republican|trump|biden|harris|governor|supreme court|political|politics|immigration|border|fbi|doj|justice department|state department|rubio|melania|dhillon)\b/i,
   Sports: /\b(nba|nfl|mlb|nhl|wnba|ncaa|soccer|football|basketball|baseball|hockey|tennis|golf|formula 1|f1|ufc|wwe|olympics|champions league|premier league|la liga|serie a|bundesliga|milan|match| vs |game|playoff|playoffs|coach|quarterback|goal|tournament|athlete|team)\b/i,
