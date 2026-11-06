@@ -57,7 +57,8 @@ function plainArticleText(value: string): string {
 function articleSeoDescription(article: SeoArticle): string {
   const saved = plainArticleText(article.seo_description || "");
   const content = plainArticleText(article.content || "");
-  const source = saved.length >= 60 ? saved : content || saved;
+  const savedIsComplete = /[.!?…][”’"')\]]?$/.test(saved);
+  const source = saved.length >= 60 && savedIsComplete ? saved : content || saved;
   const sentence = source.match(/^.{35,}?([.!?](?=\s|$)|$)/)?.[0]?.trim() || source;
   if (sentence.length <= 155) return sentence;
   const shortened = sentence.slice(0, 152).replace(/\s+\S*$/, "").trim();
@@ -76,7 +77,7 @@ function injectArticleSeo(documentHtml: string, article: SeoArticle, relatedArti
   const canonical = SITE_URL + "/article/" + article.id;
   const description = articleSeoDescription(article);
   const pageTitle = articleSeoTitle(article.title);
-  const image = article.image_url && /^https?:\/\//i.test(article.image_url) ? article.image_url : SITE_URL + "/og-default.svg";
+  const image = article.image_url && /^https:\/\//i.test(article.image_url) ? article.image_url : SITE_URL + "/og-default.svg";
   const published = new Date(article.created_at);
   const publishedIso = Number.isNaN(published.getTime()) ? "" : published.toISOString();
   const schema = {
@@ -157,10 +158,10 @@ function renderHomepage(articles: SeoArticle[]): string {
   const cards = validArticles.map((article, index) => {
     const title = htmlEscape(article.title);
     const category = htmlEscape(article.category);
-    const description = htmlEscape(article.seo_description || "");
+    const description = htmlEscape(articleSeoDescription(article));
     const date = new Date(article.created_at);
     const dateTime = Number.isNaN(date.getTime()) ? "" : date.toISOString();
-    const imageUrl = article.image_url && /^https?:\/\//i.test(article.image_url) ? article.image_url : SITE_URL + "/og-default.svg";
+    const imageUrl = article.image_url && /^https:\/\//i.test(article.image_url) ? article.image_url : SITE_URL + "/og-default.svg";
     const imageAlt = article.image_url ? title + " — " + category + " news" : "USA Daily News — news, context and coverage";
     const image = '<img src="' + htmlEscape(imageUrl) + '" alt="' + imageAlt + '" title="' + title +
       '" width="1200" height="675" sizes="(max-width: 1024px) 100vw, 66vw" ' +
@@ -415,10 +416,10 @@ async function handleStaticSeoPage(request: Request, env: Env, path: string): Pr
   }
   const storyCards = latestArticles.map((article) => {
     const title = htmlEscape(article.title);
-    const description = htmlEscape(article.seo_description || "");
+    const description = htmlEscape(articleSeoDescription(article));
     const date = new Date(article.created_at);
     const dateTime = Number.isNaN(date.getTime()) ? "" : date.toISOString();
-    const imageUrl = article.image_url && /^https?:\/\//i.test(article.image_url) ? article.image_url : SITE_URL + "/og-default.svg";
+    const imageUrl = article.image_url && /^https:\/\//i.test(article.image_url) ? article.image_url : SITE_URL + "/og-default.svg";
     return '<article class="seo-category-card"><a href="/article/' + Number(article.id) + '">' +
       '<img src="' + htmlEscape(imageUrl) + '" alt="' + title + '" width="640" height="360" loading="lazy" decoding="async">' +
       '<h2>' + title + '</h2>' + (description ? '<p>' + description + '</p>' : "") +
@@ -683,7 +684,7 @@ async function handleSitemap(env: Env): Promise<Response> {
     const lastmodTag = Number.isNaN(lastmod.getTime())
       ? ""
       : `<lastmod>${lastmod.toISOString()}</lastmod>`;
-    const imageTag = article.image_url && /^https?:\/\//i.test(article.image_url)
+    const imageTag = article.image_url && /^https:\/\//i.test(article.image_url)
       ? "<image:image><image:loc>" + xmlEscape(article.image_url) + "</image:loc><image:title>" +
         xmlEscape(article.title) + "</image:title></image:image>"
       : "";
@@ -935,12 +936,12 @@ async function handleRssFeed(env: Env): Promise<Response> {
       const link = SITE_URL + "/article/" + Number(article.id);
       const published = new Date(article.created_at);
       const pubDate = Number.isNaN(published.getTime()) ? "" : "<pubDate>" + published.toUTCString() + "</pubDate>";
-      const description = article.seo_description || rssPlainText(article.content || "").slice(0, 500);
+      const description = articleSeoDescription(article) || rssPlainText(article.content || "").slice(0, 500);
       const content = article.content || description;
       const source = article.source_url && /^https?:\/\//i.test(article.source_url)
         ? '<p>Original source: <a href="' + xmlEscape(article.source_url) + '">' + xmlEscape(article.source_url) + "</a></p>"
         : "";
-      const image = article.image_url && /^https?:\/\//i.test(article.image_url)
+      const image = article.image_url && /^https:\/\//i.test(article.image_url)
         ? '<p><img src="' + xmlEscape(article.image_url) + '" alt="' + xmlEscape(article.title) + '"></p>'
         : "";
       const htmlContent = image + "<p>" + xmlEscape(description) + "</p><pre>" + xmlEscape(content) + "</pre>" + source;
@@ -952,7 +953,7 @@ async function handleRssFeed(env: Env): Promise<Response> {
         "<category>" + xmlEscape(article.category || "News") + "</category>" +
         "<description><![CDATA[" + rssCdata(description) + "]]></description>" +
         "<content:encoded><![CDATA[" + rssCdata(htmlContent) + "]]></content:encoded>" +
-        (article.image_url && /^https?:\/\//i.test(article.image_url)
+        (article.image_url && /^https:\/\//i.test(article.image_url)
           ? '<enclosure url="' + xmlEscape(article.image_url) + '" type="image/jpeg"/>'
           : "") +
         "</item>";
