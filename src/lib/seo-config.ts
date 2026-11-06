@@ -13,7 +13,7 @@ export const SITE_CONFIG = {
   ogImage: 'https://usadailynews.space/og-default.svg',
   twitter: '@usadailynews',
   language: 'en',
-  keywords: ['US news', 'USA news', 'American politics', 'business news', 'technology news'],
+  keywords: ['latest US news', 'US news today', 'breaking news USA', 'US politics news', 'US business news', 'US technology news', 'US culture news', 'football scores', 'weather forecast'],
   sameAs: [
     'https://podcasts.apple.com/us/podcast/usa-news-today/id1559275087',
     'https://open.spotify.com/show/7xkv5QPKpwhHHSg0CNj2Rt',
