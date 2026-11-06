@@ -39,7 +39,7 @@ export function SidebarEngagement({ onOpenArticle }: { onOpenArticle: (id: numbe
   const [selected, setSelected] = useState<number | null>(null);
   const [voted, setVoted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [trending, setTrending] = useState<(ArticleSummary & { view_count: number })[]>([]);
+  const [trending, setTrending] = useState<(ArticleSummary & { view_count: number; isRecentFallback: boolean })[]>([]);
   const [googleTrends, setGoogleTrends] = useState<GoogleTrend[]>([]);
   const [trendsLoading, setTrendsLoading] = useState(true);
 
