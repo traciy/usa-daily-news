@@ -33,19 +33,28 @@ function GameRows({ games }: { games: ProGame[] }) {
   </ul>;
 }
 
-export function ProSportsScores() {
+export interface ProSportsCounts { live: number; upcoming: number; results: number }
+
+export function ProSportsScores({ onCountsChange }: { onCountsChange?: (counts: ProSportsCounts) => void }) {
   const [league, setLeague] = useState<ProLeague>('nba');
   const [games, setGames] = useState<ProGame[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [updated, setUpdated] = useState('');
   const refresh = useCallback(async () => {
-    const result = await fetchProGames(league);
+    const [result, otherResult] = await Promise.all([
+      fetchProGames(league),
+      fetchProGames(league === 'nba' ? 'nfl' : 'nba'),
+    ]);
     setGames(result.games);
+    const allGames = [...result.games, ...otherResult.games];
+    const allLive = allGames.filter((game) => /in progress|halftime|end of|quarter|period|live/i.test(game.status + ' ' + game.detail));
+    const allCompleted = allGames.filter((game) => /final|completed/i.test(game.status));
+    onCountsChange?.({ live: allLive.length, results: allCompleted.length, upcoming: allGames.length - allLive.length - allCompleted.length });
     setError(result.error || '');
     setUpdated(new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
     setLoading(false);
-  }, [league]);
+  }, [league, onCountsChange]);
   useEffect(() => {
     setLoading(true);
     void refresh();
