@@ -986,35 +986,40 @@ ${JSON.stringify({
       seo_description: draft.seo_description,
     })}`;
 
-    const response = await fetchWithRetry(
-      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(MODEL)}:generateContent`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-goog-api-key": geminiApiKey },
-        body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
-          generationConfig: { responseMimeType: "application/json", maxOutputTokens: 12000 },
-        }),
-      },
-      "Gemini focused article expansion",
-      1,
-    );
-    const data = await response.json();
-    const responseText = (data?.candidates?.[0]?.content?.parts ?? [])
-      .map((part) => part.text || "").join("").trim();
-    if (!responseText) {
-      console.warn("Gemini returned no expanded draft for: " + source.title);
-      continue;
-    }
+    try {
+      const response = await fetchWithRetry(
+        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(MODEL)}:generateContent`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-goog-api-key": geminiApiKey },
+          body: JSON.stringify({
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            generationConfig: { responseMimeType: "application/json", maxOutputTokens: 12000 },
+          }),
+        },
+        "Gemini focused article expansion",
+        4,
+      );
+      const data = await response.json();
+      const responseText = (data?.candidates?.[0]?.content?.parts ?? [])
+        .map((part) => part.text || "").join("").trim();
+      if (!responseText) {
+        console.warn("Gemini returned no expanded draft for: " + source.title);
+        continue;
+      }
 
-    const result = parseModelJson(responseText);
-    const article = result.find((item) => item && typeof item === "object" && typeof item.content === "string");
-    if (!article || article.content.trim().length < ARTICLE_TARGET_CHARS) {
-      console.warn("Focused expansion did not meet the " + ARTICLE_TARGET_CHARS + "-character minimum for: " + source.title);
-      continue;
+      const result = parseModelJson(responseText);
+      const article = result.find((item) => item && typeof item === "object" && typeof item.content === "string");
+      if (!article || article.content.trim().length < ARTICLE_TARGET_CHARS) {
+        console.warn("Focused expansion did not meet the " + ARTICLE_TARGET_CHARS + "-character minimum for: " + source.title);
+        continue;
+      }
+      expanded.push(article);
+      console.log("Focused expansion passed length check: " + article.content.trim().length + " characters.");
+    } catch (error) {
+      console.warn("Skipping expansion for this story after Gemini retries; continuing with other drafts: " +
+        source.title + " — " + (error?.message || error));
     }
-    expanded.push(article);
-    console.log("Focused expansion passed length check: " + article.content.trim().length + " characters.");
   }
 
   console.log("Article expansion complete: " + expanded.length + " full-length draft(s) ready for editorial validation.");
