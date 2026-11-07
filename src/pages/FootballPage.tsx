@@ -267,6 +267,10 @@ export function FootballPage({ onBack }: FootballPageProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+  const [proCounts, setProCounts] = useState({ live: 0, upcoming: 0, results: 0 });
+  const handleProCounts = useCallback((counts: { live: number; upcoming: number; results: number }) => {
+    setProCounts(counts);
+  }, []);
 
   const fetchAll = useCallback(async (comp: string) => {
     setLoading(true);
@@ -398,17 +402,17 @@ export function FootballPage({ onBack }: FootballPageProps) {
       <p className="max-w-3xl text-gray-600 leading-relaxed mb-5">
         Follow live sports scores from the NBA, NFL and major soccer competitions including the Premier League, La Liga, Bundesliga, Serie A, Ligue 1 and UEFA Champions League. Scores refresh automatically, with upcoming fixtures and recent results.
       </p>
-      <div className="mb-6 grid grid-cols-3 gap-2 sm:gap-3" aria-label="Football match overview">
+      <div className="mb-6 grid grid-cols-3 gap-2 sm:gap-3" aria-label="All sports match overview">
         <a href="#live-heading" className="rounded-lg border border-red-100 bg-red-50 p-3 transition hover:border-red-300">
-          <span className="block text-2xl font-bold tabular-nums text-red-700">{live.length}</span>
+          <span className="block text-2xl font-bold tabular-nums text-red-700">{live.length + proCounts.live}</span>
           <span className="text-[11px] font-semibold uppercase tracking-wide text-red-800">Live now</span>
         </a>
         <a href="#fixtures-heading" className="rounded-lg border border-gray-200 bg-white p-3 transition hover:border-gray-400">
-          <span className="block text-2xl font-bold tabular-nums text-gray-900">{fixtures.length}</span>
+          <span className="block text-2xl font-bold tabular-nums text-gray-900">{fixtures.length + proCounts.upcoming}</span>
           <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-600">Upcoming</span>
         </a>
         <a href="#results-heading" className="rounded-lg border border-gray-200 bg-white p-3 transition hover:border-gray-400">
-          <span className="block text-2xl font-bold tabular-nums text-gray-900">{results.length}</span>
+          <span className="block text-2xl font-bold tabular-nums text-gray-900">{results.length + proCounts.results}</span>
           <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-600">Results</span>
         </a>
       </div>
@@ -469,7 +473,7 @@ export function FootballPage({ onBack }: FootballPageProps) {
             )}
           </section>
 
-          <ProSportsScores />
+          <ProSportsScores onCountsChange={handleProCounts} />
 
           {/* Competition filter */}
           <nav aria-label="Filter by competition" className="mb-8">
