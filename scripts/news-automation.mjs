@@ -8,7 +8,7 @@ import { readFile } from "node:fs/promises";
 
 const MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
 const ARTICLE_COUNT = positiveInteger(process.env.ARTICLE_COUNT, 10);
-const ARTICLE_TARGET_CHARS = Math.max(5000, positiveInteger(process.env.ARTICLE_TARGET_CHARS, 5000));
+const ARTICLE_TARGET_CHARS = Math.max(2500, positiveInteger(process.env.ARTICLE_TARGET_CHARS, 2500));
 const PUBLISH_ENABLED = String(process.env.PUBLISH_ENABLED).toLowerCase() === "true";
 
 function positiveInteger(value, fallback) {
@@ -832,8 +832,8 @@ ${trendBrief}
 - Write in original wording; do not copy or closely paraphrase publisher sentences. Use direct quotations only when essential, accurately attributed, and supported by the evidence.
 - Add clear reader value beyond a rewritten headline or a short paraphrase: explain what changed, who is affected, why it matters to U.S. readers, and what is known about next steps, but only when the supplied evidence supports those points.
 - Do not manufacture an opinion, analysis, context, or "what it means" section from assumptions. If the evidence supports no useful explanation beyond repeating the source, omit the candidate.
-- HARD LENGTH REQUIREMENT: Every article you return MUST have a body of at least ${ARTICLE_TARGET_CHARS} characters, counting spaces and Markdown. Aim for 6000-6500 characters so the finished article safely clears the 5000-character minimum after editing. A report below ${ARTICLE_TARGET_CHARS} characters is invalid and must not be returned.
-- Draft each report in depth before returning it. A 5000-character report is a substantial long-form article, not a brief news summary. Develop the story with a detailed opening, several useful sections, and a substantive closing. Do not stop after a few paragraphs or after merely restating the source headline.
+- HARD LENGTH REQUIREMENT: Every article you return MUST have a body of at least ${ARTICLE_TARGET_CHARS} characters, counting spaces and Markdown. Aim for 3000-3500 characters so the finished article safely clears the 2500-character minimum after editing. A report below ${ARTICLE_TARGET_CHARS} characters is invalid and must not be returned.
+- Draft each report in depth before returning it. A 2500-character report is a substantial news article, not a brief news summary. Develop the story with a detailed opening, several useful sections, and a substantive closing. Do not stop after a few paragraphs or after merely restating the source headline.
 - Reach the target through genuinely useful, evidence-based reporting: fully explain the confirmed development; unpack each important fact, figure, decision and event in the supplied evidence; identify the key people and organizations and explain their documented roles; give the verified timeline in sequence; explain the direct effects on affected people, institutions or markets; distinguish confirmed facts from unanswered questions; and describe only the next steps explicitly reported by the source. Use concrete details from the supplied evidence throughout rather than repeating the same point.
 - Before returning each article, estimate its body character count. If it is below ${ARTICLE_TARGET_CHARS}, expand it with additional distinct, source-supported detail and explanations, then check again. Do not include a character-count note in the published article.
 - Do not copy or closely paraphrase the source. Do not pad, repeat points, invent background, speculate, or add generic filler to reach the character target. If the evidence truly cannot support a complete original report of at least ${ARTICLE_TARGET_CHARS} characters, omit that story rather than publish a short or padded article. Prefer fewer fully developed articles over short articles.
@@ -844,7 +844,7 @@ Basic SEO and presentation:
 - Write a clear, accurate headline that naturally names the main subject and important development. Keep it to 110 characters or fewer; avoid clickbait and keyword stuffing.
 - Write a concise, natural meta description that accurately summarizes the article and includes the main subject when appropriate. Do not force a character count.
 - Identify one clear primary search phrase and a small set of closely related terms from the actual story. Use the primary phrase naturally in the headline, opening paragraph and, where it reads naturally, one descriptive H2; use related terms only where factually relevant.
-- Structure a 5,000+ character report with a direct opening, useful descriptive H2 subheadings, coherent paragraphs and a concise ending that explains what is confirmed and what remains unknown. Use H2s to organize real subtopics, not to repeat keywords.
+- Structure a 2,500+ character report with a direct opening, useful descriptive H2 subheadings, coherent paragraphs and a concise ending that explains what is confirmed and what remains unknown. Use H2s to organize real subtopics, not to repeat keywords.
 - Write a unique, accurate SEO title and a compelling but factual meta description that summarizes the specific development. Avoid keyword stuffing, repeated conclusions, generic introductions, padded background, sensational language and vague phrases that add no factual value.
 - Where the supplied evidence supports it, explain relevant entities, dates, locations, figures and context clearly so readers can understand the story without opening another article. Never add unsupported FAQ answers or fabricated internal links.
 - Use an image only when the supplied source image is relevant to the exact story; otherwise use null.
@@ -967,7 +967,7 @@ async function expandShortArticles(geminiApiKey, generated, sourceArticles) {
 
 ABSOLUTE LENGTH REQUIREMENT:
 - Return a Markdown article body of at least ${ARTICLE_TARGET_CHARS} characters. This is a hard publishing requirement, not a suggestion.
-- Aim for 5,800-6,200 characters so the article remains above the limit after editing.
+- Aim for 3,000-3,500 characters so the article remains above the limit after editing.
 - Before returning JSON, count the content characters. If it is below ${ARTICLE_TARGET_CHARS}, continue developing supported details until it passes.
 - A response below ${ARTICLE_TARGET_CHARS} will be rejected and retried. Do not return a short draft.
 
@@ -976,7 +976,7 @@ ACCURACY:
 - Do not invent facts, dates, numbers, quotes, motives, background, consequences, reactions, or next steps.
 - Add detail by explaining the documented event, sequence, named people and organizations, figures, decisions, and directly stated implications. Distinguish confirmed facts from unknowns.
 - Do not repeat paragraphs, pad with generic context, or restate the same point to reach the length.
-- If the supplied evidence cannot honestly support 5,000 characters, return an empty array. A short article is better than fabricated or padded reporting.
+- If the supplied evidence cannot honestly support 2,500 characters, return an empty array. A short article is better than fabricated or padded reporting.
 - Keep the original exact source_url, factual headline under 110 characters, valid category, and concise SEO description.
 - Attribute the publisher in the opening paragraph and link its name to the exact source URL.
 - Return only a valid JSON array containing exactly one object with these keys: title, content, category, source_url, image_url, seo_description. If evidence is insufficient, return [].
@@ -1673,13 +1673,13 @@ async function main() {
   articles = validateAndNormalize(generated, sourceArticles);
 
   // Final non-bypassable publishing gate: every article body must contain at least
-  // 5,000 characters, regardless of provider or any earlier validation path.
+  // 2,500 characters, regardless of provider or any earlier validation path.
   const shortArticles = articles.filter((article) =>
-    typeof article.content !== "string" || article.content.trim().length < 5000
+    typeof article.content !== "string" || article.content.trim().length < 2500
   );
   if (shortArticles.length > 0) {
     throw new Error(
-      "Publishing blocked: " + shortArticles.length + " article(s) are below the absolute 5,000-character minimum. Nothing will be published."
+      "Publishing blocked: " + shortArticles.length + " article(s) are below the absolute 2,500-character minimum. Nothing will be published."
     );
   }
 
