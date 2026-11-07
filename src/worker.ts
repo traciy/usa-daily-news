@@ -431,7 +431,8 @@ async function handleStaticSeoPage(request: Request, env: Env, path: string): Pr
     ? '<section aria-labelledby="latest-category-stories"><h2 id="latest-category-stories">Latest ' + htmlEscape(page.category === "Sports" ? "Sports" : page.category) + ' News</h2>' +
       (storyCards ? '<div class="seo-category-stories">' + storyCards + '</div>' : '<p>New stories in this section will appear here as they are published.</p>') + '</section>'
     : "";
-  const itemListSchema = latestArticles.length ? {
+  // Sports news lists are not eligible for Google carousel rich results; omit ItemList on /football.
+  const itemListSchema = path !== "/football" && latestArticles.length ? {
     "@type": "ItemList",
     name: "Latest " + page.category + " news from USA Daily News",
     itemListElement: latestArticles.map((article, index) => ({
