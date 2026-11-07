@@ -367,18 +367,6 @@ export function FootballPage({ onBack }: FootballPageProps) {
         ],
       },
     },
-    {
-      '@context': 'https://schema.org',
-      '@type': 'ItemList',
-      name: 'Live football scores, fixtures and results',
-      itemListElement: [...live, ...fixtures, ...results].slice(0, 60).map((match, index) => ({
-        '@type': 'ListItem',
-        position: index + 1,
-        url: `${canonicalUrl}#match-${match.id}`,
-        name: `${match.homeTeam} vs ${match.awayTeam}`,
-        description: `${match.competition}: ${match.homeTeam} vs ${match.awayTeam}${match.homeScore !== null && match.awayScore !== null ? `, score ${match.homeScore}-${match.awayScore}` : ''}`,
-      })),
-    },
   ]), [seoTitle, seoDescription, canonicalUrl, live, fixtures, results]);
 
   useSeo({
