@@ -403,18 +403,18 @@ export function FootballPage({ onBack }: FootballPageProps) {
         Follow live sports scores from the NBA, NFL and major soccer competitions including the Premier League, La Liga, Bundesliga, Serie A, Ligue 1 and UEFA Champions League. Scores refresh automatically, with upcoming fixtures and recent results.
       </p>
       <div className="mb-6 grid grid-cols-3 gap-2 sm:gap-3" aria-label="All sports match overview">
-        <a href="#live-heading" className="rounded-lg border border-red-100 bg-red-50 p-3 transition hover:border-red-300">
+        <div className="rounded-lg border border-red-100 bg-red-50 p-3">
           <span className="block text-2xl font-bold tabular-nums text-red-700">{live.length + proCounts.live}</span>
           <span className="text-[11px] font-semibold uppercase tracking-wide text-red-800">Live now</span>
-        </a>
-        <a href="#fixtures-heading" className="rounded-lg border border-gray-200 bg-white p-3 transition hover:border-gray-400">
+        </div>
+        <div className="rounded-lg border border-gray-200 bg-white p-3">
           <span className="block text-2xl font-bold tabular-nums text-gray-900">{fixtures.length + proCounts.upcoming}</span>
           <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-600">Upcoming</span>
-        </a>
-        <a href="#results-heading" className="rounded-lg border border-gray-200 bg-white p-3 transition hover:border-gray-400">
+        </div>
+        <div className="rounded-lg border border-gray-200 bg-white p-3">
           <span className="block text-2xl font-bold tabular-nums text-gray-900">{results.length + proCounts.results}</span>
           <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-600">Results</span>
-        </a>
+        </div>
       </div>
       <nav aria-label="Live sports and score centre sections" className="mb-5 flex flex-wrap gap-2 text-xs font-semibold">
         <a href="#live-heading" className="rounded-full border border-gray-200 bg-white px-3 py-2 text-gray-700 hover:border-red-300 hover:text-red-700">Live Soccer</a>
