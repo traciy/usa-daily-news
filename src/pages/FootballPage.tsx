@@ -375,8 +375,8 @@ export function FootballPage({ onBack }: FootballPageProps) {
         '@type': 'ListItem',
         position: index + 1,
         url: `${canonicalUrl}#match-${match.id}`,
-        name: `${match.homeTeam} vs `${match.awayTeam}`,
-        description: `${match.competition}: `${match.homeTeam} vs `${match.awayTeam}`${match.homeScore !== null && match.awayScore !== null ? `, score ${match.homeScore}-${match.awayScore}` : ''}`,,
+        name: `${match.homeTeam} vs ${match.awayTeam}`,
+        description: `${match.competition}: ${match.homeTeam} vs ${match.awayTeam}${match.homeScore !== null && match.awayScore !== null ? `, score ${match.homeScore}-${match.awayScore}` : ''}`,
       })),
     },
   ]), [seoTitle, seoDescription, canonicalUrl, live, fixtures, results]);
