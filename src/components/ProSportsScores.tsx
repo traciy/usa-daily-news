@@ -35,7 +35,7 @@ function GameRows({ games }: { games: ProGame[] }) {
 
 export interface ProSportsCounts { live: number; upcoming: number; results: number }
 
-export function ProSportsScores({ onCountsChange }: { onCountsChange?: (counts: ProSportsCounts) => void }) {
+export function ProSportsScores({ onCountsChange, jumpTo }: { onCountsChange?: (counts: ProSportsCounts) => void; jumpTo?: { league: 'nba' | 'nfl'; category: 'live' | 'upcoming' | 'results'; requestId: number } | null }) {
   const [league, setLeague] = useState<ProLeague>('nba');
   const [games, setGames] = useState<ProGame[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,6 +61,15 @@ export function ProSportsScores({ onCountsChange }: { onCountsChange?: (counts: 
     const timer = window.setInterval(() => { void refresh(); }, REFRESH_MS);
     return () => window.clearInterval(timer);
   }, [refresh]);
+  useEffect(() => {
+    if (jumpTo) setLeague(jumpTo.league);
+  }, [jumpTo]);
+
+  useEffect(() => {
+    if (!jumpTo || jumpTo.league !== league) return;
+    const target = document.getElementById(`${league}-${jumpTo.category}-heading`);
+    target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [league, jumpTo]);
 
   const live = games.filter((game) => /in progress|halftime|end of|quarter|period|live/i.test(game.status + ' ' + game.detail));
   const completed = games.filter((game) => /final|completed/i.test(game.status));
@@ -80,15 +89,15 @@ export function ProSportsScores({ onCountsChange }: { onCountsChange?: (counts: 
       </div>
     </div>
     {loading ? <p className="px-4 py-8 text-sm text-gray-500">Loading {league.toUpperCase()} scores…</p> : error ? <p className="px-4 py-8 text-sm text-amber-700">Scores are temporarily unavailable: {error}</p> : <>
-      <section aria-label="Live games">
+      <section id={`${league}-live-heading`} className="scroll-mt-24" aria-label={`${league.toUpperCase()} live games`}>
         <h3 className="flex items-center gap-2 border-b border-gray-100 bg-red-50 px-4 py-2 text-xs font-bold uppercase tracking-wider text-red-800"><Radio className="h-3.5 w-3.5" /> Live now ({live.length})</h3>
         <GameRows games={live} />
       </section>
-      <section aria-label="Upcoming games">
+      <section id={`${league}-upcoming-heading`} className="scroll-mt-24" aria-label={`${league.toUpperCase()} upcoming games`}>
         <h3 className="border-y border-gray-100 bg-gray-50 px-4 py-2 text-xs font-bold uppercase tracking-wider text-gray-700">Upcoming games ({upcoming.length})</h3>
         <GameRows games={upcoming} />
       </section>
-      <section aria-label="Recent results">
+      <section id={`${league}-results-heading`} className="scroll-mt-24" aria-label={`${league.toUpperCase()} recent results`}>
         <h3 className="border-y border-gray-100 bg-gray-50 px-4 py-2 text-xs font-bold uppercase tracking-wider text-gray-700">Recent results ({completed.length})</h3>
         <GameRows games={completed} />
       </section>
