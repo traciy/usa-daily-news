@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ProSportsScores } from '@/components/ProSportsScores';
 import { ArrowLeft, Radio, Clock, Info, AlertCircle, ChevronDown, MapPin, Newspaper, Users } from 'lucide-react';
 import {
   fetchMatches, fetchCompetitions, FREE_COMPETITIONS, REFRESH_INTERVAL_MS,
@@ -315,8 +316,8 @@ export function FootballPage({ onBack }: FootballPageProps) {
   }, [activeComp]);
 
   // SEO — stable metadata, does not change per refresh.
-  const seoTitle = 'Live Football Scores & Fixtures | USA Daily News';
-  const seoDescription = 'Check live football scores, upcoming fixtures and recent results from major European leagues and competitions, with match updates and available team statistics.';
+  const seoTitle = 'Live Sports Scores: Soccer, NBA & NFL | USA Daily News';
+  const seoDescription = 'Follow live football, NBA basketball and NFL scores, upcoming fixtures and recent results, with automatic scoreboard updates.';
   const canonicalUrl = `${SITE_CONFIG.url}/football`;
 
   const jsonLd = useMemo(() => ([
@@ -330,7 +331,7 @@ export function FootballPage({ onBack }: FootballPageProps) {
       description: seoDescription,
       inLanguage: 'en-US',
       keywords: [
-        'live football scores', 'football fixtures today', 'soccer results',
+        'live sports scores', 'NBA scores', 'NFL scores', 'live football scores', 'football fixtures today', 'soccer results',
         'football match centre', 'football match analysis', 'team line-ups',
         'football statistics', 'Premier League scores', 'La Liga scores',
         'Bundesliga scores', 'Serie A scores', 'Ligue 1 scores',
@@ -392,10 +393,10 @@ export function FootballPage({ onBack }: FootballPageProps) {
       </button>
 
       <h1 className="text-3xl sm:text-4xl font-serif font-bold text-gray-900 mb-2">
-        Live Football Scores, Fixtures & Match Centre
+        Live Sports Scores: Soccer, NBA & NFL
       </h1>
       <p className="max-w-3xl text-gray-600 leading-relaxed mb-5">
-        Follow live soccer scores, today's football fixtures and recent results from the Premier League, La Liga, Bundesliga, Serie A, Ligue 1 and UEFA Champions League. Open a match for available events, line-ups, team statistics, commentary and head-to-head information.
+        Follow live sports scores from the NBA, NFL and major soccer competitions including the Premier League, La Liga, Bundesliga, Serie A, Ligue 1 and UEFA Champions League. Scores refresh automatically, with upcoming fixtures and recent results.
       </p>
       <div className="mb-6 grid grid-cols-3 gap-2 sm:gap-3" aria-label="Football match overview">
         <a href="#live-heading" className="rounded-lg border border-red-100 bg-red-50 p-3 transition hover:border-red-300">
@@ -417,6 +418,8 @@ export function FootballPage({ onBack }: FootballPageProps) {
         <a href="#results-heading" className="rounded-full border border-gray-200 bg-white px-3 py-2 text-gray-700 hover:border-red-300 hover:text-red-700">Recent results</a>
         <a href="#recent-sports-news" className="rounded-full border border-gray-200 bg-white px-3 py-2 text-gray-700 hover:border-red-300 hover:text-red-700">Sports news</a>
       </nav>
+
+      <ProSportsScores />
 
       {/* Competition filter */}
       <nav aria-label="Filter by competition" className="mb-8">
