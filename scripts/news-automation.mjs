@@ -285,14 +285,14 @@ function isUsableArticleImage(value) {
   if (typeof value !== "string" || !value.trim()) return false;
   try {
     const url = new URL(value.trim());
-    return url.protocol === "https:" &&
-      !/(?:logo|avatar|icon|favicon|sprite|placeholder|pixel|default|spacer)/i.test(url.pathname) &&
-      !/\.(?:svg|gif)(?:[?#]|$)/i.test(url.pathname);
+    if (url.protocol !== "https:" || !url.hostname || url.username || url.password) return false;
+    if (/(?:^|[\/_-])(?:logo|avatar|favicon|sprite|placeholder|spacer|tracking[-_]?pixel)(?:[\/_-]|$)/i.test(url.pathname)) return false;
+    if (/\.(?:svg|gif|ico)(?:[?#]|$)/i.test(url.pathname)) return false;
+    return true;
   } catch {
     return false;
   }
 }
-
 function isPromotionalStory(article) {
   const text = [article?.title, article?.description, article?.url].filter(Boolean).join(" ");
   let pathname = "";
@@ -363,34 +363,50 @@ function extractArticleText(html) {
 function extractArticleImage(html, pageUrl) {
   const values = [];
   const add = (value) => {
-    if (!value || typeof value !== 'string') return;
+    if (typeof value !== "string" || !value.trim()) return;
+    const candidate = decodeXml(value.trim()).replace(/^["']|["']$/g, "");
+    if (!candidate || /^(?:data:|blob:|javascript:)/i.test(candidate)) return;
     let url;
-    try { url = new URL(decodeXml(value.trim()), pageUrl).toString(); } catch { return; }
-    if (url.protocol !== "https:" || /\b(logo|avatar|icon|favicon|sprite|placeholder|pixel)\b/i.test(url.pathname) || /\.(svg|gif)(?:[?#]|$)/i.test(url.pathname)) return;
-    if (!values.includes(url)) values.push(url);
+    try { url = new URL(candidate, pageUrl); } catch { return; }
+    if (!isUsableArticleImage(url.toString())) return;
+    const normalized = url.toString();
+    if (!values.includes(normalized)) values.push(normalized);
   };
-  const patterns = [
-    /<meta\b[^>]*(?:property|name)=["']og:image(?:[:][^"']*)?["'][^>]*content=["']([^"']+)["'][^>]*>/ig,
-    /<meta\b[^>]*content=["']([^"']+)["'][^>]*(?:property|name)=["']og:image(?:[:][^"']*)?["'][^>]*>/ig,
-    /<meta\b[^>]*(?:name|property)=["']twitter:image(?:[:][^"']*)?["'][^>]*content=["']([^"']+)["'][^>]*>/ig
-  ];
-  for (const pattern of patterns) for (const match of html.matchAll(pattern)) add(match[1]);
+  const attributes = (tag) => Object.fromEntries(
+    [...tag.matchAll(/([\w:-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/g)]
+      .map((match) => [match[1].toLowerCase(), match[2] ?? match[3] ?? match[4] ?? ""])
+  );
+  for (const match of html.matchAll(/<meta\b[^>]*>/ig)) {
+    const attrs = attributes(match[0]);
+    const key = String(attrs.property || attrs.name || "").toLowerCase();
+    if (/^(?:og:image(?::url)?|twitter:image(?::src)?)$/.test(key)) add(attrs.content);
+  }
   for (const match of html.matchAll(/<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/ig)) {
     try {
       const parsed = JSON.parse(match[1]);
       const queue = Array.isArray(parsed) ? [...parsed] : [parsed];
       while (queue.length) {
         const item = queue.shift();
-        if (!item || typeof item !== 'object') continue;
+        if (!item || typeof item !== "object") continue;
         if (Array.isArray(item)) { queue.push(...item); continue; }
-        if (item['@graph']) queue.push(...(Array.isArray(item['@graph']) ? item['@graph'] : [item['@graph']]));
-        const imgs = Array.isArray(item.image) ? item.image : [item.image];
-        for (const img of imgs) add(typeof img === 'string' ? img : img?.url || img?.contentUrl);
+        for (const key of ["@graph", "image", "thumbnailUrl", "primaryImageOfPage", "associatedMedia"]) {
+          const value = item[key];
+          if (Array.isArray(value)) queue.push(...value);
+          else if (value && typeof value === "object") queue.push(value);
+          else if (typeof value === "string") add(value);
+        }
+        for (const key of ["url", "contentUrl"]) if (typeof item[key] === "string") add(item[key]);
       }
     } catch { /* Ignore invalid publisher metadata. */ }
   }
   const articleHtml = html.match(/<(?:article|main)\b[^>]*>([\s\S]*?)<\/(?:article|main)>/i)?.[1] || html;
-  for (const match of articleHtml.matchAll(/<img\b[^>]*(?:src|data-src|data-original)=["']([^"']+)["'][^>]*>/ig)) add(match[1]);
+  for (const match of articleHtml.matchAll(/<(?:img|source)\b[^>]*>/ig)) {
+    const attrs = attributes(match[0]);
+    for (const key of ["src", "data-src", "data-original", "data-lazy-src", "data-image", "content"]) add(attrs[key]);
+    for (const key of ["srcset", "data-srcset"]) {
+      for (const candidate of String(attrs[key] || "").split(",").map((part) => part.trim().split(/\s+/)[0])) add(candidate);
+    }
+  }
   return values[0] || null;
 }
 async function backfillMissingArticleImages(functionUrl, bearerToken) {
@@ -551,9 +567,23 @@ function parseRssFeed(xml, feed) {
     const atomHref = block.match(/<link\b[^>]*\bhref=["']([^"']+)["'][^>]*\/?\s*>/i)?.[1];
     const link = decodeXml(rawLink.replace(/<[^>]+>/g, "").trim() || href || atomHref || "");
     const rawDate = getXmlTag(block, ["pubDate", "published", "updated", "dc:date"]);
-    const image = block.match(/<(?:media:content|media:thumbnail|enclosure|itunes:image)\b[^>]*(?:\burl|\bhref)=["']([^"']+)["']/i)?.[1]
-      || block.match(/<img\b[^>]*\bsrc=["']([^"']+)["']/i)?.[1]
-      || null;
+    const imageCandidates = [];
+    const addImage = (value) => {
+      if (typeof value !== "string" || !value.trim()) return;
+      const candidate = decodeXml(value.trim());
+      if (isUsableArticleImage(candidate) && !imageCandidates.includes(candidate)) imageCandidates.push(candidate);
+    };
+    for (const tag of block.matchAll(/<(?:media:content|media:thumbnail|enclosure|itunes:image)\b[^>]*>/ig)) {
+      const attrs = Object.fromEntries([...tag[0].matchAll(/([\w:-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/g)]
+        .map((item) => [item[1].toLowerCase(), item[2] ?? item[3] ?? item[4] ?? ""]));
+      addImage(attrs.url || attrs.href || attrs.src);
+    }
+    for (const tag of block.matchAll(/<img\b[^>]*>/ig)) {
+      const attrs = Object.fromEntries([...tag[0].matchAll(/([\w:-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/g)]
+        .map((item) => [item[1].toLowerCase(), item[2] ?? item[3] ?? item[4] ?? ""]));
+      addImage(attrs.src || attrs["data-src"] || attrs["data-original"] || attrs["data-lazy-src"]);
+    }
+    const image = imageCandidates[0] || null;
     let publishedAt = null;
     if (rawDate) {
       const parsedDate = Date.parse(cleanFeedText(rawDate));
@@ -949,6 +979,7 @@ function validateAndNormalize(generated, sourceArticles) {
     if (!content || content.length < 350 || wordCount < 100) qualityIssues.push("article body is missing, too short, or under 100 words");
     if (descriptionLength < 50 || !/[.!?…][”’"')\]]?$/.test(seoDescription)) qualityIssues.push("meta description is missing, incomplete, or too short");
     if (!category) qualityIssues.push("category is missing or unsupported");
+    if (!isUsableArticleImage(original.urlToImage)) qualityIssues.push("a usable publisher image could not be found; article held back to prevent image-less publication");
     if (isPromotionalStory(original)) qualityIssues.push("source is a commercial betting or affiliate promotion");
     if (!hasSubstantialEvidence) qualityIssues.push("source evidence is below the 800-character threshold");
     if (repeatedParagraphs) qualityIssues.push("article repeats one or more paragraphs");
