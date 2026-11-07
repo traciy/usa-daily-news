@@ -922,9 +922,9 @@ function ensureInlineSourceLink(markdown, publisherName, sourceUrl) {
   const afterName = index + name.length;
 
   // If the publisher is already linked, make sure it points to this exact source article.
-  if (text[index - 1] === "[" && text[afterName] === "]" && text.slice(afterName + 1, afterName + 3) === "](") {
-    const close = text.indexOf(")", afterName + 3);
-    if (close !== -1) return text.slice(0, afterName + 2) + "(" + url + ")" + text.slice(close + 1);
+  if (text[index - 1] === "[" && text.slice(afterName, afterName + 2) === "](") {
+    const close = text.indexOf(")", afterName + 2);
+    if (close !== -1) return text.slice(0, afterName + 2) + url + ")" + text.slice(close + 1);
   }
 
   return text.slice(0, index) + "[" + text.slice(index, afterName) + "](" + url + ")" + text.slice(afterName);
