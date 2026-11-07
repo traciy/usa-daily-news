@@ -614,7 +614,7 @@ function hasUnsupportedNumbers(generatedText, evidenceText) {
   }
 
   const factualText = stripLinkDestinations(generatedText);
-  const numberPattern = /\b\d[\d,]*(?:\\.\d+)?%?\b|\\$\s?\d[\d,]*(?:\\.\d+)?/g;
+  const numberPattern = /\b\d[\d,]*(?:\.\d+)?%?\b|\$\s?\d[\d,]*(?:\.\d+)?/g;
   for (const match of factualText.matchAll(numberPattern)) {
     const number = normalizeNumber(match[0]);
     if (!evidenceNumbers.has(number)) {
