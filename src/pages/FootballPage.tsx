@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ProSportsScores } from '@/components/ProSportsScores';
+
+type OverviewCategory = 'live' | 'upcoming' | 'results';
+type OverviewSport = 'soccer' | 'nba' | 'nfl';
 import { ArrowLeft, Radio, Clock, Info, AlertCircle, ChevronDown, MapPin, Newspaper, Users } from 'lucide-react';
 import {
   fetchMatches, fetchCompetitions, FREE_COMPETITIONS, REFRESH_INTERVAL_MS,
@@ -268,6 +271,20 @@ export function FootballPage({ onBack }: FootballPageProps) {
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [proCounts, setProCounts] = useState({ live: 0, upcoming: 0, results: 0 });
+  const [activeOverviewMenu, setActiveOverviewMenu] = useState<OverviewCategory | null>(null);
+  const [proJump, setProJump] = useState<{ league: 'nba' | 'nfl'; category: OverviewCategory; requestId: number } | null>(null);
+  const [jumpRequestId, setJumpRequestId] = useState(0);
+  const chooseOverviewSport = (category: OverviewCategory, sport: OverviewSport) => {
+    setActiveOverviewMenu(null);
+    if (sport === 'soccer') {
+      const target = category === 'live' ? 'live-heading' : category === 'upcoming' ? 'fixtures-heading' : 'results-heading';
+      document.getElementById(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    const requestId = jumpRequestId + 1;
+    setJumpRequestId(requestId);
+    setProJump({ league: sport, category, requestId });
+  };
   const handleProCounts = useCallback((counts: { live: number; upcoming: number; results: number }) => {
     setProCounts(counts);
   }, []);
@@ -403,18 +420,32 @@ export function FootballPage({ onBack }: FootballPageProps) {
         Follow live sports scores from the NBA, NFL and major soccer competitions including the Premier League, La Liga, Bundesliga, Serie A, Ligue 1 and UEFA Champions League. Scores refresh automatically, with upcoming fixtures and recent results.
       </p>
       <div className="mb-6 grid grid-cols-3 gap-2 sm:gap-3" aria-label="All sports match overview">
-        <div className="rounded-lg border border-red-100 bg-red-50 p-3">
-          <span className="block text-2xl font-bold tabular-nums text-red-700">{live.length + proCounts.live}</span>
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-red-800">Live now</span>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-3">
-          <span className="block text-2xl font-bold tabular-nums text-gray-900">{fixtures.length + proCounts.upcoming}</span>
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-600">Upcoming</span>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-3">
-          <span className="block text-2xl font-bold tabular-nums text-gray-900">{results.length + proCounts.results}</span>
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-600">Results</span>
-        </div>
+        {([
+          { category: 'live' as const, label: 'Live now', count: live.length + proCounts.live, card: 'border-red-100 bg-red-50', number: 'text-red-700', labelStyle: 'text-red-800' },
+          { category: 'upcoming' as const, label: 'Upcoming', count: fixtures.length + proCounts.upcoming, card: 'border-gray-200 bg-white', number: 'text-gray-900', labelStyle: 'text-gray-600' },
+          { category: 'results' as const, label: 'Results', count: results.length + proCounts.results, card: 'border-gray-200 bg-white', number: 'text-gray-900', labelStyle: 'text-gray-600' },
+        ]).map((item) => (
+          <div key={item.category} className="relative min-w-0">
+            <button type="button" aria-expanded={activeOverviewMenu === item.category}
+              aria-controls={`overview-menu-${item.category}`}
+              onClick={() => setActiveOverviewMenu((current) => current === item.category ? null : item.category)}
+              className={`w-full rounded-lg border p-3 text-left transition-shadow hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600 ${item.card}`}>
+              <span className={`block text-2xl font-bold tabular-nums ${item.number}`}>{item.count}</span>
+              <span className={`block text-[11px] font-semibold uppercase tracking-wide ${item.labelStyle}`}>{item.label}</span>
+              <span className="mt-1 block text-[10px] text-gray-500">Choose sport <span aria-hidden="true">▾</span></span>
+            </button>
+            {activeOverviewMenu === item.category && (
+              <div id={`overview-menu-${item.category}`} className="absolute left-0 top-full z-30 mt-2 w-36 rounded-lg border border-gray-200 bg-white p-1.5 shadow-xl" role="group" aria-label={`${item.label}: choose a sport`}>
+                {(['soccer', 'nba', 'nfl'] as const).map((sport) => (
+                  <button key={sport} type="button" onClick={() => chooseOverviewSport(item.category, sport)}
+                    className="block w-full rounded-md px-3 py-2 text-left text-sm font-medium capitalize text-gray-700 hover:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600">
+                    {sport === 'soccer' ? 'Soccer' : sport.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
       </div>
       <nav aria-label="Live sports and score centre sections" className="mb-5 flex flex-wrap gap-2 text-xs font-semibold">
         <a href="#live-heading" className="rounded-full border border-gray-200 bg-white px-3 py-2 text-gray-700 hover:border-red-300 hover:text-red-700">Live Soccer</a>
@@ -473,7 +504,7 @@ export function FootballPage({ onBack }: FootballPageProps) {
             )}
           </section>
 
-          <ProSportsScores onCountsChange={handleProCounts} />
+          <ProSportsScores onCountsChange={handleProCounts} jumpTo={proJump} />
 
           {/* Competition filter */}
           <nav aria-label="Filter by competition" className="mb-8">
