@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';\nimport { ProSportsScores } from '@/components/ProSportsScores';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ProSportsScores } from '@/components/ProSportsScores';
 import { ArrowLeft, Radio, Clock, Info, AlertCircle, ChevronDown, MapPin, Newspaper, Users } from 'lucide-react';
 import {
   fetchMatches, fetchCompetitions, FREE_COMPETITIONS, REFRESH_INTERVAL_MS,
@@ -418,7 +419,9 @@ export function FootballPage({ onBack }: FootballPageProps) {
         <a href="#recent-sports-news" className="rounded-full border border-gray-200 bg-white px-3 py-2 text-gray-700 hover:border-red-300 hover:text-red-700">Sports news</a>
       </nav>
 
-      <ProSportsScores />\n\n      {/* Competition filter */}
+      <ProSportsScores />
+
+      {/* Competition filter */}
       <nav aria-label="Filter by competition" className="mb-8">
         <ul className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
           <li>
