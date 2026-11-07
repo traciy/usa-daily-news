@@ -273,11 +273,14 @@ const STATIC_SEO_PAGES: Record<string, StaticSeoPage> = {
     paragraphs: ["Read coverage of entertainment, arts, media, society and cultural developments in the United States and around the world."]
   },
   "/football": {
-    title: "Live Football Scores & Fixtures | USA Daily News",
-    description: "Follow live football scores, today's fixtures and recent results. Explore match timelines, team line-ups, statistics, head-to-head records and sports news.",
-    heading: "Live Football Scores, Fixtures, Results & Match Centre",
+    title: "Live Sports Scores: Soccer, NBA & NFL | USA Daily News",
+    description: "Follow live soccer, NBA basketball and NFL scores, fixtures and results, plus match reports and the latest sports news.",
+    heading: "Live Sports Scores: Soccer, NBA & NFL",
     category: "Sports",
     keywords: [
+      "live sports scores",
+      "NBA scores",
+      "NFL scores",
       "live football scores",
       "football scores today",
       "soccer live scores",
@@ -296,10 +299,10 @@ const STATIC_SEO_PAGES: Record<string, StaticSeoPage> = {
       "latest sports news"
     ],
     paragraphs: [
-      "Follow live football scores, today's soccer fixtures and recent match results from the Premier League, La Liga, Bundesliga, Serie A, Ligue 1 and the UEFA Champions League. Match cards show the full team names, competition, kickoff time, score and current match status. Live score data refreshes every 30 seconds.",
+      "Follow live NBA basketball, NFL American football and soccer scores from the Premier League, La Liga, Bundesliga, Serie A, Ligue 1 and the UEFA Champions League. Scoreboards show teams, scores, game status and upcoming fixtures, with live updates checked every 30 seconds.",
       "Open a fixture or result to explore its match centre. When the provider makes the information available, the expanded report can include goal and card events, player names, team line-ups, team statistics, match commentary, venue details, attendance, officials and previous meetings between the teams.",
       "Browse live matches, upcoming fixtures and completed results by competition. Kickoff times are displayed in your device's local timezone, and the match list is organized by competition and date to make fixtures easier to scan.",
-      "USA Daily News also publishes sports headlines and match coverage alongside its live football score centre. Match data is supplied by ESPN. Coverage, statistics and update timing can vary by competition and fixture; unavailable figures are not estimated."
+      "NBA, NFL and soccer score data is supplied by ESPN. Coverage and update timing can vary by game; unavailable figures are not estimated."
     ],
     faq: [
       {
