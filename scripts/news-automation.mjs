@@ -821,8 +821,9 @@ ${trendBrief}
 - Write in original wording; do not copy or closely paraphrase publisher sentences. Use direct quotations only when essential, accurately attributed, and supported by the evidence.
 - Add clear reader value beyond a rewritten headline or a short paraphrase: explain what changed, who is affected, why it matters to U.S. readers, and what is known about next steps, but only when the supplied evidence supports those points.
 - Do not manufacture an opinion, analysis, context, or "what it means" section from assumptions. If the evidence supports no useful explanation beyond repeating the source, omit the candidate.
-- Write a complete, clear report whose length matches the amount and quality of verified evidence. Aim for about ${ARTICLE_WORDS} words when the source supports that much detail. A concise, complete report is better than a padded long article. Google does not require a preferred word count.
-- Do not invent or infer missing background to make an article longer. Never repeat the same point in different words. If the source supports only a short update, write a short update; omit it only when the evidence is too thin to explain what happened accurately and usefully.
+- Write a substantial, original report targeting ${ARTICLE_TARGET_CHARS} to 6500 characters, including spaces. The article body must contain at least ${ARTICLE_TARGET_CHARS} characters.
+- Reach the length through genuinely useful, evidence-based reporting: explain the confirmed development, relevant verified background, key people and organizations, the timeline, what is known and not yet known, who is affected, and credible next steps or implications. Include only details supported by the supplied evidence.
+- Do not copy or closely paraphrase the source. Do not pad, repeat points, invent background, speculate, or add generic filler to reach the character target. If the evidence cannot support a complete original report of at least ${ARTICLE_TARGET_CHARS} characters, omit that story rather than publish a short or padded article.
 - Explain the confirmed event, the key people or organizations involved, relevant dates/locations, verified details, and any stated next steps or implications, but include each only when the candidate's evidence supports it.
 - Use natural paragraphs with clear transitions. Do not follow a fixed paragraph count. H2 subheadings are optional; use concise descriptive headings only when they genuinely improve navigation, especially for longer reports. Do not add headings merely to satisfy a count.
 
@@ -988,6 +989,7 @@ function validateAndNormalize(generated, sourceArticles) {
 
     const normalizedParagraphText = content.replace(/<[^>]*>/g, " ").trim();
     const wordCount = normalizedParagraphText.split(/\s+/).filter(Boolean).length;
+    const characterCount = content.trim().length;
     const descriptionLength = seoDescription.length;
     const titleLength = title.length;
     const primaryTerms = title.toLowerCase().replace(/[^a-z0-9 ]/g, " ").split(/\s+/).filter((term) => term.length > 3);
