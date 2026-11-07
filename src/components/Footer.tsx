@@ -23,6 +23,11 @@ const podcastPlatforms = [
     href: 'https://castbox.fm/channel/USA-News-Today-id7345467?country=us',
     logo: 'https://cdn.simpleicons.org/castbox/F55B23',
   },
+  {
+    name: 'X',
+    href: 'https://x.com/Usadailynews_',
+    logo: 'https://cdn.simpleicons.org/x/000000',
+  },
 ];
 
 export function Footer({ onHome }: FooterProps) {
