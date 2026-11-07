@@ -499,7 +499,10 @@ function relatedCoverageFor(article, allArticles) {
 }
 
 function sourceEvidenceText(article) {
-  return [article.title, article.description, article.content, article.article_text]
+  // The RSS publication timestamp is trusted source metadata. Include it so
+  // dates/years in an article can be checked against the publisher's feed date
+  // instead of being falsely rejected as unsupported numbers.
+  return [article.title, article.description, article.content, article.article_text, article.publishedAt]
     .filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
 }
 
