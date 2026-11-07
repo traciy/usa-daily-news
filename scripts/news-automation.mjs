@@ -544,7 +544,20 @@ function hasUnsupportedHighImpactClaim(generatedText, evidenceText) {
 }
 
 function hasUnsupportedNumbers(generatedText, evidenceText) {
-  const normalizeNumber = (value) => value.replace(/,/g, "").replace(/\.0+$/, "");
+  // Compare numeric values rather than their formatting. Gemini can write a
+  // calendar day as "06" while the source feed uses "6"; those are the same
+  // number, not an unsupported new fact. Currency and percentage markers are
+  // retained so "$6" and "6%" are not treated as interchangeable.
+  const normalizeNumber = (value) => {
+    const cleaned = String(value).replace(/,/g, "").replace(/\s+/g, "");
+    const currency = cleaned.startsWith("$") ? "$" : "";
+    const percent = cleaned.endsWith("%") ? "%" : "";
+    const numericText = cleaned.slice(currency.length, percent ? -1 : undefined);
+    const numericValue = Number(numericText);
+    return Number.isFinite(numericValue)
+      ? `${currency}${numericValue}${percent}`
+      : cleaned;
+  };
   const evidenceNumbers = new Set(
     (evidenceText.match(/\b\d[\d,]*(?:\.\d+)?%?\b|\$\s?\d[\d,]*(?:\.\d+)?/g) || [])
       .map(normalizeNumber)
