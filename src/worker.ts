@@ -1570,7 +1570,8 @@ export default {
     }
     if (url.pathname === "/api/pro-sports") {
       return handleProSportsRequest(request);
-    }\n    if (url.pathname === "/api/football") {
+    }
+    if (url.pathname === "/api/football") {
       return handleFootballRequest(request);
     }
     if (url.pathname === "/api/sports-news") {
