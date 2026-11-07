@@ -412,47 +412,12 @@ export function FootballPage({ onBack }: FootballPageProps) {
           <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-600">Results</span>
         </a>
       </div>
-      <nav aria-label="Football score centre sections" className="mb-5 flex flex-wrap gap-2 text-xs font-semibold">
-        <a href="#live-heading" className="rounded-full border border-gray-200 bg-white px-3 py-2 text-gray-700 hover:border-red-300 hover:text-red-700">Live matches</a>
-        <a href="#fixtures-heading" className="rounded-full border border-gray-200 bg-white px-3 py-2 text-gray-700 hover:border-red-300 hover:text-red-700">Upcoming fixtures</a>
-        <a href="#results-heading" className="rounded-full border border-gray-200 bg-white px-3 py-2 text-gray-700 hover:border-red-300 hover:text-red-700">Recent results</a>
-        <a href="#recent-sports-news" className="rounded-full border border-gray-200 bg-white px-3 py-2 text-gray-700 hover:border-red-300 hover:text-red-700">Sports news</a>
-      </nav>
-
-      <ProSportsScores />
-
-      {/* Competition filter */}
-      <nav aria-label="Filter by competition" className="mb-8">
-        <ul className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
-          <li>
-            <button
-              onClick={() => setActiveCom('all')}
-              className={`px-4 py-1.5 text-sm font-medium rounded-full whitespace-nowrap transition-colors ${
-                activeComp === 'all'
-                  ? 'bg-gray-900 text-white'
-                  : 'text-gray-700 hover:bg-gray-100'
-              }`}
-              aria-pressed={activeComp === 'all'}
-            >
-              All Competitions
-            </button>
-          </li>
-          {competitions.map((c) => (
-            <li key={c.code}>
-              <button
-                onClick={() => setActiveCom(c.code)}
-                className={`px-4 py-1.5 text-sm font-medium rounded-full whitespace-nowrap transition-colors ${
-                  activeComp === c.code
-                    ? 'bg-gray-900 text-white'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-                aria-pressed={activeComp === c.code}
-              >
-                {c.name}
-              </button>
-            </li>
-          ))}
-        </ul>
+      <nav aria-label="Live sports and score centre sections" className="mb-5 flex flex-wrap gap-2 text-xs font-semibold">
+        <a href="#live-heading" className="rounded-full border border-gray-200 bg-white px-3 py-2 text-gray-700 hover:border-red-300 hover:text-red-700">Live Soccer</a>
+        <a href="#us-sports-scores" className="rounded-full border border-gray-200 bg-white px-3 py-2 text-gray-700 hover:border-red-300 hover:text-red-700">NBA & NFL</a>
+        <a href="#fixtures-heading" className="rounded-full border border-gray-200 bg-white px-3 py-2 text-gray-700 hover:border-red-300 hover:text-red-700">Upcoming Fixtures</a>
+        <a href="#results-heading" className="rounded-full border border-gray-200 bg-white px-3 py-2 text-gray-700 hover:border-red-300 hover:text-red-700">Recent Results</a>
+        <a href="#recent-sports-news" className="rounded-full border border-gray-200 bg-white px-3 py-2 text-gray-700 hover:border-red-300 hover:text-red-700">Sports News</a>
       </nav>
 
       {loading && (
@@ -503,6 +468,42 @@ export function FootballPage({ onBack }: FootballPageProps) {
               <MatchList matches={live} label="Live football matches grouped by competition and date" />
             )}
           </section>
+
+          <ProSportsScores />
+
+          {/* Competition filter */}
+          <nav aria-label="Filter by competition" className="mb-8">
+            <ul className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+              <li>
+                    <button
+                      onClick={() => setActiveCom('all')}
+                      className={`px-4 py-1.5 text-sm font-medium rounded-full whitespace-nowrap transition-colors ${
+                        activeComp === 'all'
+                              ? 'bg-gray-900 text-white'
+                              : 'text-gray-700 hover:bg-gray-100'
+                      }`}
+                      aria-pressed={activeComp === 'all'}
+                    >
+                      All Competitions
+                    </button>
+              </li>
+              {competitions.map((c) => (
+                    <li key={c.code}>
+                      <button
+                        onClick={() => setActiveCom(c.code)}
+                        className={`px-4 py-1.5 text-sm font-medium rounded-full whitespace-nowrap transition-colors ${
+                              activeComp === c.code
+                                ? 'bg-gray-900 text-white'
+                                : 'text-gray-700 hover:bg-gray-100'
+                        }`}
+                        aria-pressed={activeComp === c.code}
+                      >
+                        {c.name}
+                      </button>
+                    </li>
+              ))}
+            </ul>
+          </nav>
 
           {/* Upcoming fixtures */}
           <section aria-labelledby="fixtures-heading" className="bg-white rounded-sm border border-gray-200 shadow-sm mb-8">
