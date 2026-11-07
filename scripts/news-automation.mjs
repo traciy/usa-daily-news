@@ -830,8 +830,10 @@ ${trendBrief}
 Basic SEO and presentation:
 - Write a clear, accurate headline that naturally names the main subject and important development. Keep it to 110 characters or fewer; avoid clickbait and keyword stuffing.
 - Write a concise, natural meta description that accurately summarizes the article and includes the main subject when appropriate. Do not force a character count.
-- Use the main search phrase naturally where it fits, especially in the headline and opening, without repeating it unnaturally.
-- Avoid generic introductions, repeated conclusions, padded background, sensational language, and vague phrases that add no factual value.
+- Identify one clear primary search phrase and a small set of closely related terms from the actual story. Use the primary phrase naturally in the headline, opening paragraph and, where it reads naturally, one descriptive H2; use related terms only where factually relevant.
+- Structure a 5,000+ character report with a direct opening, useful descriptive H2 subheadings, coherent paragraphs and a concise ending that explains what is confirmed and what remains unknown. Use H2s to organize real subtopics, not to repeat keywords.
+- Write a unique, accurate SEO title and a compelling but factual meta description that summarizes the specific development. Avoid keyword stuffing, repeated conclusions, generic introductions, padded background, sensational language and vague phrases that add no factual value.
+- Where the supplied evidence supports it, explain relevant entities, dates, locations, figures and context clearly so readers can understand the story without opening another article. Never add unsupported FAQ answers or fabricated internal links.
 - Use an image only when the supplied source image is relevant to the exact story; otherwise use null.
 - Make the report easy to read and explain what happened near the beginning.
 
