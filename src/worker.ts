@@ -1143,6 +1143,56 @@ async function handleSportsNewsRequest(request: Request, env: Env): Promise<Resp
   }
 }
 
+async function handleProSportsRequest(request: Request): Promise<Response> {
+  if (request.method !== "GET") return json(405, { error: "Method not allowed. Use GET." });
+  const league = new URL(request.url).searchParams.get("league");
+  if (league !== "nba" && league !== "nfl") return json(400, { error: "Choose nba or nfl." });
+  const sport = league === "nba" ? "basketball" : "football";
+  const url = new URL(`https://site.api.espn.com/apis/site/v2/sports/${sport}/${league}/scoreboard`);
+  url.searchParams.set("limit", "100");
+  const from = new Date(Date.now() - 2 * 86400000);
+  const to = new Date(Date.now() + 5 * 86400000);
+  const ymd = (date: Date) => date.getUTCFullYear().toString() + String(date.getUTCMonth() + 1).padStart(2, "0") + String(date.getUTCDate()).padStart(2, "0");
+  url.searchParams.set("dates", ymd(from) + "-" + ymd(to));
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  try {
+    const upstream = await fetch(url.toString(), {
+      signal: controller.signal,
+      headers: { Accept: "application/json" },
+      cf: { cacheTtl: 20, cacheEverything: true },
+    } as RequestInit & { cf: { cacheTtl: number; cacheEverything: boolean } });
+    if (!upstream.ok) return json(502, { error: `ESPN returned HTTP ${upstream.status}.` });
+    const data = await upstream.json() as { events?: any[] };
+    const games = (data.events ?? []).map((event: any) => {
+      const competition = event.competitions?.[0];
+      const competitors = competition?.competitors ?? [];
+      const away = competitors.find((team: any) => team.homeAway === "away") ?? competitors[1];
+      const home = competitors.find((team: any) => team.homeAway === "home") ?? competitors[0];
+      const status = competition?.status ?? event.status ?? {};
+      return {
+        id: String(event.id),
+        name: event.name ?? event.shortName ?? "Game",
+        away: away?.team?.displayName ?? away?.team?.name ?? "Away team",
+        home: home?.team?.displayName ?? home?.team?.name ?? "Home team",
+        awayLogo: away?.team?.logo ?? undefined,
+        homeLogo: home?.team?.logo ?? undefined,
+        awayScore: away?.score ?? undefined,
+        homeScore: home?.score ?? undefined,
+        status: status.type?.name ?? "Scheduled",
+        detail: status.type?.shortDetail ?? status.type?.detail ?? status.displayClock ?? "",
+        date: event.date ?? new Date().toISOString(),
+      };
+    }).sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    return json(200, { games });
+  } catch (error) {
+    console.error("Pro sports scoreboard failed:", error);
+    return json(502, { error: "The ESPN scoreboard is temporarily unavailable." });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function handleFootballRequest(request: Request): Promise<Response> {
   if (request.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: corsHeaders });
@@ -1515,7 +1565,7 @@ export default {
     if (url.pathname === "/api/google-trends" && request.method === "GET") {
       return handleGoogleTrends();
     }
-    if (url.pathname === "/api/football") {
+    if (url.pathname === "/api/pro-sports") {\n      return handleProSportsRequest(request);\n    }\n    if (url.pathname === "/api/football") {
       return handleFootballRequest(request);
     }
     if (url.pathname === "/api/sports-news") {
