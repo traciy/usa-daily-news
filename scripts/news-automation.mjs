@@ -557,6 +557,13 @@ function hasUnsupportedHighImpactClaim(generatedText, evidenceText) {
 }
 
 function hasUnsupportedNumbers(generatedText, evidenceText) {
+  // Numbers in a hyperlink destination are URL identifiers, dates or tracking
+  // parameters, not claims made in the article. Keep the visible link text and
+  // remove only the URL target before checking factual numbers.
+  const stripLinkDestinations = (value) => String(value || "")
+    .replace(/\[([^\]]+)\]\(\s*https?:\/\/[^\s)]+\s*\)/gi, "$1")
+    .replace(/\bhttps?:\/\/[^\s)>]+/gi, "");
+
   // Compare numeric values rather than their formatting. Gemini can write a
   // calendar day as "06" while the source feed uses "6"; those are the same
   // number, not an unsupported new fact. Currency and percentage markers are
@@ -575,7 +582,8 @@ function hasUnsupportedNumbers(generatedText, evidenceText) {
     (evidenceText.match(/\b\d[\d,]*(?:\.\d+)?%?\b|\$\s?\d[\d,]*(?:\.\d+)?/g) || [])
       .map(normalizeNumber)
   );
-  const generatedNumbers = (generatedText.match(/\b\d[\d,]*(?:\.\d+)?%?\b|\$\s?\d[\d,]*(?:\.\d+)?/g) || [])
+  const factualText = stripLinkDestinations(generatedText);
+  const generatedNumbers = (factualText.match(/\b\d[\d,]*(?:\.\d+)?%?\b|\$\s?\d[\d,]*(?:\.\d+)?/g) || [])
     .map(normalizeNumber);
   return generatedNumbers.find((number) => !evidenceNumbers.has(number)) || "";
 }
