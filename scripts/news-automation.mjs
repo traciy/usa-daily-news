@@ -8,7 +8,7 @@ import { readFile } from "node:fs/promises";
 
 const MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
 const ARTICLE_COUNT = positiveInteger(process.env.ARTICLE_COUNT, 10);
-const ARTICLE_TARGET_CHARS = positiveInteger(process.env.ARTICLE_TARGET_CHARS, 5000);
+const ARTICLE_TARGET_CHARS = Math.max(5000, positiveInteger(process.env.ARTICLE_TARGET_CHARS, 5000));
 const PUBLISH_ENABLED = String(process.env.PUBLISH_ENABLED).toLowerCase() === "true";
 
 function positiveInteger(value, fallback) {
@@ -1643,6 +1643,17 @@ async function main() {
   }
 
   articles = validateAndNormalize(generated, sourceArticles);
+
+  // Final non-bypassable publishing gate: every article body must contain at least
+  // 5,000 characters, regardless of provider or any earlier validation path.
+  const shortArticles = articles.filter((article) =>
+    typeof article.content !== "string" || article.content.trim().length < 5000
+  );
+  if (shortArticles.length > 0) {
+    throw new Error(
+      "Publishing blocked: " + shortArticles.length + " article(s) are below the absolute 5,000-character minimum. Nothing will be published."
+    );
+  }
 
   const minimumArticles = positiveInteger(process.env.MIN_ARTICLES, 1);
   console.log(`${generationProvider} generated ${generated.length} result(s); ${articles.length} article(s) passed validation.`);
