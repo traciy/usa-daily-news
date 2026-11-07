@@ -717,9 +717,11 @@ async function getHeadlines(publishedArticles = [], trendTopics = []) {
   }
   // Keep the Gemini/free-tier workload bounded while prioritizing U.S.-relevant coverage.
   const recent = [...editorialArticles].sort((a, b) => (Date.parse(b.publishedAt || "") || 0) - (Date.parse(a.publishedAt || "") || 0));
-  // Round-robin by publisher country so high-volume US/UK feeds cannot crowd out other markets.
-  const generalNews = selectBalancedByCountry(recent.filter((item) => item.source_category !== "Sports"), 20);
-  const sports = selectBalancedByCountry(recent.filter((item) => item.source_category === "Sports"), 20);
+  // Build a US-first candidate pool for this US-focused publication. The previous
+  // country round-robin often pushed most US reporting out before Gemini could assess it.
+  // Keep some international coverage for stories with a demonstrable US connection.
+  const generalNews = selectUsPublisherFirst(recent.filter((item) => item.source_category !== "Sports"), 20, trendTopics);
+  const sports = selectUsPublisherFirst(recent.filter((item) => item.source_category === "Sports"), 20, trendTopics);
   const selected = [...generalNews, ...sports].sort((a, b) => (Date.parse(b.publishedAt || "") || 0) - (Date.parse(a.publishedAt || "") || 0));
   const countries = [...new Set(selected.map((item) => item.source?.country).filter(Boolean))];
   console.log("Gemini candidate limit: " + selected.length + " stories (maximum 20 general news + 20 sports) from " + countries.length + " countries/regions: " + countries.join(", ") + ".");
@@ -743,6 +745,12 @@ async function getHeadlines(publishedArticles = [], trendTopics = []) {
   console.log("Evidence-qualified country coverage: " + evidenceCountries.length + " countries/regions: " + evidenceCountries.join(", "));
   console.log("Publisher page enrichment: " + fullTextCount + " of " + withCoverage.length + " stories have full article text.");
   console.log("Evidence-qualified stories sent to Gemini: " + evidenceEligible.length + " (minimum 800 distinct source characters).");
+  console.log("Selected story evidence: " + evidenceEligible.map((item) => ({
+    publisher: item.source?.name || "Unknown",
+    publisherCountry: item.source?.country || "Unknown",
+    characters: sourceEvidenceText(item).length,
+    title: item.title,
+  })).map((item) => item.publisher + " [" + item.publisherCountry + ", " + item.characters + " chars]: " + item.title).join(" | "));
   if (evidenceEligible.length === 0) {
     throw new Error("No stories have enough source material (800 distinct characters). RSS feeds are returning summaries or publishers are blocking article retrieval; no weak articles will be generated.");
   }
