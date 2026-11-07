@@ -136,9 +136,7 @@ function injectArticleSeo(documentHtml: string, article: SeoArticle, relatedArti
       htmlEscape(article.title + " — " + article.category + " news") +
       '" title="' + htmlEscape(article.title) + '" width="1600" height="900" sizes="(max-width: 768px) 100vw, 768px" loading="eager" fetchpriority="high" decoding="async"></figure>' : "") +
     "<div>" + renderArticleMarkdown(article.content || "") + "</div>" +
-    (article.source_url && (article.source_url.startsWith("https://") || article.source_url.startsWith("http://"))
-      ? '<p class="seo-source"><a href="' + htmlEscape(article.source_url) + '" target="_blank" rel="noopener noreferrer">Read the original source report</a></p>'
-      : "") +
+
     (relatedArticles.length
       ? '<section class="seo-related" aria-labelledby="seo-related-heading"><h2 id="seo-related-heading">Related stories</h2><ul>' +
         relatedArticles.map((related) => '<li><a href="' + SITE_URL + '/article/' + encodeURIComponent(String(related.id)) + '">' +
