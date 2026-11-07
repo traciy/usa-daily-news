@@ -532,6 +532,8 @@ export function FootballPage({ onBack }: FootballPageProps) {
             )}
           </section>
 
+          <RecentSportsNews />
+
           <section className="mt-8 rounded-lg border border-gray-200 bg-white p-5 sm:p-6" aria-labelledby="football-info-heading">
             <h2 id="football-info-heading" className="mb-3 text-xl font-serif font-bold text-gray-900">
               Football Scores, Fixtures & Match Analysis
@@ -559,7 +561,6 @@ export function FootballPage({ onBack }: FootballPageProps) {
             </div>
           </section>        </>
       )}
-      <RecentSportsNews />
     </div>
   );
 }
