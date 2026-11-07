@@ -551,7 +551,7 @@ function hasUnsupportedHighImpactClaim(generatedText, evidenceText) {
     ["injury or hospitalization", /\b(injured|wounded|hospitali[sz]ed|critical condition|surgery)\b/i],
     ["arrest or detention", /\b(arrested|detained|taken into custody)\b/i],
     ["criminal charge or conviction", /\b(charged|indicted|convicted|sentenced|acquitted)\b/i],
-    ["court ruling", /\b(ruled|ruling|throws? out|dismissed|overturned|blocked)\b/i],
+    ["court ruling", /\b(?:court|judge|tribunal|appeals court|supreme court)\s+(?:has\s+)?(?:ruled|rules|ruling|blocked|dismissed|overturned)|\b(?:court|judge)\s+(?:decision|order|ruling)\b|\b(?:lawsuit|legal challenge|case|charges?)\s+(?:was|were|has been|have been)?\s*(?:dismissed|thrown out|overturned)\b|\b(?:judge|court)\s+(?:threw out|dismissed|overturned)\b|\binjunction\b/i],
     ["election result", /\b(?:election\s+(?:results?|winner)|(?:won|wins|lost|loses|defeated)\s+(?:the\s+)?(?:(?:presidential|gubernatorial|mayoral|senate|congressional)\s+)?(?:election|race|primary|runoff)|elects?\s+(?:(?:the|its|his|her|their)\s+)?(?:(?:first|new)\s+)?(?:(?:woman|female|male)\s+)?(?:president|governor|mayor|senator|representative|leader)|(?:elected|reelected|re-elected)\s+(?:(?:as|to)\s+)?(?:president|governor|mayor|senator|representative|leader))\b/i],
     ["endorsement", /\b(endorsed|endorsement|backs|backed)\b/i],
     ["job losses", /\b(layoffs?|laid off|job cuts|cuts? jobs)\b/i],
@@ -590,10 +590,41 @@ function hasUnsupportedNumbers(generatedText, evidenceText) {
     (evidenceText.match(/\b\d[\d,]*(?:\.\d+)?%?\b|\$\s?\d[\d,]*(?:\.\d+)?/g) || [])
       .map(normalizeNumber)
   );
+
+  // Publishers often spell out a number ("seven") while an article renders it
+  // as a digit ("7"). Treat those as the same evidence, including common
+  // ordinal words, without treating vague words such as "several" as numbers.
+  const numberWords = {
+    zero: "0", one: "1", two: "2", three: "3", four: "4", five: "5",
+    six: "6", seven: "7", eight: "8", nine: "9", ten: "10",
+    eleven: "11", twelve: "12", thirteen: "13", fourteen: "14",
+    fifteen: "15", sixteen: "16", seventeen: "17", eighteen: "18",
+    nineteen: "19", twenty: "20", thirty: "30", forty: "40",
+    fifty: "50", sixty: "60", seventy: "70", eighty: "80", ninety: "90",
+    first: "1", second: "2", third: "3", fourth: "4", fifth: "5",
+    sixth: "6", seventh: "7", eighth: "8", ninth: "9", tenth: "10",
+    eleventh: "11", twelfth: "12", thirteenth: "13", fourteenth: "14",
+    fifteenth: "15", sixteenth: "16", seventeenth: "17", eighteenth: "18",
+    nineteenth: "19", twentieth: "20",
+  };
+  for (const match of String(evidenceText || "").toLowerCase().matchAll(
+    /\\b(zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth|thirteenth|fourteenth|fifteenth|sixteenth|seventeenth|eighteenth|nineteenth|twentieth)\\b/g
+  )) {
+    evidenceNumbers.add(normalizeNumber(numberWords[match[1]]));
+  }
+
   const factualText = stripLinkDestinations(generatedText);
-  const generatedNumbers = (factualText.match(/\b\d[\d,]*(?:\.\d+)?%?\b|\$\s?\d[\d,]*(?:\.\d+)?/g) || [])
-    .map(normalizeNumber);
-  return generatedNumbers.find((number) => !evidenceNumbers.has(number)) || "";
+  const numberPattern = /\\b\\d[\\d,]*(?:\\.\\d+)?%?\\b|\\$\\s?\\d[\\d,]*(?:\\.\\d+)?/g;
+  for (const match of factualText.matchAll(numberPattern)) {
+    const number = normalizeNumber(match[0]);
+    if (!evidenceNumbers.has(number)) {
+      const start = Math.max(0, match.index - 45);
+      const end = Math.min(factualText.length, match.index + match[0].length + 45);
+      const context = factualText.slice(start, end).replace(/\\s+/g, " ").trim();
+      return number + ' near "' + context + '"';
+    }
+  }
+  return "";
 }
 
 function titleSimilarity(first, second) {
