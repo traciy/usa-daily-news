@@ -608,19 +608,19 @@ function hasUnsupportedNumbers(generatedText, evidenceText) {
     nineteenth: "19", twentieth: "20",
   };
   for (const match of String(evidenceText || "").toLowerCase().matchAll(
-    /\\b(zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth|thirteenth|fourteenth|fifteenth|sixteenth|seventeenth|eighteenth|nineteenth|twentieth)\\b/g
+    /\b(zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth|thirteenth|fourteenth|fifteenth|sixteenth|seventeenth|eighteenth|nineteenth|twentieth)\b/g
   )) {
     evidenceNumbers.add(normalizeNumber(numberWords[match[1]]));
   }
 
   const factualText = stripLinkDestinations(generatedText);
-  const numberPattern = /\\b\\d[\\d,]*(?:\\.\\d+)?%?\\b|\\$\\s?\\d[\\d,]*(?:\\.\\d+)?/g;
+  const numberPattern = /\b\d[\d,]*(?:\\.\d+)?%?\b|\\$\s?\d[\d,]*(?:\\.\d+)?/g;
   for (const match of factualText.matchAll(numberPattern)) {
     const number = normalizeNumber(match[0]);
     if (!evidenceNumbers.has(number)) {
       const start = Math.max(0, match.index - 45);
       const end = Math.min(factualText.length, match.index + match[0].length + 45);
-      const context = factualText.slice(start, end).replace(/\\s+/g, " ").trim();
+      const context = factualText.slice(start, end).replace(/\s+/g, " ").trim();
       return number + ' near "' + context + '"';
     }
   }
