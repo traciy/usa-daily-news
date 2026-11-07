@@ -324,13 +324,24 @@ function truncateDescription(value, maximum = 180) {
 function normalizeSeoDescription(candidate, content) {
   const candidateText = plainDescriptionText(candidate);
   const contentText = plainDescriptionText(content);
-  const candidateSentence = candidateText.match(/^.{40,}?[.!?](?=\s|$)/)?.[0]?.trim() || "";
-  const contentSentence = contentText.match(/^.{40,}?[.!?](?=\s|$)/)?.[0]?.trim() || "";
+  const candidateSentence = candidateText.match(/^.{50,}?[.!?](?=\s|$)/)?.[0]?.trim() || "";
+  const contentSentence = contentText.match(/^.{50,}?[.!?](?=\s|$)/)?.[0]?.trim() || "";
   const candidateIsComplete = candidateText.length >= 60 &&
     /[.!?…][”’"')\]]?$/.test(candidateText) &&
     !/\b(?:current ad|advertisement|sponsored content|subscribe now|sign up now|download our app|click here to continue)\b/i.test(candidateText);
-  const selected = candidateIsComplete ? (candidateSentence || candidateText) : (contentSentence || contentText || candidateText);
-  return truncateDescription(selected, 180);
+
+  // Prefer a complete 50+ character summary. If Gemini supplies a fragment,
+  // derive a factual description from the article's own opening instead.
+  let selected = candidateIsComplete
+    ? (candidateSentence || candidateText)
+    : (contentSentence || contentText || candidateText);
+  if (selected.length < 50 && contentText.length >= 50) selected = contentText;
+
+  let description = truncateDescription(selected, 180).trim();
+  if (description.length >= 50 && !/[.!?…][”’"')\]]?$/.test(description)) {
+    description = truncateDescription(description, 179).replace(/[.!?…]+$/, "").trimEnd() + ".";
+  }
+  return description;
 }
 
 function getXmlTag(block, tagNames) {
@@ -508,7 +519,9 @@ function sourceEvidenceText(article) {
 
 function highImpactTopic(generatedText) {
   const groups = [
-    ["death or fatality", /\b(died|death|dead|killed|kills|fatal|fatalities)\b/i],
+    // "Death row", "death penalty" and "death sentence" are legal-policy topics,
+    // not evidence that a person has died. Keep actual death/fatality reports held.
+    ["death or fatality", /\b(died|death(?!\s+(?:row|penalty|sentence))|dead|killed|kills|fatal|fatalities)\b/i],
     ["injury or hospitalization", /\b(injured|wounded|hospitali[sz]ed|critical condition|surgery)\b/i],
     ["arrest or detention", /\b(arrested|detained|taken into custody)\b/i],
     ["criminal charge or conviction", /\b(charged|indicted|convicted|sentenced|acquitted)\b/i],
@@ -855,7 +868,7 @@ ${trendBrief}
 
 Basic SEO and presentation:
 - Write a clear, accurate headline that naturally names the main subject and important development. Keep it to 110 characters or fewer; avoid clickbait and keyword stuffing.
-- Write a concise, natural meta description that accurately summarizes the article and includes the main subject when appropriate. Do not force a character count.
+- Write one complete, factual meta description of 50-160 characters. It must accurately summarize the article and include the main subject when appropriate; never return a fragment or a few words.
 - Identify one clear primary search phrase and a small set of closely related terms from the actual story. Use the primary phrase naturally in the headline, opening paragraph and, where it reads naturally, one descriptive H2; use related terms only where factually relevant.
 - Structure a 2,500+ character report with a direct opening, useful descriptive H2 subheadings, coherent paragraphs and a concise ending that explains what is confirmed and what remains unknown. Use H2s to organize real subtopics, not to repeat keywords.
 - Write a unique, accurate SEO title and a compelling but factual meta description that summarizes the specific development. Avoid keyword stuffing, repeated conclusions, generic introductions, padded background, sensational language and vague phrases that add no factual value.
