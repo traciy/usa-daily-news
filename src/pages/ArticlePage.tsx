@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, ExternalLink, Share2 } from 'lucide-react';
+import { ArrowLeft, Share2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { createSeoDescription, createSeoTitle, useSeo } from '@/lib/seo';
 import { useMarkdown } from '@/lib/markdown';
@@ -258,18 +258,6 @@ export function ArticlePage({ id, onBack }: ArticlePageProps) {
         dangerouslySetInnerHTML={{ __html: html }}
       />
 
-      {safeSourceUrl && (
-        <div className="mt-10 pt-6 border-t border-gray-200">
-          <a
-            href={safeSourceUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-sm text-blue-700 hover:text-blue-900 hover:underline"
-          >
-            Read the original source report <ExternalLink className="h-3.5 w-3.5" />
-          </a>
-        </div>
-      )}
 
       {recommended.length > 0 && (
         <section className="mt-12 border-t-2 border-gray-900 pt-6" aria-labelledby="recommended-stories-heading">
