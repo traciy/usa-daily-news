@@ -517,10 +517,11 @@ function sourceEvidenceText(article) {
     .filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
 }
 
-function highImpactTopic(generatedText) {
+function highImpactTopic(generatedText, headline = "") {
   const groups = [
-    // "Death row", "death penalty" and "death sentence" are legal-policy topics,
-    // not evidence that a person has died. Keep actual death/fatality reports held.
+    // Hold reports about actual deaths and fatal incidents. Scientific or
+    // archaeological stories about ancient remains/long-extinct populations
+    // can mention death without reporting a current fatality event.
     ["death or fatality", /\b(died|death(?!\s+(?:row|penalty|sentence))|dead|killed|kills|fatal|fatalities)\b/i],
     ["injury or hospitalization", /\b(injured|wounded|hospitali[sz]ed|critical condition|surgery)\b/i],
     ["arrest or detention", /\b(arrested|detained|taken into custody)\b/i],
@@ -531,8 +532,15 @@ function highImpactTopic(generatedText) {
     ["job losses", /\b(layoffs?|laid off|job cuts|cuts? jobs)\b/i],
     ["financial distress", /\b(bankrupt|bankruptcy|insolvent|defaulted)\b/i],
   ];
+  const historicalScienceStory = /\b(?:\d[\d,]*-year-old|ancient|prehistoric|fossil|archaeolog(?:y|ical|ist)|paleontolog(?:y|ical)|hominin|hominid)\b/i.test(
+    String(headline) + " " + String(generatedText).slice(0, 1800)
+  );
   for (const [label, pattern] of groups) {
-    if (pattern.test(generatedText)) return label;
+    if (!pattern.test(generatedText)) continue;
+    // Do not send palaeontology/archaeology stories to the breaking-death review
+    // queue merely because the report discusses long-deceased ancient humans.
+    if (label === "death or fatality" && historicalScienceStory) continue;
+    return label;
   }
   return "";
 }
@@ -1154,7 +1162,7 @@ function validateAndNormalize(generated, sourceArticles) {
     // Publisher article text is preferred; substantial RSS content is an acceptable fallback.
     const hasSubstantialEvidence = evidenceLength >= 800;
     const generatedText = title + " " + content + " " + seoDescription;
-    const heldForHumanReview = highImpactTopic(generatedText);
+    const heldForHumanReview = highImpactTopic(generatedText, title);
     const unsupportedClaim = hasUnsupportedHighImpactClaim(generatedText, evidenceText);
     const unsupportedNumber = hasUnsupportedNumbers(generatedText, evidenceText);
     const sourceName = String(original.source?.name || "").replace(/\s*\(.+\)\s*$/, "").trim();
@@ -1714,15 +1722,29 @@ async function main() {
     if (generationProvider !== "Gemini") throw validationError;
     console.warn("No article from the first Gemini batch passed editorial checks. Requesting one replacement batch and excluding rejected stories: " +
       (validationError?.message || validationError));
+    const rejectionText = String(validationError?.message || validationError);
+    const rejectedSources = sourceArticles.filter((source) =>
+      source.title && rejectionText.includes(source.title)
+    );
+    const rejectedKeys = new Set(rejectedSources.map((source) => normalizedUrl(source.url)));
+    const replacementSources = sourceArticles.filter((source) =>
+      !rejectedKeys.has(normalizedUrl(source.url))
+    );
+    if (rejectedSources.length === 0 || replacementSources.length === 0) {
+      throw validationError;
+    }
+    console.warn("Excluding " + rejectedSources.length +
+      " previously rejected source candidate(s); " + replacementSources.length +
+      " alternative candidate(s) remain for replacement generation.");
     generated = await generateArticles(
       geminiApiKey,
-      sourceArticles,
-      String(validationError?.message || validationError).slice(0, 1200),
+      replacementSources,
+      rejectionText.slice(0, 1200),
       "gemini",
       trendTopics
     );
-    generated = await expandShortArticles(geminiApiKey, generated, sourceArticles);
-    articles = validateAndNormalize(generated, sourceArticles);
+    generated = await expandShortArticles(geminiApiKey, generated, replacementSources);
+    articles = validateAndNormalize(generated, replacementSources);
   }
 
   // Final non-bypassable publishing gate: every article body must contain at least
