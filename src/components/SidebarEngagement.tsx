@@ -168,7 +168,7 @@ export function SidebarEngagement({ onOpenArticle }: { onOpenArticle: (id: numbe
                 <button type="button" onClick={() => onOpenArticle(story.id)} className="min-w-0 text-left">
                   <span className="block text-sm font-semibold leading-snug text-gray-800 hover:text-red-700">{story.title}</span>
                   <span className="mt-1 block text-[11px] text-gray-500">
-                    {story.isRecentFallback ? 'Latest story' : story.view_count.toLocaleString() + ' reads'} · {story.category}
+                    {story.isRecentFallback ? 'Latest story' : 'Trending story'} · {story.category}
                   </span>
                 </button>
               </li>
