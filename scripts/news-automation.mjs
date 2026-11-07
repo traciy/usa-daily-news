@@ -816,7 +816,7 @@ ${trendBrief}
 - Do not create an article from a trend alone. Every published fact must still come from that candidate's own supplied publisher evidence.
 - Do not claim that a trend is newsworthy merely because it is popular. Ignore unrelated or weak matches.
 - Use only facts explicitly supported by that candidate's own evidence. Do not use another candidate as corroboration or borrow facts from it.
-- Attribute the central report to the named publisher in the opening paragraph and use the exact supplied source_url. Keep that source link visible to readers.
+- Attribute the central report to the named publisher in the opening paragraph. Make the publisher's name itself a natural, clickable Markdown hyperlink to that candidate's exact supplied source_url, for example: `according to [Reuters](https://the-exact-source-article-url)`. The link must appear inside the opening paragraph as part of an ordinary sentence, not only in a separate source list or footer. Do not link to a publisher homepage, invent a URL, or link a different publisher.
 - Do not invent an author, reporter, eyewitness, exclusive access, interview, or original on-the-ground reporting. Do not imply USA Daily News independently witnessed or verified events unless the evidence says so.
 - Write in original wording; do not copy or closely paraphrase publisher sentences. Use direct quotations only when essential, accurately attributed, and supported by the evidence.
 - Add clear reader value beyond a rewritten headline or a short paraphrase: explain what changed, who is affected, why it matters to U.S. readers, and what is known about next steps, but only when the supplied evidence supports those points.
@@ -911,6 +911,25 @@ ${compactRetryFeedback ? "\nRETRY GUIDANCE FROM THE PREVIOUS ATTEMPT:\n" + compa
   return parsed;
 }
 
+function ensureInlineSourceLink(markdown, publisherName, sourceUrl) {
+  const text = String(markdown || "");
+  const name = String(publisherName || "").trim();
+  const url = String(sourceUrl || "").trim();
+  if (!name || !/^https?:\/\//i.test(url)) return text;
+
+  const index = text.toLowerCase().indexOf(name.toLowerCase());
+  if (index < 0) return text;
+  const afterName = index + name.length;
+
+  // If the publisher is already linked, make sure it points to this exact source article.
+  if (text[index - 1] === "[" && text[afterName] === "]" && text.slice(afterName + 1, afterName + 3) === "](") {
+    const close = text.indexOf(")", afterName + 3);
+    if (close !== -1) return text.slice(0, afterName + 2) + "(" + url + ")" + text.slice(close + 1);
+  }
+
+  return text.slice(0, index) + "[" + text.slice(index, afterName) + "](" + url + ")" + text.slice(afterName);
+}
+
 function normalizedParagraphs(markdown) {
   return String(markdown || "").split(/\n{2,}/)
     .map((part) => part.replace(/[#*_>]/g, " ").replace(/[^a-z0-9 ]/gi, " ").replace(/\s+/g, " ").trim().toLowerCase())
@@ -960,8 +979,9 @@ function validateAndNormalize(generated, sourceArticles) {
     const heldForHumanReview = highImpactTopic(generatedText);
     const unsupportedClaim = hasUnsupportedHighImpactClaim(generatedText, evidenceText);
     const unsupportedNumber = hasUnsupportedNumbers(generatedText, evidenceText);
-    const sourceName = String(original.source?.name || "").replace(/\s*\(.+\)\s*$/, "").trim().toLowerCase();
-    const attributedInOpening = sourceName && content.slice(0, 700).toLowerCase().includes(sourceName);
+    const sourceName = String(original.source?.name || "").replace(/\s*\(.+\)\s*$/, "").trim();
+    const attributedInOpening = sourceName && content.slice(0, 700).toLowerCase().includes(sourceName.toLowerCase());
+    const contentWithInlineSource = ensureInlineSourceLink(content, sourceName, original.url);
     const duplicateCoverage = validated.some((existing) => titleSimilarity(existing.title, title) >= 0.7);
     const paragraphs = normalizedParagraphs(content);
     const repeatedParagraphs = paragraphs.length > 1 && new Set(paragraphs).size < paragraphs.length;
@@ -1027,7 +1047,7 @@ function validateAndNormalize(generated, sourceArticles) {
     seenSources.add(sourceKey);
     validated.push({
       title,
-      content,
+      content: contentWithInlineSource,
       category,
       source_url: original.url,
       image_url: isUsableArticleImage(original.urlToImage) ? original.urlToImage : null,
