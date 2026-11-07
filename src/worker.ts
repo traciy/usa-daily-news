@@ -1568,7 +1568,9 @@ export default {
     if (url.pathname === "/api/google-trends" && request.method === "GET") {
       return handleGoogleTrends();
     }
-    if (url.pathname === "/api/pro-sports") {\n      return handleProSportsRequest(request);\n    }\n    if (url.pathname === "/api/football") {
+    if (url.pathname === "/api/pro-sports") {
+      return handleProSportsRequest(request);
+    }\n    if (url.pathname === "/api/football") {
       return handleFootballRequest(request);
     }
     if (url.pathname === "/api/sports-news") {
