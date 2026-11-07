@@ -375,22 +375,8 @@ export function FootballPage({ onBack }: FootballPageProps) {
         '@type': 'ListItem',
         position: index + 1,
         url: `${canonicalUrl}#match-${match.id}`,
-        item: {
-          '@type': 'SportsEvent',
-          name: `${match.homeTeam} vs ${match.awayTeam}`,
-          sport: 'Soccer',
-          startDate: match.utcDate,
-          homeTeam: { '@type': 'SportsTeam', name: match.homeTeam },
-          awayTeam: { '@type': 'SportsTeam', name: match.awayTeam },
-          eventStatus: match.status === 'FINISHED'
-            ? 'https://schema.org/EventCompleted'
-            : isLive(match.status)
-              ? 'https://schema.org/EventInProgress'
-              : ['CANCELLED', 'POSTPONED'].includes(match.status)
-                ? 'https://schema.org/EventCancelled'
-                : 'https://schema.org/EventScheduled',
-          description: `${match.competition}: ${match.homeTeam} vs ${match.awayTeam}${match.homeScore !== null && match.awayScore !== null ? `, score ${match.homeScore}-${match.awayScore}` : ''}`,
-        },
+        name: `${match.homeTeam} vs `${match.awayTeam}`,
+        description: `${match.competition}: `${match.homeTeam} vs `${match.awayTeam}`${match.homeScore !== null && match.awayScore !== null ? `, score ${match.homeScore}-${match.awayScore}` : ''}`,,
       })),
     },
   ]), [seoTitle, seoDescription, canonicalUrl, live, fixtures, results]);
