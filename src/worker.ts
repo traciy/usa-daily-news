@@ -1151,12 +1151,10 @@ async function handleProSportsRequest(request: Request): Promise<Response> {
   const league = new URL(request.url).searchParams.get("league");
   if (league !== "nba" && league !== "nfl") return json(400, { error: "Choose nba or nfl." });
   const sport = league === "nba" ? "basketball" : "football";
+  // ESPN's scoreboard endpoint returns HTTP 400 for broad date ranges.
+  // Use its current scoreboard feed; it includes the current slate and live status.
   const url = new URL(`https://site.api.espn.com/apis/site/v2/sports/${sport}/${league}/scoreboard`);
   url.searchParams.set("limit", "100");
-  const from = new Date(Date.now() - 2 * 86400000);
-  const to = new Date(Date.now() + 5 * 86400000);
-  const ymd = (date: Date) => date.getUTCFullYear().toString() + String(date.getUTCMonth() + 1).padStart(2, "0") + String(date.getUTCDate()).padStart(2, "0");
-  url.searchParams.set("dates", ymd(from) + "-" + ymd(to));
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
