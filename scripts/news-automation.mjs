@@ -932,16 +932,18 @@ async function expandShortArticles(geminiApiKey, generated, sourceArticles) {
   const sourceByUrl = new Map(sourceArticles.map((article) => [normalizedUrl(article.url), article]));
   const expanded = [];
   let expansionCalls = 0;
-  const maximumExpansions = Math.min(5, ARTICLE_COUNT);
+  const maximumExpansions = Math.min(10, ARTICLE_COUNT);
+  const maximumAttemptsPerStory = 3;
 
   for (const draft of generated) {
-    const draftContent = typeof draft?.content === "string" ? draft.content.trim() : "";
+    let workingDraft = draft;
+    let draftContent = typeof workingDraft?.content === "string" ? workingDraft.content.trim() : "";
     if (draftContent.length >= ARTICLE_TARGET_CHARS) {
-      expanded.push(draft);
+      expanded.push(workingDraft);
       continue;
     }
 
-    const source = sourceByUrl.get(normalizedUrl(draft?.source_url));
+    const source = sourceByUrl.get(normalizedUrl(workingDraft?.source_url));
     if (!source || expansionCalls >= maximumExpansions) {
       console.warn("Short draft not expanded: no matching source or the per-run expansion limit was reached.");
       continue;
@@ -953,20 +955,29 @@ async function expandShortArticles(geminiApiKey, generated, sourceArticles) {
       continue;
     }
 
-    expansionCalls += 1;
-    console.log("Focused expansion " + expansionCalls + "/" + maximumExpansions + " for: " + source.title +
-      " (draft " + draftContent.length + " characters; source evidence " + evidence.length + " characters).");
+    let accepted = false;
+    for (let attempt = 1; attempt <= maximumAttemptsPerStory; attempt += 1) {
+      if (expansionCalls >= maximumExpansions) break;
+      expansionCalls += 1;
+      console.log("Focused expansion " + expansionCalls + "/" + maximumExpansions +
+        " (attempt " + attempt + "/" + maximumAttemptsPerStory + ") for: " + source.title +
+        " (draft " + draftContent.length + " characters; source evidence " + evidence.length + " characters).");
 
-    const prompt = `You are the senior editor of USA Daily News. Expand ONE existing news draft into a complete, accurate report.
+      const prompt = `You are the senior editor of USA Daily News. Expand ONE existing news draft into a complete, accurate report.
 
-STRICT REQUIREMENTS:
-- The final Markdown body must contain at least ${ARTICLE_TARGET_CHARS} characters, counting spaces and Markdown. Aim for 5,800-6,200 characters.
+ABSOLUTE LENGTH REQUIREMENT:
+- Return a Markdown article body of at least ${ARTICLE_TARGET_CHARS} characters. This is a hard publishing requirement, not a suggestion.
+- Aim for 5,800-6,200 characters so the article remains above the limit after editing.
+- Before returning JSON, count the content characters. If it is below ${ARTICLE_TARGET_CHARS}, continue developing supported details until it passes.
+- A response below ${ARTICLE_TARGET_CHARS} will be rejected and retried. Do not return a short draft.
+
+ACCURACY:
 - Use only facts explicitly supported by the source evidence below. The existing draft is a starting structure, not additional evidence.
 - Do not invent facts, dates, numbers, quotes, motives, background, consequences, reactions, or next steps.
 - Add detail by explaining the documented event, sequence, named people and organizations, figures, decisions, and directly stated implications. Distinguish confirmed facts from unknowns.
 - Do not repeat paragraphs, pad with generic context, or restate the same point to reach the length.
-- If the supplied evidence cannot honestly support 5,000 characters, return an empty array. A short article is better than a fabricated or padded one.
-- Keep the original exact source_url, a factual headline under 110 characters, valid category, and concise SEO description.
+- If the supplied evidence cannot honestly support 5,000 characters, return an empty array. A short article is better than fabricated or padded reporting.
+- Keep the original exact source_url, factual headline under 110 characters, valid category, and concise SEO description.
 - Attribute the publisher in the opening paragraph and link its name to the exact source URL.
 - Return only a valid JSON array containing exactly one object with these keys: title, content, category, source_url, image_url, seo_description. If evidence is insufficient, return [].
 
@@ -982,47 +993,61 @@ ${draftContent}
 
 Existing metadata:
 ${JSON.stringify({
-      title: draft.title,
-      category: draft.category,
-      source_url: draft.source_url,
-      image_url: draft.image_url ?? null,
-      seo_description: draft.seo_description,
-    })}`;
+        title: workingDraft.title,
+        category: workingDraft.category,
+        source_url: workingDraft.source_url,
+        image_url: workingDraft.image_url ?? null,
+        seo_description: workingDraft.seo_description,
+      })}
 
-    try {
-      const response = await fetchWithRetry(
-        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(MODEL)}:generateContent`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "x-goog-api-key": geminiApiKey },
-          body: JSON.stringify({
-            contents: [{ role: "user", parts: [{ text: prompt }] }],
-            generationConfig: { responseMimeType: "application/json", maxOutputTokens: 12000 },
-          }),
-        },
-        "Gemini focused article expansion",
-        4,
-      );
-      const data = await response.json();
-      const responseText = (data?.candidates?.[0]?.content?.parts ?? [])
-        .map((part) => part.text || "").join("").trim();
-      if (!responseText) {
-        console.warn("Gemini returned no expanded draft for: " + source.title);
-        continue;
-      }
+${attempt > 1 ? "RETRY: Your previous response did not reach the required length. Expand it substantially with additional distinct, evidence-backed explanation. Do not merely repeat or add filler." : ""}`;
 
-      const result = parseModelJson(responseText);
-      const article = result.find((item) => item && typeof item === "object" && typeof item.content === "string");
-      if (!article || article.content.trim().length < ARTICLE_TARGET_CHARS) {
-        console.warn("Focused expansion did not meet the " + ARTICLE_TARGET_CHARS + "-character minimum for: " + source.title);
-        continue;
+      try {
+        const response = await fetchWithRetry(
+          `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(MODEL)}:generateContent`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "x-goog-api-key": geminiApiKey },
+            body: JSON.stringify({
+              contents: [{ role: "user", parts: [{ text: prompt }] }],
+              generationConfig: { responseMimeType: "application/json", maxOutputTokens: 16000 },
+            }),
+          },
+          "Gemini focused article expansion",
+          4,
+        );
+        const data = await response.json();
+        const responseText = (data?.candidates?.[0]?.content?.parts ?? [])
+          .map((part) => part.text || "").join("").trim();
+        if (!responseText) {
+          console.warn("Gemini returned no expanded draft for: " + source.title);
+          continue;
+        }
+
+        const result = parseModelJson(responseText);
+        const article = result.find((item) => item && typeof item === "object" && typeof item.content === "string");
+        if (!article) {
+          console.warn("Gemini returned no usable article object for: " + source.title);
+          continue;
+        }
+        const returnedLength = article.content.trim().length;
+        if (returnedLength < ARTICLE_TARGET_CHARS) {
+          console.warn("Expansion attempt " + attempt + " returned " + returnedLength +
+            " characters; " + ARTICLE_TARGET_CHARS + " required for: " + source.title);
+          workingDraft = { ...workingDraft, ...article };
+          draftContent = article.content.trim();
+          continue;
+        }
+        expanded.push(article);
+        accepted = true;
+        console.log("Focused expansion passed length check: " + returnedLength + " characters.");
+        break;
+      } catch (error) {
+        console.warn("Expansion attempt " + attempt + " failed for " + source.title +
+          "; continuing safely: " + (error?.message || error));
       }
-      expanded.push(article);
-      console.log("Focused expansion passed length check: " + article.content.trim().length + " characters.");
-    } catch (error) {
-      console.warn("Skipping expansion for this story after Gemini retries; continuing with other drafts: " +
-        source.title + " — " + (error?.message || error));
     }
+    if (!accepted) console.warn("Story omitted after expansion attempts because it did not meet the strict character minimum: " + source.title);
   }
 
   console.log("Article expansion complete: " + expanded.length + " full-length draft(s) ready for editorial validation.");
