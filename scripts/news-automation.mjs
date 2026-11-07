@@ -843,6 +843,7 @@ async function generateArticles(geminiApiKey, sourceArticles, retryFeedback = ""
   const compactRetryFeedback = fallbackMode ? String(retryFeedback || "").slice(0, 300) : retryFeedback;
   const prompt = `You are an evidence-led news editor for USA Daily News.
 Review every numbered source candidate independently. Select and write up to ${ARTICLE_COUNT} distinct stories that provide genuine reader value. Returning fewer than the target is acceptable. Never force ten stories and never return an empty array if suitable candidates exist.
+${retryFeedback ? "- RETRY MODE: Exclude every candidate whose headline or source_url appears in the retry guidance below. Those stories already failed the editorial checks. Select different eligible candidates from the remaining sources." : ""}
 
 U.S. audience and editorial focus:
 - USA Daily News is primarily a U.S. news publication. Prioritize U.S. domestic news and stories with a clear, material connection to people in the United States.
@@ -897,7 +898,7 @@ Before returning, check that each report is factual, useful, clearly written, su
 
 SOURCE CANDIDATES:
 ${JSON.stringify(candidates)}
-${compactRetryFeedback ? "\nRETRY GUIDANCE FROM THE PREVIOUS ATTEMPT:\n" + compactRetryFeedback + "\nCorrect the stated issues while reassessing the full candidate list. Do not weaken evidence or safety rules." : ""}`;
+${compactRetryFeedback ? "\nRETRY GUIDANCE FROM THE PREVIOUS ATTEMPT:\n" + compactRetryFeedback + "\nCorrect the stated issues while reassessing the full candidate list. Exclude all previously rejected source URLs/headlines. Do not weaken evidence or safety rules." : ""}`;
 
   const config = provider === "groq" ? {
     name: "Groq",
@@ -1704,7 +1705,25 @@ async function main() {
     generated = await expandShortArticles(geminiApiKey, generated, sourceArticles);
   }
 
-  articles = validateAndNormalize(generated, sourceArticles);
+  try {
+    articles = validateAndNormalize(generated, sourceArticles);
+  } catch (validationError) {
+    // A rejected batch should not stop the cycle when alternative source
+    // candidates remain. Request one replacement batch and explicitly exclude
+    // rejected headlines/URLs. All normal editorial gates run again unchanged.
+    if (generationProvider !== "Gemini") throw validationError;
+    console.warn("No article from the first Gemini batch passed editorial checks. Requesting one replacement batch and excluding rejected stories: " +
+      (validationError?.message || validationError));
+    generated = await generateArticles(
+      geminiApiKey,
+      sourceArticles,
+      String(validationError?.message || validationError).slice(0, 1200),
+      "gemini",
+      trendTopics
+    );
+    generated = await expandShortArticles(geminiApiKey, generated, sourceArticles);
+    articles = validateAndNormalize(generated, sourceArticles);
+  }
 
   // Final non-bypassable publishing gate: every article body must contain at least
   // 2,500 characters, regardless of provider or any earlier validation path.
