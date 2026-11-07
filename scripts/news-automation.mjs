@@ -429,9 +429,13 @@ async function backfillMissingArticleImages(functionUrl, bearerToken) {
       });
       if (!response.ok) return null;
       const html = (await response.text()).slice(0, 1000000);
-      const imageUrl = extractArticleImage(html, article.source_url);
-      if (!imageUrl) { console.log('No usable publisher image found for existing article ' + article.id + '.'); return null; }
-      console.log('Recovered image for existing article ' + article.id + '.');
+      const publisherImageUrl = extractArticleImage(html, article.source_url);
+      const imageUrl = publisherImageUrl || "https://usadailynews.space/substack-fallback.webp";
+      if (publisherImageUrl) {
+        console.log('Recovered publisher image for existing article ' + article.id + '.');
+      } else {
+        console.warn('No usable publisher image found for existing article ' + article.id + '; assigning the USA Daily News fallback image.');
+      }
       return { id: article.id, image_url: imageUrl };
     } catch (error) {
       console.warn('Image recovery failed for existing article ' + article.id + ': ' + (error?.message || error));
