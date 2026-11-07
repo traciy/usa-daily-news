@@ -8,7 +8,7 @@ import { readFile } from "node:fs/promises";
 
 const MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
 const ARTICLE_COUNT = positiveInteger(process.env.ARTICLE_COUNT, 10);
-const ARTICLE_WORDS = positiveInteger(process.env.ARTICLE_WORDS, 1000);
+const ARTICLE_TARGET_CHARS = positiveInteger(process.env.ARTICLE_TARGET_CHARS, 5000);
 const PUBLISH_ENABLED = String(process.env.PUBLISH_ENABLED).toLowerCase() === "true";
 
 function positiveInteger(value, fallback) {
@@ -1000,7 +1000,7 @@ function validateAndNormalize(generated, sourceArticles) {
     if (!title) qualityIssues.push("missing headline");
     if (title.length > 110) qualityIssues.push("headline exceeds Google's 110-character News headline guidance");
     if (/[!?]{2,}|\b(you won.t believe|shocking|must see|unbelievable)\b/i.test(title)) qualityIssues.push("headline uses clickbait wording");
-    if (!content || content.length < 350 || wordCount < 100) qualityIssues.push("article body is missing, too short, or under 100 words");
+    if (!content || characterCount < ARTICLE_TARGET_CHARS) qualityIssues.push(`article body is shorter than the ${ARTICLE_TARGET_CHARS}-character minimum (${characterCount} characters)`);
     if (descriptionLength < 50 || !/[.!?…][”’"')\]]?$/.test(seoDescription)) qualityIssues.push("meta description is missing, incomplete, or too short");
     if (!category) qualityIssues.push("category is missing or unsupported");
     if (!isUsableArticleImage(original.urlToImage)) qualityIssues.push("a usable publisher image could not be found; article held back to prevent image-less publication");
