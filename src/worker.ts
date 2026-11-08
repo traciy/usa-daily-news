@@ -495,7 +495,7 @@ async function handleStaticSeoPage(request: Request, env: Env, path: string): Pr
     status: 200,
     headers: {
       "Content-Type": "text/html; charset=utf-8",
-      "Cache-Control": "public, max-age=0, s-maxage=300",
+      "Cache-Control": "no-store",
       "X-Content-Type-Options": "nosniff",
       "X-SEO-Page": path
     }
