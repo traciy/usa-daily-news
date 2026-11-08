@@ -199,8 +199,8 @@ const STATIC_SEO_PAGES: Record<string, StaticSeoPage> = {
     heading: "About USA Daily News",
     paragraphs: [
       "USA Daily News is a digital publication covering news and developing stories across the United States and around the world, including politics, business, technology, culture, weather and sports.",
-      "Digital tools and AI-assisted processes may help discover, organize and prepare news summaries. Articles may summarize reporting published by other outlets. Where source information is available, we identify and link to the original report.",
-      "We do not claim that every item is original, independent reporting produced by an on-the-ground newsroom. Contact us if you identify an error or missing attribution."
+      "USA Daily News publishes original articles written specifically for our readers. We develop each article in our own language and structure using available source material, which may include official statements, public records, primary documents and reporting by other publishers. Digital tools, including AI-assisted tools, may support research and drafting.",
+      "Our articles are original in their wording, organization and presentation. Some stories rely on information first reported by other publishers or institutions; when that happens, we aim to credit and link to the source. Original writing does not mean we personally witnessed every event or independently originated every fact."
     ]
   },
   "/editorial-policy": {
@@ -208,9 +208,9 @@ const STATIC_SEO_PAGES: Record<string, StaticSeoPage> = {
     description: "USA Daily News standards for sourcing, AI-assisted content, accuracy, attribution and updates.",
     heading: "Editorial Policy",
     paragraphs: [
-      "USA Daily News aims to publish clear, useful news summaries and make the source of reported information as transparent as possible.",
-      "Automated systems and AI-assisted tools may be used to identify, organize, summarize and prepare content. These tools can make mistakes. Not every detail is independently verified by a human editor.",
-      "When articles summarize another publisher's reporting, we aim to identify and link to that source. Developing stories may change as new information becomes available."
+      "USA Daily News publishes original articles written in our own language and structure, using available source material to explain news and developing stories. We aim to make the source of reported information as transparent as possible.",
+      "Digital tools, including AI-assisted tools, may support research, organizing information and drafting. These tools can make mistakes, and not every detail is independently verified by a human editor.",
+      "When information first reported by another publisher informs a story, we aim to identify and link to that source. Developing stories may change as new information becomes available."
     ]
   },
   "/corrections": {
