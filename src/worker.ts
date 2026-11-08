@@ -179,7 +179,11 @@ function renderHomepage(articles: SeoArticle[]): string {
     '<a href="/economy">Economy</a> · <a href="/culture">Culture</a> · ' +
     '<a href="/football">Sports</a> · <a href="/weather">Weather</a></nav>' +
     '<section aria-labelledby="seo-latest-heading"><h2 id="seo-latest-heading">Latest Stories</h2>' +
-    '<div class="seo-home-stories">' + cards + '</div></section></main>';
+    '<div class="seo-home-stories">' + cards + '</div></section>' +
+    '<section aria-labelledby="homepage-sports-heading" class="home-deferred-section mx-auto max-w-3xl px-4 py-10 border-t border-gray-200">' +
+    '<h2 id="homepage-sports-heading" class="text-xl font-serif font-bold text-gray-900">Live Sports Scores: Soccer, NBA &amp; NFL</h2>' +
+    '<p class="mt-2 text-sm leading-relaxed text-gray-700">Follow live soccer, NBA basketball and NFL scores, upcoming fixtures and recent results, with match updates from the sports score centre.</p>' +
+    '<p class="mt-3"><a href="/football" class="text-sm font-semibold text-red-700">View live soccer, NBA and NFL scores</a></p></section></main>';
 }
 
 

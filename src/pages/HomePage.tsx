@@ -341,6 +341,18 @@ export function HomePage({ onOpenArticle, onNavigate, initialCategory }: HomePag
         </div>
       </section>
 
+      <section className="home-deferred-section mx-auto max-w-3xl px-4 py-10 border-t border-gray-200" aria-labelledby="homepage-sports-heading">
+        <h2 id="homepage-sports-heading" className="text-xl font-serif font-bold text-gray-900">
+          Live Sports Scores: Soccer, NBA &amp; NFL
+        </h2>
+        <p className="mt-2 text-sm leading-relaxed text-gray-700">
+          Follow live soccer, NBA basketball and NFL scores, upcoming fixtures and recent results, with match updates from the sports score centre.
+        </p>
+        <a href="/football" className="mt-3 inline-flex text-sm font-semibold text-red-700 underline underline-offset-4 hover:text-red-900">
+          View live soccer, NBA and NFL scores
+        </a>
+      </section>
+
       <section className="home-deferred-section mx-auto max-w-3xl px-4 py-12" aria-labelledby="faq-heading">
         <h2 id="faq-heading" className="text-2xl font-serif font-bold text-gray-900 mb-6 text-center">
           Frequently Asked Questions
