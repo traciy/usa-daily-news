@@ -60,18 +60,18 @@ export const FAQ_SCHEMA = {
   mainEntity: [
     {
       '@type': 'Question',
-      name: 'How is content prepared for USA Daily News?',
+      name: 'How are articles prepared for USA Daily News?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Digital tools and AI-assisted processes may help discover, organize and prepare news summaries. Articles may summarize reporting published by other outlets, with source links provided when available.',
+        text: 'USA Daily News publishes original articles written specifically for our readers. We develop each article in our own language and structure using available source material, which may include official statements, public records, primary documents, and reporting by other publishers. Digital tools, including AI-assisted tools, may support research and drafting.',
       },
     },
     {
       '@type': 'Question',
-      name: 'Is every article original reporting?',
+      name: 'Are USA Daily News articles original?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'No. Some articles summarize or discuss reporting published by other outlets. USA Daily News aims to identify and link to source material when available.',
+        text: 'Yes. Our articles are original in their wording, organization, and presentation. Some stories rely on information first reported by other publishers or institutions; when that happens, we aim to credit and link to the source. Original writing does not mean we personally witnessed every event or independently originated every fact.',
       },
     },
     {
