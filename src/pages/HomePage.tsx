@@ -16,21 +16,26 @@ interface HomePageProps {
   initialCategory?: Category;
 }
 
+const CONTACT_EMAIL = 'contact@usadailynews.space';
+
 const FAQ_ENTRIES = [
   {
     question: 'How are articles prepared for USA Daily News?',
     answer:
-      'USA Daily News produces original articles through research, source checks, and original writing. Digital tools, including AI-assisted tools, may support research and drafting. Each published story is developed for USA Daily News rather than copied or republished from another outlet.',
+      'USA Daily News publishes original articles written specifically for our readers. We develop each article in our own language and structure using available source material, which may include official statements, public records, primary documents, and reporting by other publishers. Digital tools, including AI-assisted tools, may support research and drafting.',
   },
   {
     question: 'Are USA Daily News articles original?',
     answer:
-      'Yes. Our articles are written in original language and structure for USA Daily News. A story may draw on information from official statements, public records, primary documents, or reporting by other publishers. When another source informs a story, we credit and link to it where available. Citing source material does not mean we copy or republish another outlet’s article.',
+      'Yes. Our articles are original in their wording, organization, and presentation. Some stories rely on information first reported by other publishers or institutions; when that happens, we aim to credit and link to the source. Original writing does not mean we personally witnessed every event or independently originated every fact.',
   },
   {
     question: 'How can I report an error?',
-    answer:
-      'Email contact@usadailynews.space with the article URL, the detail you believe is incorrect, and reliable supporting information.',
+    answer: (
+      <>
+        Email <a className="font-semibold text-red-700 underline" href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a> with the article URL, the detail you believe is incorrect, and reliable supporting information.
+      </>
+    ),
   },
 ];
 
@@ -358,12 +363,12 @@ export function HomePage({ onOpenArticle, onNavigate, initialCategory }: HomePag
             About USA Daily News
           </h2>
           <p className="text-gray-700 leading-relaxed">
-            USA Daily News helps readers follow current events across politics, technology, the economy,
-            culture, weather and sports. We use digital tools and AI-assisted processes to prepare
-            clear news summaries based on reporting from other publishers and available source
-            material. Where source information is available, we link to the original report so
-            readers can review it directly. We aim to correct material inaccuracies when reliable
-            evidence is brought to our attention.
+            USA Daily News publishes original articles across politics, technology, business, culture,
+            weather and sports. Our articles are written in our own language and structure using
+            available source material, which may include official statements, public records, primary
+            documents and reporting by other publishers. Digital tools, including AI-assisted tools,
+            may support research and drafting. We credit and link to third-party sources where
+            available; original writing does not mean eyewitness reporting.
           </p>
           <button
             onClick={() => onNavigate('/about')}
