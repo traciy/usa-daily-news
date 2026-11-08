@@ -1542,18 +1542,17 @@ async function handleAiChatRequest(request: Request, env: Env & { AI?: WorkersAi
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
-    if (url.pathname.length > 1 && url.pathname.endsWith("/")) {
-      const clean = new URL(url);
-      clean.pathname = clean.pathname.replace(/\/+$/, "");
-      return Response.redirect(clean.toString(), 301);
-    }
-    if (url.pathname === "/sports") {
-      const destination = new URL(url);
-      destination.pathname = "/football";
-      return Response.redirect(destination.toString(), 301);
-    }
-    if (url.hostname === "usa-daily-news.info-luwigang254.workers.dev" || url.hostname === "www.usadailynews.space") {
-      const destination = new URL(url.pathname + url.search, SITE_URL);
+
+    // Consolidate host, protocol and legacy-path variants in one permanent redirect.
+    // The canonical site uses HTTPS, the apex hostname and clean paths without trailing slashes.
+    const normalizedPath = url.pathname.replace(/\/+$/, "") || "/";
+    const canonicalPath = normalizedPath === "/sports" ? "/football" : normalizedPath;
+    if (
+      url.protocol !== "https:" ||
+      url.hostname !== "usadailynews.space" ||
+      canonicalPath !== url.pathname
+    ) {
+      const destination = new URL(canonicalPath + url.search, SITE_URL);
       return Response.redirect(destination.toString(), 301);
     }
     if (url.pathname === "/api/ai-chat") {
