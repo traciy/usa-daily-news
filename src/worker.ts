@@ -172,8 +172,8 @@ function renderHomepage(articles: SeoArticle[]): string {
       '</a></article>';
   }).join("");
   return '<main id="seo-home" class="mx-auto max-w-6xl px-4 py-8">' +
-    '<header><h1>Latest US News, Politics, Technology, Economy &amp; Culture</h1>' +
-    '<p>Read the latest news and developing stories from across the United States.</p></header>' +
+    '<header><h1>US News Today: Politics, Business, Technology, Culture &amp; Sports</h1>' +
+    '<p>Original articles on American politics, business, technology, culture and sports, with links to sources and useful context.</p></header>' +
     '<nav aria-label="News sections"><a href="/">Latest News</a> · ' +
     '<a href="/politics">Politics</a> · <a href="/tech">Technology</a> · ' +
     '<a href="/economy">Economy</a> · <a href="/culture">Culture</a> · ' +

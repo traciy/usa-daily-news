@@ -45,14 +45,14 @@ export function HomePage({ onOpenArticle, onNavigate, initialCategory }: HomePag
   const [totalArticles, setTotalArticles] = useState(0);
   const PAGE_SIZE = 20;
   const categoryDescriptions: Record<Category, string> = {
-    All: 'Read the latest US news today, including breaking U.S. headlines, politics, business, technology, culture and sports, with source links and useful context.',
+    All: 'Read US news today through original articles on American politics, business, technology, culture and sports, with source links and useful context.',
     Politics: 'Follow US politics news, White House and Congress developments, government policy, elections and decisions affecting Americans.',
     Tech: 'Follow US technology news, artificial intelligence, major tech companies, cybersecurity and the latest developments in digital innovation.',
     Economy: 'Read US business and economy news, financial markets, jobs, inflation, companies and economic policy developments.',
     Culture: 'Explore US culture news, entertainment, arts, media, society and the stories shaping American life.',
   };
   useSeo({
-    title: active === 'All' ? 'Latest US News & Breaking Headlines | USA Daily News' : ({ Politics: 'US Politics News & Policy | USA Daily News', Tech: 'US Technology News & AI | USA Daily News', Economy: 'US Business & Economy News | USA Daily News', Culture: 'US Culture & Entertainment News | USA Daily News' } as Record<Category, string>)[active],
+    title: active === 'All' ? 'US News Today: Politics, Business & Tech | USA Daily News' : ({ Politics: 'US Politics News & Policy | USA Daily News', Tech: 'US Technology News & AI | USA Daily News', Economy: 'US Business & Economy News | USA Daily News', Culture: 'US Culture & Entertainment News | USA Daily News' } as Record<Category, string>)[active],
     description: categoryDescriptions[active],
     type: 'website',
     url: SITE_CONFIG.url + (window.location.pathname === '/' ? '/' : window.location.pathname),
@@ -145,7 +145,7 @@ export function HomePage({ onOpenArticle, onNavigate, initialCategory }: HomePag
 
       <section className="mx-auto max-w-6xl px-4 py-8" aria-labelledby="latest-heading">
         <h1 id="latest-heading" className="sr-only">
-          Latest US News, Politics, Technology & Economy
+          US News Today: Politics, Business, Technology, Culture & Sports
         </h1>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
