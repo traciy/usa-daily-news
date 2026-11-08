@@ -23,11 +23,11 @@ export function AboutPage() {
       url="https://usadailynews.space/about">
       <p>USA Daily News is a digital publication covering news and developing stories across the United States and around the world, including politics, business, technology, culture, weather and sports.</p>
       <section><h2 className="text-xl font-semibold text-gray-900">How we publish</h2>
-        <p>Our website uses digital tools and AI-assisted processes to help discover, organize and prepare news summaries. Articles may summarize reporting published by other outlets. Where source information is available, we identify and link to the original report so readers can consult it directly.</p>
-        <p>We do not claim that every item is original, independent reporting produced by an on-the-ground newsroom. Readers should consult linked primary sources for additional context, and contact us if they identify an error or missing attribution.</p>
+        <p>USA Daily News publishes original articles written specifically for our readers. We develop each article in our own language and structure using available source material, which may include official statements, public records, primary documents and reporting by other publishers. Digital tools, including AI-assisted tools, may support research and drafting.</p>
+        <p>Our articles are original in their wording, organization and presentation. Some stories rely on information first reported by other publishers or institutions; when that happens, we aim to credit and link to the source so readers can consult the original reporting. Original writing does not mean we personally witnessed every event or independently originated every fact.</p>
       </section>
       <section><h2 className="text-xl font-semibold text-gray-900">Our aim</h2>
-        <p>We aim to make current events easier to follow through clear headlines, accessible summaries and links to source material. We work to correct material inaccuracies when they are brought to our attention and verified.</p>
+        <p>We aim to make current events easier to follow through clear, original articles and transparent source attribution. We seek to represent source material fairly and correct material inaccuracies when reliable evidence shows that a published detail is wrong.</p>
       </section>
       <p>Questions, feedback or news tips? Email <a className="font-semibold text-red-700 underline" href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.</p>
     </PageShell>
@@ -39,9 +39,9 @@ export function EditorialPolicyPage() {
     <PageShell eyebrow="Our standards" title="Editorial Policy"
       description="Read the USA Daily News editorial standards for sourcing, AI-assisted content, accuracy, attribution and updates."
       url="https://usadailynews.space/editorial-policy">
-      <p>USA Daily News aims to publish clear, useful news summaries and to make the source of reported information as transparent as possible.</p>
+      <p>USA Daily News publishes original articles written in our own language and structure, using available source material to explain news and developing stories. We aim to make the source of reported information as transparent as possible.</p>
       <section><h2 className="text-xl font-semibold text-gray-900">Sources and attribution</h2>
-        <p>We use published reports, official statements, public information and other available source material to prepare coverage. When an article is based on a report from another publisher, we aim to identify and link to that source. Readers should follow the source link for the full original reporting and context.</p>
+        <p>We use published reports, official statements, public information, primary documents and other available source material to research and develop original articles. When information first reported by another publisher informs a story, we aim to identify and link to that source so readers can consult the original reporting and context.</p>
       </section>
       <section><h2 className="text-xl font-semibold text-gray-900">AI-assisted publishing</h2>
         <p>Automated systems and AI-assisted tools may be used to identify, organize, summarize and prepare content. These tools can make mistakes. The presence of an article on this website should not be taken as a guarantee that every detail has been independently verified by a human editor.</p>
@@ -49,8 +49,8 @@ export function EditorialPolicyPage() {
       <section><h2 className="text-xl font-semibold text-gray-900">Accuracy and updates</h2>
         <p>We seek to represent source material fairly, avoid presenting unconfirmed claims as established facts, and update or correct content when reliable information shows that a material detail is wrong. Developing stories may change as new information becomes available.</p>
       </section>
-      <section><h2 className="text-xl font-semibold text-gray-900">Independence and limitations</h2>
-        <p>Coverage may include summaries of third-party reporting and does not necessarily represent original reporting by USA Daily News. We do not promise that every story will be exhaustive or free from error. This policy describes our intended publishing approach and may be updated as our processes evolve.</p>
+      <section><h2 className="text-xl font-semibold text-gray-900">Original writing and reporting limits</h2>
+        <p>Our articles are original in their wording, organization and presentation, but original writing should not be mistaken for eyewitness or exclusive reporting unless a story explicitly says so and the evidence supports that claim. A story may rely on facts first reported by another publisher or institution, which we aim to credit and link. We do not promise that every story will be exhaustive or free from error. This policy describes our intended publishing approach and may be updated as our processes evolve.</p>
       </section>
       <p>To raise a concern about a story, email <a className="font-semibold text-red-700 underline" href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a> and include the article link and supporting information.</p>
     </PageShell>
