@@ -564,7 +564,31 @@ async function handleHomePage(request: Request, env: Env): Promise<Response> {
 }
 
 async function handleArticlePage(request: Request, env: Env, articleId: string): Promise<Response> {
-  const fallback = () => env.ASSETS.fetch(new Request(new URL("/", request.url), { method: "GET", headers: request.headers }));
+  const articleCanonical = SITE_URL + "/article/" + encodeURIComponent(articleId);
+  const fallback = async (): Promise<Response> => {
+    const assetResponse = await env.ASSETS.fetch(new Request(new URL("/", request.url), { method: "GET", headers: request.headers }));
+    if (!assetResponse.ok) return assetResponse;
+
+    // Even when Supabase is temporarily unavailable, an article URL must never
+    // inherit the homepage's canonical metadata from the SPA shell.
+    let html = await assetResponse.text();
+    html = html
+      .replace(/<title\b[^>]*>[\s\S]*?<\/title>/i, "<title>Article | USA Daily News</title>")
+      .replace(/<meta\b[^>]*\bname=["']description["'][^>]*>/i, "")
+      .replace(/<meta\b[^>]*\bproperty=["']og:url["'][^>]*>/i, "")
+      .replace(/<link\b[^>]*\brel=["']canonical["'][^>]*>/i, "");
+    const fallbackTags = [
+      '<meta name="description" content="Read this article from USA Daily News, with source links and related coverage.">',
+      '<link rel="canonical" href="' + htmlEscape(articleCanonical) + '">',
+      '<meta property="og:url" content="' + htmlEscape(articleCanonical) + '">'
+    ].join("\n");
+    html = html.replace("</head>", fallbackTags + "\n</head>");
+
+    const headers = new Headers(assetResponse.headers);
+    headers.set("Content-Type", "text/html; charset=utf-8");
+    headers.set("Cache-Control", "no-store");
+    return new Response(html, { status: assetResponse.status, statusText: assetResponse.statusText, headers });
+  };
   const notFound = async (): Promise<Response> => {
     const assetResponse = await fallback();
     if (!assetResponse.ok) {

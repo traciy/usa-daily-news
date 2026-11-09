@@ -101,7 +101,8 @@ export function ArticlePage({ id, onBack }: ArticlePageProps) {
   const html = useMarkdown(article?.content);
   const color = article ? categoryColor(article.category) : categoryColor('');
 
-  const articleUrl = article ? `${SITE_CONFIG.url}/article/${article.id}` : SITE_CONFIG.url;
+  // The canonical URL must be correct before the article data finishes loading.
+  const articleUrl = `${SITE_CONFIG.url}/article/${id}`;
   const safeSourceUrl = article ? safeHttpUrl(article.source_url, true) : null;
   const articleImage = article ? safeHttpUrl(article.image_url) : null;
   const savedDescription = article?.seo_description?.trim() || '';
@@ -138,8 +139,8 @@ export function ArticlePage({ id, onBack }: ArticlePageProps) {
     : null;
 
   useSeo({
-    title: article ? createSeoTitle(article.title) : 'USA Daily News',
-    description: seoDescription,
+    title: article ? createSeoTitle(article.title) : 'Article | USA Daily News',
+    description: seoDescription || 'Read this article from USA Daily News, with source links and related coverage.',
     image: articleImage,
     type: 'article',
     url: articleUrl,
