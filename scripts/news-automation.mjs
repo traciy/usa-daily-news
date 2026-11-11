@@ -1436,7 +1436,7 @@ async function bufferGraphQL(apiKey, query, variables = {}) {
       body: JSON.stringify({ query, variables }),
     },
     "Buffer API request",
-    3,
+    1, // Do not retry a 30-day quota 429; repeated retries cannot clear the monthly limit.
   );
 
   const payload = await response.json();
@@ -1635,31 +1635,26 @@ async function publishArticles(articles, supabaseUrl, bearerToken) {
   let successCount = 0;
   const publishedUrls = [];
   const bufferApiKey = process.env.BUFFER_API_KEY?.trim() || "";
-  let bufferChannels = [];
-  let pinterestTarget = null;
 
-  if (bufferApiKey) {
-    try {
-      bufferChannels = await discoverBufferChannels(bufferApiKey);
-      if (!bufferChannels.length) {
-        console.warn("No X or Substack channels were found in the Buffer account connected to BUFFER_API_KEY.");
-      }
-    } catch (error) {
-      console.warn("Buffer channel discovery failed: " + (error?.message || error));
-    }
+  // These channel IDs are already configured as GitHub Actions environment
+  // variables. Use them directly instead of querying Buffer for organizations,
+  // channels and Pinterest boards on every automation run. This protects the
+  // Free plan's limited 30-day API request allowance for actual post creation.
+  const bufferChannels = [
+    ...(process.env.BUFFER_X_CHANNEL_ID?.trim()
+      ? [{ name: "X", id: process.env.BUFFER_X_CHANNEL_ID.trim() }]
+      : []),
+    ...(process.env.BUFFER_SUBSTACK_CHANNEL_ID?.trim()
+      ? [{ name: "Substack", id: process.env.BUFFER_SUBSTACK_CHANNEL_ID.trim() }]
+      : []),
+  ];
 
-    try {
-      pinterestTarget = await discoverPinterestTarget(bufferApiKey);
-      console.log("Pinterest auto-posting enabled for all six category boards.");
-    } catch (error) {
-      console.warn("Pinterest auto-posting is not ready: " + (error?.message || error));
-    }
-  }
-
-  if (!bufferApiKey || (bufferChannels.length === 0 && !pinterestTarget)) {
-    console.log("Buffer auto-posting is not fully configured. Check BUFFER_API_KEY and confirm the X/Substack channels are connected to that Buffer account.");
+  if (!bufferApiKey || bufferChannels.length === 0) {
+    console.log("Buffer auto-posting is disabled: confirm BUFFER_API_KEY and the saved X/Substack channel IDs in GitHub Actions.");
   } else {
-    console.log("Buffer auto-posting enabled for: " + bufferChannels.map((channel) => channel.name).join(" and ") + ".");
+    console.log("Buffer auto-posting enabled using saved channel IDs: " +
+      bufferChannels.map((channel) => channel.name).join(" and ") +
+      ". No channel-discovery API calls will be made.");
   }
 
   for (const [index, article] of articles.entries()) {
@@ -1702,14 +1697,9 @@ async function publishArticles(articles, supabaseUrl, bearerToken) {
             console.error("BUFFER AUTO-POST FAILED (" + channel.name + ") for " + articleUrl + ": " + (error?.message || error));
           }
         }
-        if (pinterestTarget) {
-          try {
-            await postArticleToPinterest(article, articleUrl, bufferApiKey, pinterestTarget);
-            console.log("Queued website article for Pinterest.");
-          } catch (error) {
-            console.error("BUFFER AUTO-POST FAILED (Pinterest) for " + articleUrl + ": " + (error?.message || error));
-          }
-        }
+        // Pinterest channel discovery is intentionally not run here. It used
+        // several Buffer API requests per publishing cycle and exhausted free
+        // request quota. X and Substack use the saved IDs above.
       }
     }
     successCount += 1;
