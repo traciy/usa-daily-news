@@ -882,7 +882,7 @@ async function generateArticles(geminiApiKey, sourceArticles, retryFeedback = ""
   const compactRetryFeedback = fallbackMode ? String(retryFeedback || "").slice(0, 300) : retryFeedback;
   const prompt = `You are an evidence-led news editor for USA Daily News.
 Review every numbered source candidate independently. Select and write up to ${ARTICLE_COUNT} distinct stories that provide genuine reader value. Returning fewer than the target is acceptable. Never force ten stories and never return an empty array if suitable candidates exist.
-${retryFeedback ? "- RETRY MODE: Exclude every candidate whose headline or source_url appears in the retry guidance below. Those stories already failed the editorial checks. Select different eligible candidates from the remaining sources." : ""}
+${retryFeedback ? "- EDITORIAL RETRY MODE: Apply any explicit source exclusions listed in the retry guidance below. If the guidance only describes a response-format or JSON error, do not exclude any source candidate." : ""}
 
 U.S. audience and editorial focus:
 - USA Daily News is primarily a U.S. news publication. Prioritize U.S. domestic news and stories with a clear, material connection to people in the United States.
@@ -950,55 +950,98 @@ ${compactRetryFeedback ? "\nRETRY GUIDANCE FROM THE PREVIOUS ATTEMPT:\n" + compa
   if (!apiKey) throw new Error(config ? config.name + " API key is not configured." : "GEMINI_API_KEY is not configured.");
   const openAiCompatible = provider !== "gemini";
 
-  const response = await fetchWithRetry(
-    openAiCompatible
-      ? config.url
-      : `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(MODEL)}:generateContent`,
-    {
-      method: "POST",
-      headers: openAiCompatible
-        ? { "Content-Type": "application/json", Authorization: "Bearer " + apiKey }
-        : { "Content-Type": "application/json", "x-goog-api-key": apiKey },
-      body: JSON.stringify(openAiCompatible
-        ? {
-            model: config.model,
-            messages: [{ role: "user", content: prompt }],
-            response_format: { type: "json_object" },
-            max_tokens: 3500,
-          }
-        : {
-            contents: [{ role: "user", parts: [{ text: prompt }] }],
-            generationConfig: { responseMimeType: "application/json", maxOutputTokens: 30000 },
-          }),
-    },
-    (config?.name || "Gemini") + " article generation",
-    1,
-  );
+  const maximumJsonAttempts = 3;
+  let lastJsonError = null;
 
-  const data = await response.json();
-  const text = openAiCompatible
-    ? String(data?.choices?.[0]?.message?.content || "").trim()
-    : (data?.candidates?.[0]?.content?.parts ?? []).map((part) => part.text || "").join("").trim();
-  if (!text) {
-    const detail = data?.error?.message || data?.promptFeedback?.blockReason || "The provider returned no text.";
-    throw new Error(`${config?.name || "Gemini"} returned no text: ${detail}`);
+  for (let jsonAttempt = 1; jsonAttempt <= maximumJsonAttempts; jsonAttempt += 1) {
+    const formatCorrection = jsonAttempt === 1 ? "" : `
+
+STRICT JSON REPAIR — ATTEMPT ${jsonAttempt}/${maximumJsonAttempts}:
+Your previous response could not be parsed as valid JSON. Error: ${String(lastJsonError?.message || "invalid JSON").slice(0, 300)}
+Return a fresh, complete response now. Do not repeat the malformed response.
+- Output only one valid JSON array, with no Markdown fences, commentary or text before or after it.
+- Use double quotes for every JSON key and string value.
+- Escape every double quote and backslash inside article text correctly.
+- Represent paragraph breaks inside JSON strings with \\n, not literal unescaped line breaks.
+- Do not use trailing commas, comments, or incomplete objects.
+- Finish every object and close the full array. Do not truncate the JSON.
+- Keep all existing editorial requirements, source attribution rules and the hard ${ARTICLE_TARGET_CHARS}-character minimum unchanged.
+- Do not exclude otherwise eligible source candidates merely because the previous response had a formatting error.
+`;
+
+    const response = await fetchWithRetry(
+      openAiCompatible
+        ? config.url
+        : `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(MODEL)}:generateContent`,
+      {
+        method: "POST",
+        headers: openAiCompatible
+          ? { "Content-Type": "application/json", Authorization: "Bearer " + apiKey }
+          : { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+        body: JSON.stringify(openAiCompatible
+          ? {
+              model: config.model,
+              messages: [{ role: "user", content: prompt + formatCorrection }],
+              response_format: { type: "json_object" },
+              max_tokens: 3500,
+            }
+          : {
+              contents: [{ role: "user", parts: [{ text: prompt + formatCorrection }] }],
+              generationConfig: { responseMimeType: "application/json", maxOutputTokens: 30000 },
+            }),
+      },
+      (config?.name || "Gemini") + " article generation",
+      1,
+    );
+
+    const data = await response.json();
+    const responseText = openAiCompatible
+      ? String(data?.choices?.[0]?.message?.content || "").trim()
+      : (data?.candidates?.[0]?.content?.parts ?? []).map((part) => part.text || "").join("").trim();
+
+    if (!responseText) {
+      lastJsonError = new Error(data?.error?.message || data?.promptFeedback?.blockReason || "The provider returned no text.");
+      console.warn((config?.name || "Gemini") + " returned an empty response on JSON attempt " +
+        jsonAttempt + "/" + maximumJsonAttempts + ".");
+      if (jsonAttempt < maximumJsonAttempts) continue;
+      throw new Error((config?.name || "Gemini") + " returned no usable response after " +
+        maximumJsonAttempts + " attempts: " + lastJsonError.message);
+    }
+
+    let parsed;
+    try {
+      parsed = parseModelJson(responseText);
+    } catch (error) {
+      lastJsonError = error;
+      console.warn((config?.name || "Gemini") + " returned malformed JSON on attempt " +
+        jsonAttempt + "/" + maximumJsonAttempts + " (" + responseText.length +
+        " response characters; finish reason: " +
+        (openAiCompatible ? data?.choices?.[0]?.finish_reason || "unknown" : data?.candidates?.[0]?.finishReason || "unknown") +
+        "). Requesting a clean JSON response.");
+      if (jsonAttempt < maximumJsonAttempts) continue;
+      throw new Error((config?.name || "Gemini") + " returned invalid JSON after " +
+        maximumJsonAttempts + " attempts: " + error.message);
+    }
+
+    if (parsed.length === 0) {
+      console.error((config?.name || "Gemini") + " diagnostic:", JSON.stringify({
+        model: openAiCompatible ? config.model : MODEL,
+        finishReason: openAiCompatible ? data?.choices?.[0]?.finish_reason : data?.candidates?.[0]?.finishReason,
+        promptFeedback: openAiCompatible ? undefined : data?.promptFeedback,
+        candidateCount: openAiCompatible ? data?.choices?.length ?? 0 : data?.candidates?.length ?? 0,
+        responseTextLength: responseText.length,
+        responsePreview: responseText.slice(0, 500),
+        candidateCountSent: candidates.length,
+        provider,
+      }, null, 2));
+      throw new Error((config?.name || "Gemini") + " found no publishable stories in the supplied evidence. No articles were published.");
+    }
+
+    return parsed;
   }
 
-  const parsed = parseModelJson(text);
-  if (parsed.length === 0) {
-    console.error((config?.name || "Gemini") + " diagnostic:", JSON.stringify({
-      model: openAiCompatible ? config.model : MODEL,
-      finishReason: openAiCompatible ? data?.choices?.[0]?.finish_reason : data?.candidates?.[0]?.finishReason,
-      promptFeedback: openAiCompatible ? undefined : data?.promptFeedback,
-      candidateCount: openAiCompatible ? data?.choices?.length ?? 0 : data?.candidates?.length ?? 0,
-      responseTextLength: text.length,
-      responsePreview: text.slice(0, 500),
-      candidateCountSent: candidates.length,
-      provider,
-    }, null, 2));
-    throw new Error((config?.name || "Gemini") + " found no publishable stories in the supplied evidence. No articles were published.");
-  }
-  return parsed;
+  throw new Error((config?.name || "Gemini") + " could not return valid JSON: " +
+    String(lastJsonError?.message || "unknown formatting error"));
 }
 
 
