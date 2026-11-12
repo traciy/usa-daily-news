@@ -4,6 +4,7 @@ import { Footer } from '@/components/Footer';
 import { NewsAiChat } from '@/components/NewsAiChat';
 import { HomePage } from '@/pages/HomePage';
 import { ArticlePage } from '@/pages/ArticlePage';
+import { ArchivePage } from '@/pages/ArchivePage';
 import { WeatherPage } from '@/pages/WeatherPage';
 import { FootballPage } from '@/pages/FootballPage';
 import { ContactPage } from '@/pages/ContactPage';
@@ -14,6 +15,7 @@ import type { Category } from '@/lib/categories';
 type Route =
   | { name: 'home'; category?: Category }
   | { name: 'article'; id: number }
+  | { name: 'archive'; page: number }
   | { name: 'weather' }
   | { name: 'football' }
   | { name: 'contact' }
@@ -26,6 +28,8 @@ function parsePath(): Route {
   const path = window.location.pathname.replace(/\/+$/, '') || '/';
   const article = /^\/article\/(\d+)$/.exec(path);
   if (article) return { name: 'article', id: Number(article[1]) };
+  const archive = /^\/archive(?:\/(\d+))?$/.exec(path);
+  if (archive) return { name: 'archive', page: Number(archive[1] || 1) };
   if (path === '/politics') return { name: 'home', category: 'Politics' };
   if (path === '/tech') return { name: 'home', category: 'Tech' };
   if (path === '/economy') return { name: 'home', category: 'Economy' };
@@ -80,6 +84,7 @@ function App() {
       <main className="flex-1">
         {route.name === 'home' && <HomePage key={route.category ?? 'all'} initialCategory={route.category} onOpenArticle={openArticle} onNavigate={navigate} />}
         {route.name === 'article' && <ArticlePage id={route.id} onBack={goHome} />}
+        {route.name === 'archive' && <ArchivePage key={route.page} page={route.page} onOpenArticle={openArticle} onNavigate={navigate} />}
         {route.name === 'weather' && <WeatherPage onBack={goHome} />}
         {route.name === 'football' && <FootballPage onBack={goHome} />}
         {route.name === 'contact' && <ContactPage />}
