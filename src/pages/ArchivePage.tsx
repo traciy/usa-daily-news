@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type MouseEvent } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useSeo } from '@/lib/seo';
 import { SITE_CONFIG } from '@/lib/seo-config';
@@ -82,7 +82,7 @@ export function ArchivePage({ page, onOpenArticle, onNavigate }: ArchivePageProp
   }, [safePage, totalPages]);
 
   const pageHref = (number: number) => number === 1 ? '/archive' : '/archive/' + number;
-  const openArticle = (event: React.MouseEvent<HTMLAnchorElement>, id: number) => {
+  const openArticle = (event: MouseEvent<HTMLAnchorElement>, id: number) => {
     event.preventDefault();
     onOpenArticle(id);
   };
