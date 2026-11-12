@@ -143,6 +143,7 @@ function injectArticleSeo(documentHtml: string, article: SeoArticle, relatedArti
           htmlEscape(related.title) + '</a><span> — ' + htmlEscape(related.category || "Latest News") + '</span></li>').join("") +
         '</ul><p><a href="' + SITE_URL + '/">More news from USA Daily News</a></p></section>'
       : "") +
+    '<nav aria-label="News archive"><a href="' + SITE_URL + '/archive">Browse all USA Daily News articles</a></nav>' +
     "</article></main>";
   html = html.replace("</head>", tags + "\n</head>");
   return html.replace('<div id="root"></div>', '<div id="root">' + body + "</div>");
@@ -177,7 +178,7 @@ function renderHomepage(articles: SeoArticle[]): string {
     '<nav aria-label="News sections"><a href="/">Latest News</a> · ' +
     '<a href="/politics">Politics</a> · <a href="/tech">Technology</a> · ' +
     '<a href="/economy">Economy</a> · <a href="/culture">Culture</a> · ' +
-    '<a href="/football">Sports</a> · <a href="/weather">Weather</a></nav>' +
+    '<a href="/football">Sports</a> · <a href="/weather">Weather</a> · <a href="/archive">All articles</a></nav>' +
     '<section aria-labelledby="seo-latest-heading"><h2 id="seo-latest-heading">Latest Stories</h2>' +
     '<div class="seo-home-stories">' + cards + '</div></section>' +
     '<section aria-labelledby="homepage-sports-heading" class="home-deferred-section mx-auto max-w-3xl px-4 py-10 border-t border-gray-200">' +
@@ -433,7 +434,8 @@ async function handleStaticSeoPage(request: Request, env: Env, path: string): Pr
   }).join("");
   const storySection = page.category
     ? '<section aria-labelledby="latest-category-stories"><h2 id="latest-category-stories">Latest ' + htmlEscape(page.category === "Sports" ? "Sports" : page.category) + ' News</h2>' +
-      (storyCards ? '<div class="seo-category-stories">' + storyCards + '</div>' : '<p>New stories in this section will appear here as they are published.</p>') + '</section>'
+      (storyCards ? '<div class="seo-category-stories">' + storyCards + '</div>' : '<p>New stories in this section will appear here as they are published.</p>') +
+      '<p><a href="/archive">Browse all USA Daily News articles</a></p></section>'
     : "";
   // Sports news lists are not eligible for Google carousel rich results; omit ItemList on /football.
   const itemListSchema = path !== "/football" && latestArticles.length ? {
@@ -670,6 +672,190 @@ function xmlEscape(value: string): string {
   })[char] ?? char);
 }
 
+/**
+ * Server-rendered, crawlable archive pages. The homepage and category pages
+ * intentionally show only a small recent selection; this archive provides
+ * standard HTML links and paginated paths to the complete published catalogue.
+ */
+async function handleArchivePage(request: Request, env: Env, requestedPage: string): Promise<Response> {
+  const pageSize = 50;
+  const page = Math.max(1, Number.parseInt(requestedPage || "1", 10) || 1);
+  const archivePath = page === 1 ? "/archive" : "/archive/" + page;
+  const unavailable = (status: number, message: string) => new Response(message, {
+    status,
+    headers: {
+      "Content-Type": "text/plain; charset=utf-8",
+      "Cache-Control": "no-store",
+      "X-Robots-Tag": "noindex",
+    },
+  });
+
+  if (!env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) {
+    return unavailable(503, "The news archive is temporarily unavailable.");
+  }
+
+  try {
+    const baseUrl = env.SUPABASE_URL.replace(/\/$/, "");
+    const countEndpoint = new URL(baseUrl + "/rest/v1/articles");
+    countEndpoint.searchParams.set("select", "id");
+    countEndpoint.searchParams.set("limit", "1");
+    const countResponse = await fetch(countEndpoint.toString(), {
+      headers: {
+        apikey: env.SUPABASE_ANON_KEY,
+        Authorization: "Bearer " + env.SUPABASE_ANON_KEY,
+        Accept: "application/json",
+        Prefer: "count=exact",
+        Range: "0-0",
+      },
+      cf: { cacheTtl: 300, cacheEverything: true },
+    } as RequestInit & { cf: { cacheTtl: number; cacheEverything: boolean } });
+    if (!countResponse.ok) {
+      console.error("Archive count request failed:", countResponse.status);
+      return unavailable(502, "The news archive could not load its article count.");
+    }
+
+    const contentRange = countResponse.headers.get("content-range") || "";
+    const totalMatch = /\/(\d+)$/.exec(contentRange);
+    const totalArticles = totalMatch ? Number(totalMatch[1]) : null;
+    if (totalArticles === null || !Number.isFinite(totalArticles)) {
+      console.error("Archive count response did not include an exact total:", contentRange);
+      return unavailable(502, "The news archive could not verify its page count.");
+    }
+    const totalPages = Math.max(1, Math.ceil(totalArticles / pageSize));
+    if (page > totalPages) return unavailable(404, "Archive page not found.");
+
+    const endpoint = new URL(baseUrl + "/rest/v1/articles");
+    endpoint.searchParams.set("select", "id,title,category,image_url,seo_description,created_at,source_url");
+    endpoint.searchParams.set("order", "created_at.desc");
+    endpoint.searchParams.set("limit", String(pageSize));
+    endpoint.searchParams.set("offset", String((page - 1) * pageSize));
+    const response = await fetch(endpoint.toString(), {
+      headers: {
+        apikey: env.SUPABASE_ANON_KEY,
+        Authorization: "Bearer " + env.SUPABASE_ANON_KEY,
+        Accept: "application/json",
+      },
+      cf: { cacheTtl: 300, cacheEverything: true },
+    } as RequestInit & { cf: { cacheTtl: number; cacheEverything: boolean } });
+    if (!response.ok) {
+      console.error("Archive article request failed:", response.status, "page:", page);
+      return unavailable(502, "The news archive could not load this page.");
+    }
+
+    const articles = await response.json() as SeoArticle[];
+    if (totalArticles > 0 && articles.length === 0) return unavailable(404, "Archive page not found.");
+
+    const assetResponse = await env.ASSETS.fetch(new Request(new URL("/", request.url), {
+      method: "GET",
+      headers: request.headers,
+    }));
+    if (!assetResponse.ok) return assetResponse;
+
+    const title = page === 1
+      ? "News Archive | USA Daily News"
+      : "News Archive — Page " + page + " | USA Daily News";
+    const description = "Browse the USA Daily News archive by date, with direct links to published articles on US politics, business, technology, culture and sports.";
+    const canonical = SITE_URL + archivePath;
+    const items = articles.map((article) => {
+      const date = new Date(article.created_at);
+      const dateLabel = Number.isNaN(date.getTime())
+        ? ""
+        : date.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" });
+      const descriptionText = htmlEscape(articleSeoDescription(article));
+      return '<li><article class="seo-archive-item"><h2><a href="' + SITE_URL + '/article/' +
+        Number(article.id) + '">' + htmlEscape(article.title) + '</a></h2><p>' +
+        htmlEscape(article.category || "News") + (dateLabel ? " · " + htmlEscape(dateLabel) : "") +
+        '</p>' + (descriptionText ? '<p>' + descriptionText + '</p>' : "") + '</article></li>';
+    }).join("");
+
+    const visiblePages = new Set<number>([1, totalPages, page, page - 1, page + 1]);
+    for (let number = Math.max(1, page - 3); number <= Math.min(totalPages, page + 3); number += 1) {
+      visiblePages.add(number);
+    }
+    const sortedPages = [...visiblePages].filter((number) => number >= 1 && number <= totalPages).sort((a, b) => a - b);
+    const pageHref = (number: number) => number === 1 ? "/archive" : "/archive/" + number;
+    const pagination = sortedPages.map((number, index) => {
+      const gap = index > 0 && number - sortedPages[index - 1] > 1 ? '<span aria-hidden="true">…</span>' : "";
+      const link = number === page
+        ? '<span aria-current="page">' + number + '</span>'
+        : '<a href="' + pageHref(number) + '">' + number + '</a>';
+      return gap + link;
+    }).join(" ");
+    const previous = page > 1
+      ? '<a rel="prev" href="' + pageHref(page - 1) + '">Previous</a>'
+      : "";
+    const next = page < totalPages
+      ? '<a rel="next" href="' + pageHref(page + 1) + '">Next</a>'
+      : "";
+
+    let html = await assetResponse.text();
+    html = html
+      .replace(/<title\b[^>]*>[\s\S]*?<\/title>/i, "")
+      .replace(/<meta\b[^>]*\bname=["']description["'][^>]*>/i, "")
+      .replace(/<meta\b[^>]*\bname=["']robots["'][^>]*>/i, "")
+      .replace(/<meta\b[^>]*\bproperty=["'](?:og:title|og:description|og:type|og:url|og:image|og:site_name)["'][^>]*>/gi, "")
+      .replace(/<link\b[^>]*\brel=["']canonical["'][^>]*>/i, "")
+      .replace(/<script\b[^>]*type=["']application\/ld\+json["'][^>]*>[\s\S]*?<\/script>/gi, "");
+
+    const schema = JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "CollectionPage",
+      name: title,
+      description,
+      url: canonical,
+      mainEntity: {
+        "@type": "ItemList",
+        numberOfItems: articles.length,
+        itemListElement: articles.map((article, index) => ({
+          "@type": "ListItem",
+          position: (page - 1) * pageSize + index + 1,
+          url: SITE_URL + "/article/" + Number(article.id),
+          name: article.title,
+        })),
+      },
+    }).replace(/</g, "\\u003c");
+    const headTags = [
+      "<title>" + htmlEscape(title) + "</title>",
+      '<meta name="description" content="' + htmlEscape(description) + '">',
+      '<meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">',
+      '<link rel="canonical" href="' + htmlEscape(canonical) + '">',
+      '<meta property="og:type" content="website">',
+      '<meta property="og:site_name" content="USA Daily News">',
+      '<meta property="og:title" content="' + htmlEscape(title) + '">',
+      '<meta property="og:description" content="' + htmlEscape(description) + '">',
+      '<meta property="og:url" content="' + htmlEscape(canonical) + '">',
+      '<script type="application/ld+json">' + schema + "</script>",
+    ].join("\\n");
+
+    const body = '<main id="seo-archive" class="mx-auto max-w-6xl px-4 py-8">' +
+      '<header><p><a href="/">Home</a> / News Archive</p><h1>' + htmlEscape(title) + '</h1>' +
+      '<p>' + htmlEscape(description) + '</p><p>Showing ' +
+      String(totalArticles === 0 ? 0 : (page - 1) * pageSize + 1) + "–" +
+      String(Math.min(page * pageSize, totalArticles)) + " of " + totalArticles + " articles.</p></header>" +
+      '<ol class="seo-archive-list">' + items + '</ol>' +
+      '<nav aria-label="Archive pages" class="seo-archive-pagination">' +
+      previous + " " + pagination + " " + next + '</nav></main>';
+    if (!html.includes('<div id="root"></div>')) {
+      return unavailable(502, "The news archive could not render the site template.");
+    }
+    html = html.replace("</head>", headTags + "\\n</head>");
+    html = html.replace('<div id="root"></div>', '<div id="root">' + body + "</div>");
+
+    return new Response(html, {
+      status: 200,
+      headers: {
+        "Content-Type": "text/html; charset=utf-8",
+        "Cache-Control": "public, max-age=0, s-maxage=300",
+        "X-Content-Type-Options": "nosniff",
+      },
+    });
+  } catch (error) {
+    console.error("News archive rendering failed:", error);
+    return unavailable(502, "The news archive is temporarily unavailable.");
+  }
+}
+
+
 async function handleSitemap(env: Env): Promise<Response> {
   if (!env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) {
     // Keep the existing static sitemap available until runtime variables are set.
@@ -721,11 +907,16 @@ async function handleSitemap(env: Env): Promise<Response> {
     return `<url><loc>${xmlEscape(`${SITE_URL}/article/${article.id}`)}</loc>${lastmodTag}${imageTag}</url>`;
   }).join("");
 
-  const staticUrls = ["/", "/politics", "/tech", "/economy", "/culture", "/football", "/weather", "/about", "/contact", "/editorial-policy", "/corrections", "/privacy-policy"]
+  const archivePageCount = Math.max(1, Math.ceil(rows.length / 50));
+  const archiveUrls = Array.from({ length: Math.max(0, archivePageCount - 1) }, (_, index) => {
+    const page = index + 2;
+    return `<url><loc>${SITE_URL}/archive/${page}</loc></url>`;
+  }).join("");
+  const staticUrls = ["/", "/politics", "/tech", "/economy", "/culture", "/football", "/weather", "/archive", "/about", "/contact", "/editorial-policy", "/corrections", "/privacy-policy"]
     .map((path) => `<url><loc>${SITE_URL}${path}</loc></url>`)
     .join("");
 
-  const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">${staticUrls}${articleUrls}</urlset>`;
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">${staticUrls}${archiveUrls}${articleUrls}</urlset>`;
 
   return new Response(xml, {
     headers: {
@@ -1609,6 +1800,10 @@ export default {
     }
     if (url.pathname === "/news-sitemap.xml") {
       return handleNewsSitemap(env);
+    }
+    const archiveMatch = url.pathname.match(/^\\/archive(?:\\/(\\d+))?\\/?$/);
+    if (archiveMatch && request.method === "GET") {
+      return handleArchivePage(request, env, archiveMatch[1] || "1");
     }
     if (request.method === "GET" && STATIC_SEO_PAGES[url.pathname]) {
       return handleStaticSeoPage(request, env, url.pathname);
