@@ -905,6 +905,10 @@ ${trendBrief}
 - Do not invent an author, reporter, eyewitness, exclusive access, interview, or original on-the-ground reporting. Do not imply USA Daily News independently witnessed or verified events unless the evidence says so.
 - Write in original wording; do not copy or closely paraphrase publisher sentences. Use direct quotations only when essential, accurately attributed, and supported by the evidence.
 - Add clear reader value beyond a rewritten headline or a short paraphrase: explain what changed, who is affected, why it matters to U.S. readers, and what is known about next steps, but only when the supplied evidence supports those points.
+- ORIGINALITY STANDARD: Do not produce a sentence-by-sentence rewrite of the publisher's article. Reorganize the reporting around the most useful confirmed development, explain relationships among documented facts, clarify what is confirmed versus unknown, and add concise, evidence-based context only when it genuinely helps readers.
+- If the only available material is one publisher's report, be transparent through attribution and do not pretend the newsroom independently verified it. Do not invent original reporting, interviews, local observations, exclusive findings, or a second-source consensus.
+- If related coverage is supplied, treat it only as a lead to corroborate facts; never treat a headline alone as proof. Attribute any additional factual detail to the publisher that reported it and preserve disagreements between sources.
+- Every paragraph must contribute a distinct fact, explanation, verified timeline point, or clearly identified uncertainty. Remove generic scene-setting, repeated conclusions, empty transitions, and stock phrases.
 - Do not manufacture an opinion, analysis, context, or "what it means" section from assumptions. If the evidence supports no useful explanation beyond repeating the source, omit the candidate.
 - HARD LENGTH REQUIREMENT: Every article you return MUST have a body of at least ${ARTICLE_TARGET_CHARS} characters, counting spaces and Markdown. Aim for 3000-3500 characters so the finished article safely clears the 2500-character minimum after editing. A report below ${ARTICLE_TARGET_CHARS} characters is invalid and must not be returned.
 - Draft each report in depth before returning it. A 2500-character report is a substantial news article, not a brief news summary. Develop the story with a detailed opening, several useful sections, and a substantive closing. Do not stop after a few paragraphs or after merely restating the source headline.
@@ -1243,6 +1247,45 @@ function normalizedParagraphs(markdown) {
     .filter((part) => part.length >= 80);
 }
 
+function fiveWordShingleOverlap(articleText, sourceText) {
+  const normalize = (value) => String(value || "")
+    .replace(/\[([^\]]+)\]\(https?:\/\/[^\s)]+\)/gi, "$1")
+    .replace(/https?:\/\/[^\s)>]+/gi, " ")
+    .replace(/<[^>]*>/g, " ")
+    .toLowerCase()
+    .replace(/[^a-z0-9' ]/g, " ")
+    .split(/\s+/)
+    .filter((word) => word.length > 2);
+  const shingles = (words) => {
+    const result = new Set();
+    for (let i = 0; i <= words.length - 5; i += 1) result.add(words.slice(i, i + 5).join(" "));
+    return result;
+  };
+  const article = shingles(normalize(articleText));
+  const source = shingles(normalize(sourceText));
+  if (article.size < 20 || source.size < 20) return 0;
+  let shared = 0;
+  for (const shingle of article) if (source.has(shingle)) shared += 1;
+  return shared / article.size;
+}
+
+function genericFillerCount(value) {
+  const text = String(value || "").toLowerCase();
+  const fillerPatterns = [
+    /in today's (?:fast-paced|rapidly changing|ever-changing) world/g,
+    /only time will tell/g,
+    /it remains to be seen/g,
+    /as the situation continues to unfold/g,
+    /this development (?:highlights|underscores) the importance/g,
+    /the implications are far-reaching/g,
+    /at the end of the day/g,
+    /this serves as a reminder/g,
+    /in a broader context/g,
+    /the full impact remains unclear/g,
+  ];
+  return fillerPatterns.reduce((count, pattern) => count + (text.match(pattern) || []).length, 0);
+}
+
 function validateAndNormalize(generated, sourceArticles) {
   const sourceByUrl = new Map(sourceArticles.map((article) => [normalizedUrl(article.url), article]));
   const allowedCategories = new Set(["Politics", "Tech", "Economy", "Culture", "Sports"]);
@@ -1315,6 +1358,11 @@ function validateAndNormalize(generated, sourceArticles) {
     if (isPromotionalStory(original)) qualityIssues.push("source is a commercial betting or affiliate promotion");
     if (!hasSubstantialEvidence) qualityIssues.push("source evidence is below the 800-character threshold");
     if (repeatedParagraphs) qualityIssues.push("article repeats one or more paragraphs");
+    const sourceOverlap = fiveWordShingleOverlap(content, evidenceText);
+    if (sourceOverlap > 0.32) qualityIssues.push("article is too close to the source wording (" + Math.round(sourceOverlap * 100) + "% shared five-word phrases)");
+    const fillerCount = genericFillerCount(content);
+    if (fillerCount >= 2) qualityIssues.push("article contains generic filler phrases (" + fillerCount + ")");
+    if (wordCount < 350) qualityIssues.push("article lacks sufficient substantive detail (fewer than 350 words)");
     if (qualityIssues.length) {
       const reason = `${original.title}: ${qualityIssues.join("; ")}`;
       console.warn("Skipping an article that fails editorial/on-page checks (" + reason + ").");
