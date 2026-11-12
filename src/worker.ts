@@ -1801,7 +1801,7 @@ export default {
     if (url.pathname === "/news-sitemap.xml") {
       return handleNewsSitemap(env);
     }
-    const archiveMatch = url.pathname.match(/^\\/archive(?:\\/(\\d+))?\\/?$/);
+    const archiveMatch = url.pathname.match(/^\/archive(?:\/(\d+))?\/?$/);
     if (archiveMatch && request.method === "GET") {
       return handleArchivePage(request, env, archiveMatch[1] || "1");
     }
