@@ -204,9 +204,18 @@ export function HomePage({ onOpenArticle, onNavigate, initialCategory }: HomePag
                   </div>
                 )}
 
-                <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-gray-500 border-b-2 border-gray-900 pb-2 mb-4">
-                  {active === 'All' ? 'Latest Stories' : active}
-                </h2>
+                <div className="mb-4 flex items-center justify-between gap-4 border-b-2 border-gray-900 pb-2">
+                  <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-gray-500">
+                    {active === 'All' ? 'Latest Stories' : active}
+                  </h2>
+                  <a
+                    href="/archive"
+                    onClick={(event) => { event.preventDefault(); onNavigate('/archive'); }}
+                    className="shrink-0 text-xs font-semibold text-red-700 underline-offset-2 hover:underline"
+                  >
+                    All articles
+                  </a>
+                </div>
                 {sidebar.length > 0 && (
                   <div className="mb-6">
                     {sidebar.map((a) => (
