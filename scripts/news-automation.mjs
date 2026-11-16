@@ -337,9 +337,9 @@ function normalizeSeoDescription(candidate, content) {
     : (contentSentence || contentText || candidateText);
   if (selected.length < 50 && contentText.length >= 50) selected = contentText;
 
-  let description = truncateDescription(selected, 180).trim();
+  let description = truncateDescription(selected, 155).trim();
   if (description.length >= 50 && !/[.!?…][”’"')\]]?$/.test(description)) {
-    description = truncateDescription(description, 179).replace(/[.!?…]+$/, "").trimEnd() + ".";
+    description = truncateDescription(description, 154).replace(/[.!?…]+$/, "").trimEnd() + ".";
   }
   return description;
 }
@@ -937,7 +937,7 @@ Accuracy and safety:
 - Return content as Markdown. Return only these existing fields: title, content, category, source_url, image_url, seo_description.
 
 Return ONLY a valid JSON array. Each object must contain exactly these keys: title, content, category, source_url, image_url, seo_description.
-Before returning, check that each report is factual, useful, clearly written, sufficiently developed for its evidence, and attributed in the opening. Keep the meta description concise and accurate without a fixed character count. Do not enforce a fixed word, paragraph or heading count. Use the exact source_url from the selected candidate. Use null for image_url when no image URL is supplied. If no candidate is suitable, return [].
+Before returning, check that each report is factual, useful, clearly written, sufficiently developed for its evidence, and attributed in the opening. Check that each meta description is unique, accurate, 140–155 characters, and describes the specific article rather than repeating its headline. Do not enforce a fixed word, paragraph or heading count. Use the exact source_url from the selected candidate. Use null for image_url when no image URL is supplied. If no candidate is suitable, return [].
 
 SOURCE CANDIDATES:
 ${JSON.stringify(candidates)}
@@ -1105,7 +1105,7 @@ ACCURACY AND QUALITY:
 - Add useful detail by explaining the documented event, sequence, named people and organizations, figures, decisions, and directly stated implications. Distinguish confirmed facts from unknowns.
 - Do not repeat paragraphs, pad with generic context, or restate the same point.
 - If the supplied evidence genuinely cannot support a complete article of at least ${ARTICLE_TARGET_CHARS} characters, return [] rather than fabricate or pad. This is the only editorial reason to stop below the minimum.
-- Keep the factual headline under 110 characters, category, exact source_url, relevant image_url, and concise SEO description.
+- Keep the factual headline under 110 characters, category, exact source_url, relevant image_url, and a unique, article-specific meta description of 140–155 characters. The description must summarize the actual event and its most useful distinguishing detail, naturally include the main subject when possible, and must not simply repeat the headline, use generic filler, or add unsupported claims.
 - Attribute the publisher in the opening paragraph and link its name to the exact source URL.
 - Return only a valid JSON array containing exactly one object with these keys: title, content, category, source_url, image_url, seo_description. If the evidence is genuinely insufficient, return [].
 
