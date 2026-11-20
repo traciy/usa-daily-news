@@ -640,6 +640,14 @@ async function handleArticlePage(request: Request, env: Env, articleId: string):
       const relatedEndpoint = new URL(env.SUPABASE_URL.replace(/\/$/, "") + "/rest/v1/articles");
       relatedEndpoint.searchParams.set("select", "id,title,category");
       relatedEndpoint.searchParams.set("id", "neq." + articleId);
+      relatedEndpoint.searchParams.set("category", "eq." + article.category);
+      const articleDate = new Date(article.created_at);
+      if (!Number.isNaN(articleDate.getTime())) {
+        const windowStart = new Date(articleDate.getTime() - 45 * 24 * 60 * 60 * 1000).toISOString();
+        const windowEnd = new Date(articleDate.getTime() + 45 * 24 * 60 * 60 * 1000).toISOString();
+        relatedEndpoint.searchParams.set("created_at", "gte." + windowStart);
+        relatedEndpoint.searchParams.append("created_at", "lte." + windowEnd);
+      }
       relatedEndpoint.searchParams.set("order", "created_at.desc");
       relatedEndpoint.searchParams.set("limit", "12");
       const relatedResponse = await fetch(relatedEndpoint.toString(), {
@@ -648,9 +656,21 @@ async function handleArticlePage(request: Request, env: Env, articleId: string):
       } as RequestInit & { cf: { cacheTtl: number; cacheEverything: boolean } });
       if (relatedResponse.ok) {
         const candidates = await relatedResponse.json() as Array<Pick<SeoArticle, "id" | "title" | "category">>;
-        const sameCategory = candidates.filter((item) => item.category?.toLowerCase() === article.category?.toLowerCase());
-        const otherCategories = candidates.filter((item) => item.category?.toLowerCase() !== article.category?.toLowerCase());
-        relatedArticles = [...sameCategory, ...otherCategories].slice(0, 5);
+        relatedArticles = candidates.slice(0, 5);
+        // If the article has no nearby same-category stories, fall back to
+        // recent coverage so every article still links into the wider site.
+        if (relatedArticles.length === 0) {
+          const fallbackEndpoint = new URL(env.SUPABASE_URL.replace(/\/$/, "") + "/rest/v1/articles");
+          fallbackEndpoint.searchParams.set("select", "id,title,category");
+          fallbackEndpoint.searchParams.set("id", "neq." + articleId);
+          fallbackEndpoint.searchParams.set("order", "created_at.desc");
+          fallbackEndpoint.searchParams.set("limit", "5");
+          const fallbackResponse = await fetch(fallbackEndpoint.toString(), {
+            headers: { apikey: env.SUPABASE_ANON_KEY, Authorization: "Bearer " + env.SUPABASE_ANON_KEY, Accept: "application/json" },
+            cf: { cacheTtl: 60, cacheEverything: true },
+          } as RequestInit & { cf: { cacheTtl: number; cacheEverything: boolean } });
+          if (fallbackResponse.ok) relatedArticles = await fallbackResponse.json() as Array<Pick<SeoArticle, "id" | "title" | "category">>;
+        }
       } else {
         console.warn("Related article links could not be loaded:", relatedResponse.status);
       }
