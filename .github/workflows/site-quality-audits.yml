@@ -1,0 +1,153 @@
+name: USA Daily News Quality Audits
+
+on:
+  workflow_run:
+    workflows:
+      - Deploy USA Daily News to Cloudflare
+    types:
+      - completed
+  schedule:
+    - cron: "15 2 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: usa-daily-news-quality-audits
+  cancel-in-progress: false
+
+jobs:
+  source-link-audit:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    env:
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+    steps:
+      - name: Check out deployed source revision
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Check every published article source link
+        id: audit
+        run: node scripts/audit-source-links.mjs
+
+      - name: Save full CSV and JSON reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: usa-daily-news-source-link-audit
+          path: |
+            source-link-audit.csv
+            source-link-audit.json
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Create or update an issue for confirmed broken links
+        if: steps.audit.outputs.broken_count != '0'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = JSON.parse(fs.readFileSync('source-link-audit.json', 'utf8'));
+            const rows = report.broken.slice(0, 100).map((item) =>
+              '- Article [#' + item.id + '](https://usadailynews.space/article/' + item.id + ') — ' + item.detail + ': ' + item.source_url
+            );
+            const extra = report.broken.length > 100
+              ? '\n\nThe CSV artifact contains ' + (report.broken.length - 100) + ' additional affected article records.'
+              : '';
+            const body = [
+              'The automated source-link audit confirmed broken or invalid source URLs.',
+              '',
+              '- Articles checked: ' + report.total_articles,
+              '- Unique source URLs checked: ' + report.unique_source_urls,
+              '- Confirmed broken/invalid article links: ' + report.confirmed_broken_or_invalid_article_links,
+              '- Inconclusive links (not classified as broken): ' + report.inconclusive_article_links,
+              '',
+              '## Affected articles',
+              ...rows,
+              extra,
+              '',
+              'The checker does not automatically rewrite citations. Review each source and replace it only with a verified authoritative destination.',
+              'Download the workflow artifact usa-daily-news-source-link-audit for the complete CSV and JSON report.'
+            ].join('\n');
+            const { owner, repo } = context.repo;
+            const title = 'Source-link audit: confirmed broken article citations';
+            const openIssues = await github.rest.issues.listForRepo({ owner, repo, state: 'open', per_page: 100 });
+            const existing = openIssues.data.find((issue) => issue.title === title);
+            if (existing) {
+              await github.rest.issues.update({ owner, repo, issue_number: existing.number, body });
+            } else {
+              await github.rest.issues.create({ owner, repo, title, body });
+            }
+
+  lighthouse:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Set up Chrome
+        uses: browser-actions/setup-chrome@v1
+        id: chrome
+        with:
+          chrome-version: stable
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Run mobile and desktop Lighthouse tests
+        shell: bash
+        run: |
+          mkdir -p lighthouse-reports
+          pages=("https://usadailynews.space/" "https://usadailynews.space/article/990" "https://usadailynews.space/archive")
+          names=("homepage" "article-990" "archive")
+          for index in 0 1 2; do
+            url="${pages[$index]}"
+            name="${names[$index]}"
+            CHROME_PATH="${{ steps.chrome.outputs.chrome-path }}" npx --yes lighthouse@12.8.2 "$url" \
+              --chrome-flags="--headless --no-sandbox --disable-dev-shm-usage" \
+              --only-categories=performance,accessibility,best-practices,seo \
+              --output=json --output-path="lighthouse-reports/mobile-${name}.json" --quiet
+            CHROME_PATH="${{ steps.chrome.outputs.chrome-path }}" npx --yes lighthouse@12.8.2 "$url" \
+              --preset=desktop \
+              --chrome-flags="--headless --no-sandbox --disable-dev-shm-usage" \
+              --only-categories=performance,accessibility,best-practices,seo \
+              --output=json --output-path="lighthouse-reports/desktop-${name}.json" --quiet
+          done
+          node -e '
+            const fs = require("fs");
+            const files = fs.readdirSync("lighthouse-reports").filter((file) => file.endsWith(".json")).sort();
+            const lines = ["### USA Daily News Lighthouse results", "", "| Test | Performance | SEO | Accessibility | LCP | CLS | Total Blocking Time |", "|---|---:|---:|---:|---:|---:|---:|"];
+            for (const file of files) {
+              const report = JSON.parse(fs.readFileSync("lighthouse-reports/" + file, "utf8"));
+              const score = (name) => Math.round((report.categories[name]?.score ?? 0) * 100);
+              const metric = (name, divisor = 1) => {
+                const value = report.audits[name]?.numericValue;
+                return Number.isFinite(value) ? (value / divisor).toFixed(2) : "n/a";
+              };
+              lines.push("| " + file.replace(".json", "") + " | " + score("performance") + " | " + score("seo") + " | " + score("accessibility") + " | " + metric("largest-contentful-paint", 1000) + " s | " + metric("cumulative-layout-shift") + " | " + metric("total-blocking-time") + " ms |");
+            }
+            const summary = lines.join("\n") + "\n\nFull Lighthouse JSON reports are available in the usa-daily-news-lighthouse workflow artifact.";
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary);
+            console.log(summary);
+          '
+
+      - name: Save Lighthouse reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: usa-daily-news-lighthouse
+          path: lighthouse-reports/
+          if-no-files-found: warn
+          retention-days: 30
