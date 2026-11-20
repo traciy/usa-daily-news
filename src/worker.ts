@@ -860,8 +860,18 @@ async function handleArchivePage(request: Request, env: Env, requestedPage: stri
 
 async function handleSitemap(env: Env): Promise<Response> {
   if (!env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) {
-    // Keep the existing static sitemap available until runtime variables are set.
-    return env.ASSETS.fetch(new Request(`${SITE_URL}/sitemap.xml`));
+    // Never serve the tiny build-time sitemap as if it represents the full
+    // database. A temporary sitemap error is safer than silently omitting
+    // thousands of article URLs from Google's discovery source.
+    return new Response("The article sitemap is temporarily unavailable because the database connection is not configured.", {
+      status: 503,
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control": "no-store",
+        "Retry-After": "300",
+        "X-Content-Type-Options": "nosniff",
+      },
+    });
   }
 
   const baseUrl = env.SUPABASE_URL.replace(/\/$/, "");
