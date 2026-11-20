@@ -10,28 +10,43 @@ import { safeHttpUrl } from '@/lib/safe-url';
 import type { Article, ArticleSummary } from '@/types/article';
 import { ArticleCard } from '@/components/ArticleCard';
 
+function readServerRenderedArticle(id: number): Article | null {
+  if (typeof document === 'undefined') return null;
+  const element = document.getElementById('usa-daily-news-article-data');
+  if (!element?.textContent) return null;
+  try {
+    const article = JSON.parse(element.textContent) as Article;
+    return article && Number(article.id) === id && typeof article.content === 'string'
+      ? article
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 interface ArticlePageProps {
   id: number;
   onBack: () => void;
 }
 
 export function ArticlePage({ id, onBack }: ArticlePageProps) {
-  const [article, setArticle] = useState<Article | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [article, setArticle] = useState<Article | null>(() => readServerRenderedArticle(id));
+  const [loading, setLoading] = useState(() => !readServerRenderedArticle(id));
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [recommended, setRecommended] = useState<ArticleSummary[]>([]);
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
+    const initialArticle = readServerRenderedArticle(id);
+    setLoading(!initialArticle);
     setError(null);
-    setArticle(null);
+    setArticle(initialArticle);
     setRecommended([]);
     window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
 
     const client = supabase;
-    if (!client) {
+    if (!client && !initialArticle) {
       setError('The news database is not configured for this deployment. Check the Cloudflare build variables and redeploy.');
       setLoading(false);
       return () => {
@@ -40,18 +55,26 @@ export function ArticlePage({ id, onBack }: ArticlePageProps) {
     }
 
     (async () => {
-      const { data, error: err } = await client
-        .from('articles')
-        .select('*')
-        .eq('id', id)
-        .maybeSingle();
+      let data: Article | null = initialArticle;
+      let err: { message: string } | null = null;
+      if (!data && client) {
+        const result = await client
+          .from('articles')
+          .select('*')
+          .eq('id', id)
+          .maybeSingle();
+        if (cancelled) return;
+        data = result.data as Article | null;
+        err = result.error;
+      }
+
       if (cancelled) return;
       if (err) {
         setError(err.message);
       } else if (!data) {
         setError('Article not found.');
       } else {
-        const currentArticle = data as Article;
+        const currentArticle = data;
         setArticle(currentArticle);
         // Trending Now is intended to reflect readers, not search/social crawlers.
         const userAgent = window.navigator.userAgent || '';
@@ -59,7 +82,7 @@ export function ArticlePage({ id, onBack }: ArticlePageProps) {
           window.navigator.webdriver === true ||
           /bot|crawler|spider|headless|preview|slurp|facebookexternalhit|twitterbot|linkedinbot|discordbot|slackbot|telegrambot|whatsapp|curl|wget|python-requests/i.test(userAgent);
 
-        if (!isAutomatedVisitor) {
+        if (client && !isAutomatedVisitor) {
           try {
             const visitorKey = 'usadailynews-article-reader';
             let visitorId = window.localStorage.getItem(visitorKey);
@@ -78,21 +101,31 @@ export function ArticlePage({ id, onBack }: ArticlePageProps) {
             console.warn('USA Daily News article view tracking is unavailable:', trackingError);
           }
         }
-        const { data: suggestions } = await client
-          .from('articles')
-          .select('id, title, category, image_url, seo_description, created_at, source_url')
-          .neq('id', id)
-          .order('created_at', { ascending: false })
-          .limit(12);
-        if (!cancelled) {
-          const candidates = (suggestions ?? []) as ArticleSummary[];
-          const sameCategory = candidates.filter((item) => item.category?.toLowerCase() === currentArticle.category?.toLowerCase());
-          const recent = candidates.filter((item) => item.category?.toLowerCase() !== currentArticle.category?.toLowerCase());
-          setRecommended([...sameCategory, ...recent].slice(0, 6));
+
+        if (client) {
+          const { data: suggestions } = await client
+            .from('articles')
+            .select('id, title, category, image_url, seo_description, created_at, source_url')
+            .neq('id', id)
+            .order('created_at', { ascending: false })
+            .limit(12);
+          if (!cancelled) {
+            const candidates = (suggestions ?? []) as ArticleSummary[];
+            const sameCategory = candidates.filter((item) => item.category?.toLowerCase() === currentArticle.category?.toLowerCase());
+            const recent = candidates.filter((item) => item.category?.toLowerCase() !== currentArticle.category?.toLowerCase());
+            setRecommended([...sameCategory, ...recent].slice(0, 6));
+          }
         }
       }
-      setLoading(false);
-    })();
+      if (!cancelled) setLoading(false);
+    })().catch((loadError) => {
+      if (!cancelled) {
+        console.error('USA Daily News article load failed:', loadError);
+        if (!initialArticle) setError('This article could not be loaded. Please try again.');
+        setLoading(false);
+      }
+    });
+
     return () => {
       cancelled = true;
     };
@@ -236,7 +269,7 @@ export function ArticlePage({ id, onBack }: ArticlePageProps) {
       {articleImage && (
         <figure className="mt-6 -mx-4 sm:mx-0">
           <img
-            src={articleImage}
+            src={articleImage ? `/image/${article.id}` : undefined}
             onError={(event) => {
               event.currentTarget.style.display = 'none';
             }}
