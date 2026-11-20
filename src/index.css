@@ -59,3 +59,30 @@ img[width][height] {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* Keep article content usable on narrow screens, including long source links and wide embeds. */
+.prose-serif {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+.prose-serif img,
+.prose-serif video,
+.prose-serif iframe {
+  max-width: 100%;
+}
+.prose-serif img {
+  height: auto;
+}
+.prose-serif table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}
+.prose-serif pre {
+  max-width: 100%;
+  overflow-x: auto;
+}
+.prose-serif a {
+  overflow-wrap: anywhere;
+}
