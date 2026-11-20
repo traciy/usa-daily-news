@@ -645,8 +645,7 @@ async function handleArticlePage(request: Request, env: Env, articleId: string):
       if (!Number.isNaN(articleDate.getTime())) {
         const windowStart = new Date(articleDate.getTime() - 45 * 24 * 60 * 60 * 1000).toISOString();
         const windowEnd = new Date(articleDate.getTime() + 45 * 24 * 60 * 60 * 1000).toISOString();
-        relatedEndpoint.searchParams.set("created_at", "gte." + windowStart);
-        relatedEndpoint.searchParams.append("created_at", "lte." + windowEnd);
+        relatedEndpoint.searchParams.set("and", "(created_at.gte." + windowStart + ",created_at.lte." + windowEnd + ")");
       }
       relatedEndpoint.searchParams.set("order", "created_at.desc");
       relatedEndpoint.searchParams.set("limit", "12");
