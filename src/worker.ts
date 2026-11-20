@@ -30,7 +30,9 @@ function renderArticleMarkdown(markdown: string): string {
     if (!trimmed) return "";
     const heading = /^(#{1,3})\s+(.+)$/.exec(trimmed);
     if (heading) {
-      const level = heading[1].length;
+      // The article title is the page's single H1. Map body Markdown headings
+      // one level lower so article content cannot create a second H1.
+      const level = Math.min(4, heading[1].length + 1);
       return "<h" + level + ">" + inline(heading[2]) + "</h" + level + ">";
     }
     const lines = trimmed.split("\n");
