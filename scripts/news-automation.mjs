@@ -937,7 +937,7 @@ Accuracy and safety:
 - Return content as Markdown. Return only these existing fields: title, content, category, source_url, image_url, seo_description.
 
 Return ONLY a valid JSON array. Each object must contain exactly these keys: title, content, category, source_url, image_url, seo_description.
-Before returning, check that each report is factual, useful, clearly written, sufficiently developed for its evidence, and attributed in the opening. Check that each meta description is unique, accurate, 140–155 characters, and describes the specific article rather than repeating its headline. Do not enforce a fixed word, paragraph or heading count. Use the exact source_url from the selected candidate. Use null for image_url when no image URL is supplied. If no candidate is suitable, return [].
+Before returning, check that each report is factual, useful, clearly written, sufficiently developed for its evidence, and attributed in the opening. Check that each meta description is unique, accurate, 140–155 characters, and describes the specific article rather than repeating its headline. Use Markdown ## for article section headings and ### for subsections; never use a single # heading because the page template supplies the only H1 from the article title. Keep headings descriptive and in logical order. Do not enforce a fixed word, paragraph or heading count. Use the exact source_url from the selected candidate. Use null for image_url when no image URL is supplied. If no candidate is suitable, return [].
 
 SOURCE CANDIDATES:
 ${JSON.stringify(candidates)}
