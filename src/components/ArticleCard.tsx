@@ -15,8 +15,9 @@ interface ArticleImageProps {
 }
 
 function ArticleImage({ article, className, width, height, loading = 'lazy', priority = false, sizes }: ArticleImageProps) {
-  const imageUrl = safeHttpUrl(article.image_url) || '/og-default.svg';
-  const hasPublisherImage = imageUrl !== '/og-default.svg';
+  const originalImageUrl = safeHttpUrl(article.image_url);
+  const imageUrl = originalImageUrl ? `/image/${article.id}` : '/og-default.svg';
+  const hasPublisherImage = Boolean(originalImageUrl);
   return (
     <img
       src={imageUrl}
