@@ -80,6 +80,11 @@ function injectArticleSeo(documentHtml: string, article: SeoArticle, relatedArti
   const description = articleSeoDescription(article);
   const pageTitle = articleSeoTitle(article.title);
   const image = article.image_url && /^https:\/\//i.test(article.image_url) ? article.image_url : "";
+  const optimizedImage = image ? SITE_URL + "/image/" + article.id : "";
+  const articleDataJson = JSON.stringify(article)
+    .replace(/</g, "\\u003c")
+    .replace(/>/g, "\\u003e")
+    .replace(/&/g, "\\u0026");
   const published = new Date(article.created_at);
   const publishedIso = Number.isNaN(published.getTime()) ? "" : published.toISOString();
   const schema = {
@@ -127,6 +132,7 @@ function injectArticleSeo(documentHtml: string, article: SeoArticle, relatedArti
     image ? '<meta name="twitter:image" content="' + htmlEscape(image) + '">' : "",
     image ? '<meta name="twitter:image:alt" content="' + htmlEscape(article.title) + '">' : "",
     publishedIso ? '<meta property="article:published_time" content="' + publishedIso + '">' : "",
+    '<script type="application/json" id="usa-daily-news-article-data">' + articleDataJson + "</script>",
     '<script type="application/ld+json" data-server-article-jsonld="true">' + schemaJson + "</script>",
   ].join("\n");
   const body = '<main id="seo-article"><article><header><p>' + htmlEscape(article.category) +
@@ -134,7 +140,7 @@ function injectArticleSeo(documentHtml: string, article: SeoArticle, relatedArti
     '</p><p class="seo-byline">By <a href="/about">USA Daily News</a></p><time datetime="' + htmlEscape(article.created_at) + '">' +
     htmlEscape(publishedIso ? published.toLocaleString("en-US", { dateStyle: "long", timeStyle: "short", timeZone: "UTC" }) + " UTC" : article.created_at) +
     "</time></header>" +
-    (image ? '<figure><img itemprop="image" src="' + htmlEscape(image) + '" alt="' +
+    (image ? '<figure><img itemprop="image" src="' + htmlEscape(optimizedImage) + '" alt="' +
       htmlEscape(article.title + " — " + article.category + " news") +
       '" title="' + htmlEscape(article.title) + '" width="1600" height="900" sizes="(max-width: 768px) 100vw, 768px" loading="eager" fetchpriority="high" decoding="async"></figure>' : "") +
     "<div>" + renderArticleMarkdown(article.content || "") + "</div>" +
@@ -162,7 +168,7 @@ function renderHomepage(articles: SeoArticle[]): string {
     const description = htmlEscape(articleSeoDescription(article));
     const date = new Date(article.created_at);
     const dateTime = Number.isNaN(date.getTime()) ? "" : date.toISOString();
-    const imageUrl = article.image_url && /^https:\/\//i.test(article.image_url) ? article.image_url : SITE_URL + "/og-default.svg";
+    const imageUrl = article.image_url && /^https:\/\//i.test(article.image_url) ? SITE_URL + "/image/" + article.id : SITE_URL + "/og-default.svg";
     const imageAlt = article.image_url ? title + " — " + category + " news" : "USA Daily News — news, context and coverage";
     const image = '<img src="' + htmlEscape(imageUrl) + '" alt="' + imageAlt + '" title="' + title +
       '" width="1200" height="675" sizes="(max-width: 1024px) 100vw, 66vw" ' +
@@ -566,6 +572,91 @@ async function handleHomePage(request: Request, env: Env): Promise<Response> {
     return fallback("worker-exception");
   }
 }
+
+async function handleArticleImage(request: Request, env: Env, articleId: string): Promise<Response> {
+  const unavailable = (status: number) => new Response("Article image unavailable.", {
+    status,
+    headers: {
+      "Content-Type": "text/plain; charset=utf-8",
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff",
+    },
+  });
+
+  if (!env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) return unavailable(503);
+
+  try {
+    const endpoint = new URL(env.SUPABASE_URL.replace(/\/$/, "") + "/rest/v1/articles");
+    endpoint.searchParams.set("select", "image_url");
+    endpoint.searchParams.set("id", "eq." + articleId);
+    endpoint.searchParams.set("limit", "1");
+    const recordResponse = await fetch(endpoint.toString(), {
+      headers: {
+        apikey: env.SUPABASE_ANON_KEY,
+        Authorization: "Bearer " + env.SUPABASE_ANON_KEY,
+        Accept: "application/json",
+      },
+      cf: { cacheTtl: 3600, cacheEverything: true },
+    } as RequestInit & { cf: { cacheTtl: number; cacheEverything: boolean } });
+
+    if (!recordResponse.ok) return unavailable(502);
+    const records = await recordResponse.json() as Array<{ image_url: string | null }>;
+    const original = records[0]?.image_url;
+    if (!original) return unavailable(404);
+
+    const imageUrl = new URL(original);
+    const blockedHost = imageUrl.hostname === "usadailynews.space" ||
+      imageUrl.hostname === "localhost" ||
+      imageUrl.hostname.endsWith(".local") ||
+      /^(127\.|10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2[0-9]|3[01])\.)/.test(imageUrl.hostname);
+    if (imageUrl.protocol !== "https:" || imageUrl.username || imageUrl.password || blockedHost) {
+      return unavailable(400);
+    }
+
+    const accept = request.headers.get("Accept") || "";
+    const format = /image\/avif/i.test(accept)
+      ? "avif"
+      : /image\/webp/i.test(accept)
+        ? "webp"
+        : undefined;
+    const imageOptions = {
+      headers: { Accept: accept || "image/*" },
+      cf: {
+        image: {
+          fit: "scale-down",
+          width: 1200,
+          quality: 78,
+          ...(format ? { format } : {}),
+        },
+        cacheEverything: true,
+        cacheTtl: 86400,
+      },
+    } as RequestInit & {
+      cf: {
+        image: { fit: "scale-down"; width: number; quality: number; format?: "avif" | "webp" };
+        cacheEverything: boolean;
+        cacheTtl: number;
+      };
+    };
+
+    const transformed = await fetch(imageUrl.toString(), imageOptions);
+    const contentType = transformed.headers.get("content-type") || "";
+    if (!transformed.ok || !contentType.toLowerCase().startsWith("image/")) {
+      // Retain the original publisher image if Cloudflare cannot transform this source.
+      return Response.redirect(imageUrl.toString(), 307);
+    }
+
+    const headers = new Headers(transformed.headers);
+    headers.set("Cache-Control", "public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400");
+    headers.set("X-Content-Type-Options", "nosniff");
+    headers.append("Vary", "Accept");
+    return new Response(transformed.body, { status: 200, headers });
+  } catch (error) {
+    console.error("Article image optimization failed:", articleId, error);
+    return unavailable(502);
+  }
+}
+
 
 async function handleArticlePage(request: Request, env: Env, articleId: string): Promise<Response> {
   const articleCanonical = SITE_URL + "/article/" + encodeURIComponent(articleId);
@@ -1831,6 +1922,10 @@ export default {
     }
     if (url.pathname === "/news-sitemap.xml") {
       return handleNewsSitemap(env);
+    }
+    const articleImageMatch = url.pathname.match(/^\/image\/(\d+)\/?$/);
+    if (articleImageMatch && request.method === "GET") {
+      return handleArticleImage(request, env, articleImageMatch[1]);
     }
     const archiveMatch = url.pathname.match(/^\/archive(?:\/(\d+))?\/?$/);
     if (archiveMatch && request.method === "GET") {
