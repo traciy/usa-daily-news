@@ -31,7 +31,7 @@ function requiredEnv(name) {
 
 function publishingDay() {
   const suppliedDay = process.env.PUBLISH_DAY || "";
-  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(suppliedDay)) return suppliedDay;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(suppliedDay)) return suppliedDay;
 
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: PUBLISH_TIME_ZONE,
@@ -82,7 +82,7 @@ async function reserveDailyPublishSlot() {
   }
   const nextState = { date: state.date, count: state.count + 1 };
   await mkdir(dirname(PUBLISH_STATE_FILE), { recursive: true });
-  await writeFile(PUBLISH_STATE_FILE, JSON.stringify(nextState, null, 2) + "\\n", "utf8");
+  await writeFile(PUBLISH_STATE_FILE, JSON.stringify(nextState, null, 2) + "\n", "utf8");
   console.log(`Reserved daily publication slot ${nextState.count}/${DAILY_PUBLISH_LIMIT} for ${nextState.date}.`);
 }
 
