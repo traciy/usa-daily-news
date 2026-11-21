@@ -2,7 +2,7 @@ name: USA Daily News Automation
 
 on:
   schedule:
-    - cron: "7 * * * *" # Once per hour (GitHub Actions cron uses UTC)
+    - cron: "0 */4 * * *" # Every four hours (UTC); six runs per Africa/Nairobi day
   workflow_dispatch:
     inputs:
       image_backfill_only:
@@ -20,6 +20,7 @@ concurrency:
 
 jobs:
   generate-news:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
@@ -28,9 +29,12 @@ jobs:
       GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
       GROQ_MODEL: openai/gpt-oss-120b
       GEMINI_MODEL: gemini-3.5-flash-lite
-      ARTICLE_COUNT: "10"
+      ARTICLE_COUNT: "1"
       MIN_ARTICLES: "1"
       ARTICLE_TARGET_CHARS: "2500"
+      DAILY_PUBLISH_LIMIT: "6"
+      PUBLISH_TIME_ZONE: "Africa/Nairobi"
+      PUBLISH_STATE_FILE: ".github/publish-state/daily-count.json"
       SUPABASE_FUNCTION_URL: https://dyabpvcqedeioarkgjlz.supabase.co/functions/v1/api-articles
       SUPABASE_BEARER_TOKEN: ${{ secrets.SUPABASE_BEARER_TOKEN }}
       BUFFER_API_KEY: ${{ secrets.BUFFER_API_KEY }}
@@ -42,6 +46,30 @@ jobs:
     steps:
       - name: Download repository code
         uses: actions/checkout@v5
+
+      - name: Determine the Africa/Nairobi publishing day
+        id: publish-day
+        shell: bash
+        run: |
+          day="$(TZ=Africa/Nairobi date +'%Y-%m-%d')"
+          echo "day=$day" >> "$GITHUB_OUTPUT"
+          echo "PUBLISH_DAY=$day" >> "$GITHUB_ENV"
+
+      - name: Restore daily publishing counter
+        uses: actions/cache/restore@v4
+        with:
+          path: .github/publish-state
+          key: usa-daily-news-publish-${{ steps.publish-day.outputs.day }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            usa-daily-news-publish-${{ steps.publish-day.outputs.day }}-
+
+      - name: Initialize daily publishing counter
+        shell: bash
+        run: |
+          mkdir -p .github/publish-state
+          if [ ! -f .github/publish-state/daily-count.json ]; then
+            printf '{"date":"%s","count":0}\n' "${{ steps.publish-day.outputs.day }}" > .github/publish-state/daily-count.json
+          fi
 
       - name: Set up Node.js
         uses: actions/setup-node@v5
@@ -61,3 +89,10 @@ jobs:
 
       - name: Run news automation
         run: node scripts/news-automation.mjs
+
+      - name: Save daily publishing counter
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: .github/publish-state
+          key: usa-daily-news-publish-${{ steps.publish-day.outputs.day }}-${{ github.run_id }}-${{ github.run_attempt }}
