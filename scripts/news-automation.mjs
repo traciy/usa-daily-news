@@ -375,35 +375,46 @@ function plainDescriptionText(value) {
     .trim();
 }
 
-function truncateDescription(value, maximum = 180) {
-  if (value.length <= maximum) return value;
-  const firstSentence = value.match(/^.{40,}?[.!?](?=\s|$)/)?.[0]?.trim();
-  if (firstSentence && firstSentence.length <= maximum) return firstSentence;
-  const shortened = value.slice(0, maximum - 1).replace(/\s+\S*$/, "").trimEnd();
-  return shortened ? shortened + "…" : value.slice(0, maximum - 1).trimEnd() + "…";
+function hasCompleteSeoEnding(value) {
+  const text = String(value || "").trim().replace(/[”’"')\]]+$/u, "").trim();
+  if (!/[.!?]$/.test(text) || /(?:…|\.\.\.)$/.test(text)) return false;
+  return !/\b(?:U\.S|U\.K|Mr|Mrs|Ms|Dr|Sen|Rep|Gov|Prof|St|Jr|Sr|vs|No|Inc|Ltd|Co|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec|e\.g|i\.e)\.$/i.test(text);
+}
+
+function completeArticleSentences(value) {
+  const marker = "__USA_DOT__";
+  const protectedText = plainDescriptionText(value).replace(
+    /\b(?:U\.S|U\.K|Mr|Mrs|Ms|Dr|Sen|Rep|Gov|Prof|St|Jr|Sr|vs|No|Inc|Ltd|Co|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec|e\.g|i\.e)\./gi,
+    (match) => match.replace(/\./g, marker)
+  );
+  return (protectedText.match(/[^.!?]+[.!?]+[”’"'\)\]]*(?=\s|$)|[^.!?]+$/g) || [])
+    .map((sentence) => sentence.replaceAll(marker, ".").trim())
+    .filter((sentence) => hasCompleteSeoEnding(sentence));
+}
+
+function isValidSeoDescription(value) {
+  const text = plainDescriptionText(value);
+  return text.length >= 140 && text.length <= 155 &&
+    hasCompleteSeoEnding(text) &&
+    !/\b(?:current ad|advertisement|sponsored content|subscribe now|sign up now|download our app|click here to continue)\b/i.test(text);
 }
 
 function normalizeSeoDescription(candidate, content) {
   const candidateText = plainDescriptionText(candidate);
-  const contentText = plainDescriptionText(content);
-  const candidateSentence = candidateText.match(/^.{50,}?[.!?](?=\s|$)/)?.[0]?.trim() || "";
-  const contentSentence = contentText.match(/^.{50,}?[.!?](?=\s|$)/)?.[0]?.trim() || "";
-  const candidateIsComplete = candidateText.length >= 60 &&
-    /[.!?…][”’"')\]]?$/.test(candidateText) &&
-    !/\b(?:current ad|advertisement|sponsored content|subscribe now|sign up now|download our app|click here to continue)\b/i.test(candidateText);
+  if (isValidSeoDescription(candidateText)) return candidateText;
 
-  // Prefer a complete 50+ character summary. If Gemini supplies a fragment,
-  // derive a factual description from the article's own opening instead.
-  let selected = candidateIsComplete
-    ? (candidateSentence || candidateText)
-    : (contentSentence || contentText || candidateText);
-  if (selected.length < 50 && contentText.length >= 50) selected = contentText;
-
-  let description = truncateDescription(selected, 155).trim();
-  if (description.length >= 50 && !/[.!?…][”’"')\]]?$/.test(description)) {
-    description = truncateDescription(description, 154).replace(/[.!?…]+$/, "").trimEnd() + ".";
+  const sentences = completeArticleSentences(content);
+  // Prefer a complete sentence (or two adjacent complete sentences) from the
+  // article itself. Never append filler or cut a sentence with an ellipsis.
+  for (let start = 0; start < Math.min(sentences.length, 5); start += 1) {
+    let combined = "";
+    for (let end = start; end < Math.min(sentences.length, start + 3); end += 1) {
+      combined = combined ? combined + " " + sentences[end] : sentences[end];
+      if (isValidSeoDescription(combined)) return combined;
+      if (combined.length > 155) break;
+    }
   }
-  return description;
+  return "";
 }
 
 function getXmlTag(block, tagNames) {
@@ -999,7 +1010,7 @@ Accuracy and safety:
 - Return content as Markdown. Return only these existing fields: title, content, category, source_url, image_url, seo_description.
 
 Return ONLY a valid JSON array. Each object must contain exactly these keys: title, content, category, source_url, image_url, seo_description.
-Before returning, check that each report is factual, useful, clearly written, sufficiently developed for its evidence, and attributed in the opening. Check that each meta description is unique, accurate, 140–155 characters, and describes the specific article rather than repeating its headline. Use Markdown ## for article section headings and ### for subsections; never use a single # heading because the page template supplies the only H1 from the article title. Keep headings descriptive and in logical order. Do not enforce a fixed word, paragraph or heading count. Use the exact source_url from the selected candidate. Use null for image_url when no image URL is supplied. If no candidate is suitable, return [].
+Before returning, check that each report is factual, useful, clearly written, sufficiently developed for its evidence, and attributed in the opening. Check that each meta description is unique, accurate, 140–155 characters, and describes the specific article rather than repeating its headline. Use only facts present in the supplied source evidence and article. It must be a complete sentence ending with a period, question mark or exclamation mark; never end with an ellipsis or abbreviation fragment. Do not pad, invent details, or truncate a sentence. If a complete supported description cannot be written within 140–155 characters, reject that story. Use Markdown ## for article section headings and ### for subsections; never use a single # heading because the page template supplies the only H1 from the article title. Keep headings descriptive and in logical order. Do not enforce a fixed word, paragraph or heading count. Use the exact source_url from the selected candidate. Use null for image_url when no image URL is supplied. If no candidate is suitable, return [].
 
 SOURCE CANDIDATES:
 ${JSON.stringify(candidates)}
@@ -1203,6 +1214,12 @@ function validateAndNormalize(generated, sourceArticles) {
     const content = typeof article.content === "string" ? article.content.trim() : "";
     const rawSeoDescription = typeof article.seo_description === "string" ? article.seo_description.trim() : "";
     const seoDescription = normalizeSeoDescription(rawSeoDescription, content);
+    if (!isValidSeoDescription(seoDescription)) {
+      const reason = "SEO description could not be verified as a complete, article-specific 140-155 character sentence without padding or truncation.";
+      console.warn("Skipping article '" + title + "': " + reason);
+      rejectionReasons.push(reason);
+      continue;
+    }
     const requestedCategory = typeof article.category === "string" ? article.category.trim() : "";
     const category = [...allowedCategories].find((allowed) => allowed.toLowerCase() === requestedCategory.toLowerCase());
 
