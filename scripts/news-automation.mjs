@@ -399,6 +399,30 @@ function isValidSeoDescription(value) {
     !/\b(?:current ad|advertisement|sponsored content|subscribe now|sign up now|download our app|click here to continue)\b/i.test(text);
 }
 
+function descriptionMatchesArticle(description, title, content) {
+  const stopWords = new Set([
+    "about", "after", "again", "against", "also", "among", "around", "because",
+    "before", "being", "between", "both", "during", "each", "from", "have",
+    "into", "just", "more", "most", "other", "over", "since", "some", "than",
+    "that", "their", "them", "then", "there", "these", "they", "this", "those",
+    "through", "under", "very", "were", "what", "when", "where", "which",
+    "while", "with", "within", "without", "year", "years", "according", "reports",
+    "reported", "report", "says", "said", "latest", "news", "today"
+  ]);
+  const descriptionTerms = [...new Set(
+    (plainDescriptionText(description).toLowerCase().match(/[a-z0-9]{4,}/g) || [])
+      .filter((term) => !stopWords.has(term))
+  )];
+  if (descriptionTerms.length < 5) return false;
+
+  const sourceTerms = new Set(
+    plainDescriptionText(title + " " + content).toLowerCase().match(/[a-z0-9]{4,}/g) || []
+  );
+  const matched = descriptionTerms.filter((term) => sourceTerms.has(term)).length;
+  const minimumMatches = Math.min(descriptionTerms.length, Math.max(3, Math.ceil(descriptionTerms.length * 0.35)));
+  return matched >= minimumMatches;
+}
+
 function normalizeSeoDescription(candidate, content) {
   const candidateText = plainDescriptionText(candidate);
   if (isValidSeoDescription(candidateText)) return candidateText;
@@ -1214,8 +1238,8 @@ function validateAndNormalize(generated, sourceArticles) {
     const content = typeof article.content === "string" ? article.content.trim() : "";
     const rawSeoDescription = typeof article.seo_description === "string" ? article.seo_description.trim() : "";
     const seoDescription = normalizeSeoDescription(rawSeoDescription, content);
-    if (!isValidSeoDescription(seoDescription)) {
-      const reason = "SEO description could not be verified as a complete, article-specific 140-155 character sentence without padding or truncation.";
+    if (!isValidSeoDescription(seoDescription) || !descriptionMatchesArticle(seoDescription, title, content)) {
+      const reason = "SEO description must be complete, article-specific, supported by the article text, and 140-155 characters without padding or truncation.";
       console.warn("Skipping article '" + title + "': " + reason);
       rejectionReasons.push(reason);
       continue;

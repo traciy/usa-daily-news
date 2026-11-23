@@ -88,12 +88,16 @@ function articleSeoDescription(article: SeoArticle): string {
     }
   }
 
-  // For older articles whose source sentences cannot fit the preferred range,
-  // keep a complete factual sentence rather than publishing a chopped fragment.
-  const firstCompleteSentence = sentences.find((sentence) => sentence.length >= 50);
+  // Older summaries between 120 and 139 characters remain useful when no
+  // exact 140–155-character combination of complete article sentences exists.
+  if (saved.length >= 120 && saved.length < 140 && hasCompleteSeoEnding(saved)) return saved;
+
+  // Never expose the entire article body as a meta description. Prefer one
+  // complete source sentence when a short existing summary is not usable.
+  const firstCompleteSentence = sentences.find((sentence) => sentence.length >= 50 && sentence.length <= 300);
   if (firstCompleteSentence) return firstCompleteSentence;
   if (saved.length >= 50 && hasCompleteSeoEnding(saved)) return saved;
-  return content || saved;
+  return "";
 }
 
 function articleSeoTitle(title: string): string {

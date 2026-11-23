@@ -10,7 +10,7 @@
 //     "category":        string (required, e.g. "Politics"),
 //     "source_url":      string (optional),
 //     "image_url":       string (optional),
-//     "seo_description": string (optional)
+//     "seo_description": string (required, 140-155 characters)
 //   }
 //
 // Responses:
@@ -48,6 +48,33 @@ function optionalString(v: unknown): string | null {
   return null;
 }
 
+function hasCompleteSeoEnding(value: string): boolean {
+  const text = value.trim().replace(/[”’"')\]]+$/u, "").trim();
+  if (!/[.!?]$/.test(text) || /(?:…|\.\.\.)$/.test(text)) return false;
+  return !/\b(?:U\.S|U\.K|Mr|Mrs|Ms|Dr|Sen|Rep|Gov|Prof|St|Jr|Sr|vs|No|Inc|Ltd|Co|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec|e\.g|i\.e)\.$/i.test(text);
+}
+
+function descriptionMatchesArticle(description: string, title: string, content: string): boolean {
+  const stopWords = new Set([
+    "about", "after", "again", "against", "also", "among", "around", "because",
+    "before", "being", "between", "both", "during", "each", "from", "have",
+    "into", "just", "more", "most", "other", "over", "since", "some", "than",
+    "that", "their", "them", "then", "there", "these", "they", "this", "those",
+    "through", "under", "very", "were", "what", "when", "where", "which",
+    "while", "with", "within", "without", "year", "years", "according", "reports",
+    "reported", "report", "says", "said", "latest", "news", "today"
+  ]);
+  const descriptionTerms = [...new Set(
+    (description.toLowerCase().match(/[a-z0-9]{4,}/g) || [])
+      .filter((term) => !stopWords.has(term))
+  )];
+  if (descriptionTerms.length < 5) return false;
+
+  const sourceTerms = new Set((title + " " + content).toLowerCase().match(/[a-z0-9]{4,}/g) || []);
+  const matched = descriptionTerms.filter((term) => sourceTerms.has(term)).length;
+  const minimumMatches = Math.min(descriptionTerms.length, Math.max(3, Math.ceil(descriptionTerms.length * 0.35)));
+  return matched >= minimumMatches;
+}
 function isSafeUrl(value: string, allowHttp = false): boolean {
   try {
     const url = new URL(value.trim());
@@ -99,12 +126,22 @@ function validateItem(raw: unknown): { ok: true; row: Record<string, unknown> } 
   const imageUrl = optionalString(a.image_url);
   const seoDescription = optionalString(a.seo_description);
 
+  if (!seoDescription) return { ok: false, reason: "A complete article-specific SEO description is required." };
+  if (seoDescription.length < 140 || seoDescription.length > 155) {
+    return { ok: false, reason: "SEO description must contain 140-155 characters." };
+  }
+  if (!hasCompleteSeoEnding(seoDescription)) {
+    return { ok: false, reason: "SEO description must end with a complete sentence, not an ellipsis or abbreviation fragment." };
+  }
+  if (!descriptionMatchesArticle(seoDescription, title, content)) {
+    return { ok: false, reason: "SEO description must describe the article using details supported by its headline and body." };
+  }
   if (title.length > 110) return { ok: false, reason: "Headline must be 110 characters or fewer." };
   if (content.length > 20000) return { ok: false, reason: "Article content exceeds the 20,000-character limit." };
   if (!category) return { ok: false, reason: "Category must be Politics, Tech, Economy, Culture, or Sports." };
   if (sourceUrl && !isSafeUrl(sourceUrl, true)) return { ok: false, reason: "Source URL must be a valid HTTP(S) URL." };
   if (imageUrl && !isSafeUrl(imageUrl)) return { ok: false, reason: "Article images must use a valid HTTPS URL." };
-  if (seoDescription && seoDescription.length > 180) return { ok: false, reason: "SEO description must be 180 characters or fewer." };
+
 
   return {
     ok: true,
@@ -194,11 +231,13 @@ Deno.serve(async (req: Request) => {
     }
 
     const rows: Record<string, unknown>[] = [];
+    const rowIndexes: number[] = [];
     const rejected: { index: number; reason: string }[] = [];
     items.forEach((item, i) => {
       const result = validateItem(item);
       if (result.ok) {
         rows.push(result.row);
+        rowIndexes.push(i);
       } else {
         rejected.push({ index: i, reason: result.reason });
       }
@@ -219,9 +258,41 @@ Deno.serve(async (req: Request) => {
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
+    // Reject exact duplicate metadata before writing. Existing descriptions are
+    // checked in the database, and duplicate descriptions in the same request
+    // are rejected before insertion.
+    const candidateDescriptions = [...new Set(rows.map((row) => String(row.seo_description || "").trim()))];
+    const { data: existingDescriptionRows, error: existingDescriptionError } = await supabase
+      .from("articles")
+      .select("seo_description")
+      .in("seo_description", candidateDescriptions);
+    if (existingDescriptionError) {
+      return json(500, { error: "Could not verify SEO description uniqueness.", details: existingDescriptionError.message });
+    }
+
+    const existingDescriptionKeys = new Set(
+      (existingDescriptionRows || []).map((row) =>
+        String(row.seo_description || "").trim().toLowerCase().replace(/\s+/g, " ")
+      )
+    );
+    const seenDescriptionKeys = new Set<string>();
+    const uniqueRows: Record<string, unknown>[] = [];
+    rows.forEach((row, index) => {
+      const key = String(row.seo_description || "").trim().toLowerCase().replace(/\s+/g, " ");
+      if (existingDescriptionKeys.has(key) || seenDescriptionKeys.has(key)) {
+        rejected.push({ index: rowIndexes[index], reason: "SEO description must be unique to this article." });
+      } else {
+        seenDescriptionKeys.add(key);
+        uniqueRows.push(row);
+      }
+    });
+    if (uniqueRows.length === 0) {
+      return json(409, { error: "No articles passed the unique SEO metadata check.", rejected });
+    }
+
     const { data, error } = await supabase
       .from("articles")
-      .insert(rows)
+      .insert(uniqueRows)
       .select("id, title, category, created_at");
 
     if (error) {
