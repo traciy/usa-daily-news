@@ -56,25 +56,52 @@ function plainArticleText(value: string): string {
     .trim();
 }
 
+function hasCompleteSeoEnding(value: string): boolean {
+  const text = value.trim().replace(/[”’"')\]]+$/u, "").trim();
+  if (!/[.!?]$/.test(text) || /(?:…|\.\.\.)$/.test(text)) return false;
+  return !/\b(?:U\.S|U\.K|Mr|Mrs|Ms|Dr|Sen|Rep|Gov|Prof|St|Jr|Sr|vs|No|Inc|Ltd|Co|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec|e\.g|i\.e)\.$/i.test(text);
+}
+
+function completeArticleSentences(value: string): string[] {
+  const marker = "__USA_DOT__";
+  const protectedText = plainArticleText(value).replace(
+    /\b(?:U\.S|U\.K|Mr|Mrs|Ms|Dr|Sen|Rep|Gov|Prof|St|Jr|Sr|vs|No|Inc|Ltd|Co|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec|e\.g|i\.e)\./gi,
+    (match) => match.replace(/\./g, marker)
+  );
+  return (protectedText.match(/[^.!?]+[.!?]+[”’"'\)\]]*(?=\s|$)|[^.!?]+$/g) || [])
+    .map((sentence) => sentence.replaceAll(marker, ".").trim())
+    .filter((sentence) => hasCompleteSeoEnding(sentence));
+}
+
 function articleSeoDescription(article: SeoArticle): string {
   const saved = plainArticleText(article.seo_description || "");
   const content = plainArticleText(article.content || "");
-  const savedIsComplete = /[.!?…][”’"')\]]?$/.test(saved);
-  const source = saved.length >= 60 && savedIsComplete ? saved : content || saved;
-  const sentence = source.match(/^.{35,}?([.!?](?=\s|$)|$)/)?.[0]?.trim() || source;
-  if (sentence.length <= 155) return sentence;
-  const shortened = sentence.slice(0, 152).replace(/\s+\S*$/, "").trim();
-  return shortened ? shortened + "…" : sentence.slice(0, 152).trimEnd() + "…";
+  if (saved.length >= 140 && saved.length <= 155 && hasCompleteSeoEnding(saved)) return saved;
+
+  const sentences = completeArticleSentences(content);
+  for (let start = 0; start < Math.min(sentences.length, 5); start += 1) {
+    let combined = "";
+    for (let end = start; end < Math.min(sentences.length, start + 3); end += 1) {
+      combined = combined ? combined + " " + sentences[end] : sentences[end];
+      if (combined.length >= 140 && combined.length <= 155) return combined;
+      if (combined.length > 155) break;
+    }
+  }
+
+  // For older articles whose source sentences cannot fit the preferred range,
+  // keep a complete factual sentence rather than publishing a chopped fragment.
+  const firstCompleteSentence = sentences.find((sentence) => sentence.length >= 50);
+  if (firstCompleteSentence) return firstCompleteSentence;
+  if (saved.length >= 50 && hasCompleteSeoEnding(saved)) return saved;
+  return content || saved;
 }
 
 function articleSeoTitle(title: string): string {
-  const suffix = " | USA Daily News";
-  const maxHeadline = 60 - suffix.length;
-  const headline = title.length > maxHeadline
-    ? title.slice(0, maxHeadline - 1).trimEnd() + "…"
-    : title;
-  return headline + suffix;
+  // Keep the complete source headline so distinct articles cannot collapse to
+  // identical page titles through fixed-position truncation.
+  return title.trim() + " | USA Daily News";
 }
+
 function injectArticleSeo(documentHtml: string, article: SeoArticle, relatedArticles: Array<Pick<SeoArticle, "id" | "title" | "category">> = []): string {
   const canonical = SITE_URL + "/article/" + article.id;
   const description = articleSeoDescription(article);
