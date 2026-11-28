@@ -1,0 +1,31 @@
+name: Validate USA Daily News automation scripts
+
+on:
+  push:
+    paths:
+      - "scripts/news-automation.mjs"
+      - "scripts/trending-us-topics.mjs"
+      - ".github/workflows/news-automation.yml"
+      - ".github/workflows/news-automation-syntax.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  syntax-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Validate news automation syntax
+        run: node --check scripts/news-automation.mjs
+
+      - name: Validate trending-topic script syntax
+        run: node --check scripts/trending-us-topics.mjs
