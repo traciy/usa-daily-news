@@ -826,10 +826,11 @@ function editorialCandidateScore(article, trendTopics = []) {
   const normalized = text.toLowerCase();
   const trendScore = trendingMatchScore(article, trendTopics);
   const clearDevelopment = /\b(?:announces?|approves?|approved|rejects?|rejected|signs?|signed|blocks?|blocked|rules?|ruled|votes?|voted|election|wins?|won|defeats?|defeated|resigns?|resigned|recalls?|recalled|files?|filed|sues?|sued|strikes?|struck|outage|shutdown|launches?|launched|reports?|reported|investigation|charges?|charged|indicts?|indicted|layoffs?|laid off)\b/i.test(normalized) ? 3 : 0;
-  const directUsRelevance = /\b(?:u\.s\.|united states|american|white house|congress|senate|house of representatives|supreme court|federal|pentagon|state department|governor|mayor|nfl|nba|mlb|nhl|ncaa)\b/i.test(normalized) ? 2 : 0;
+  const directUsRelevance = /\b(?:u\.s\.?|u\.s\.a\.?|usa|uswnt|united states|american|white house|congress|senate|house of representatives|supreme court|federal|pentagon|state department|governor|mayor|nfl|nba|mlb|nhl|ncaa)\b/i.test(normalized);
+  const foreignLocalPenalty = article.source?.country !== "United States" && !directUsRelevance ? -8 : 0;
   const evidenceLength = [article.article_text, article.content, article.description].filter(Boolean).join(" ").length;
   const evidenceScore = Math.min(4, Math.floor(evidenceLength / 2500));
-  return trendScore * 2 + clearDevelopment + directUsRelevance + evidenceScore;
+  return trendScore * 2 + clearDevelopment + (directUsRelevance ? 2 : 0) + evidenceScore + foreignLocalPenalty;
 }
 
 function selectUsPublisherFirst(items, limit, trendTopics = []) {
@@ -959,7 +960,7 @@ async function generateArticles(geminiApiKey, sourceArticles, retryFeedback = ""
   // Give Groq a meaningful fallback evidence package instead of only four short summaries.
   // Twelve candidates with up to 3,500 source characters each stay compact while retaining enough detail.
   const fallbackMode = provider !== "gemini";
-  const candidateLimit = fallbackMode ? Math.min(12, sourceArticles.length) : sourceArticles.length;
+  const candidateLimit = fallbackMode ? Math.min(4, sourceArticles.length) : sourceArticles.length;
   const evidenceLimit = fallbackMode ? 3500 : 4500;
   const selectedSources = sourceArticles.slice(0, candidateLimit);
   const candidates = selectedSources.map((article, index) => {
@@ -1002,8 +1003,8 @@ async function generateArticles(geminiApiKey, sourceArticles, retryFeedback = ""
       })))
     : "No current trending-topic report is available.";
 
-  const compactRetryFeedback = fallbackMode ? String(retryFeedback || "").slice(0, 300) : retryFeedback;
-  const prompt = `You are an evidence-led news editor for USA Daily News.
+  const compactRetryFeedback = fallbackMode ? String(retryFeedback || "").slice(0, 1000) : retryFeedback;
+  const fullPrompt = `You are an evidence-led news editor for USA Daily News.
 Review every numbered source candidate independently. Select at most ${ARTICLE_COUNT} strongest story that provides genuine reader value. Returning no story is acceptable when the evidence is insufficient. Never force an article and never return an empty array if a candidate genuinely meets every evidence, originality and length requirement.
 ${retryFeedback ? "- EDITORIAL RETRY MODE: Apply any explicit source exclusions listed in the retry guidance below. If the guidance only describes a response-format or JSON error, do not exclude any source candidate." : ""}
 
@@ -1065,6 +1066,24 @@ Before returning, check that each report is factual, useful, clearly written, su
 SOURCE CANDIDATES:
 ${JSON.stringify(candidates)}
 ${compactRetryFeedback ? "\nRETRY GUIDANCE FROM THE PREVIOUS ATTEMPT:\n" + compactRetryFeedback + "\nCorrect the stated issues while reassessing the full candidate list. Exclude all previously rejected source URLs/headlines. Do not weaken evidence or safety rules." : ""}`;
+  // Groq uses the smaller, equivalent editorial brief so the request stays within
+  // the free on-demand 8,000-token-per-minute allowance.
+  const compactFallbackPrompt = [
+    "You are an evidence-led news editor for USA Daily News. Select at most " + ARTICLE_COUNT + " genuinely useful, source-grounded article for a U.S. audience.",
+    "Choose U.S. domestic reporting first. Select an international story only when the supplied evidence shows a clear, material U.S. connection. A publisher country is not proof of the story location.",
+    "Exclude advertising, sponsored or affiliate content, betting/casino promotions, shopping or deal roundups, gift guides, coupon content, listicles, and publisher boilerplate.",
+    "Use only facts from the selected candidate evidence. Do not use another candidate as corroboration. Never invent numbers, dates, quotes, causes, motives, reactions, context, interviews, or next steps.",
+    "Write original reporting structure and wording, not a sentence-by-sentence rewrite. Attribute the central report in the opening paragraph with the publisher name linked to that candidate exact source_url. Do not imply independent verification.",
+    "Each paragraph must add a distinct supported fact or explanation. Do not pad, repeat, speculate, or add generic background. If the evidence cannot support a complete useful article of at least " + ARTICLE_TARGET_CHARS + " characters, return no article.",
+    "Hold for human review and omit stories about death, serious injury, hospitalization, arrest, criminal charges, conviction, court rulings, election outcomes, endorsements, layoffs, or financial distress.",
+    "Headline: accurate, factual, no more than 110 characters. Category must be exactly Politics, Tech, Economy, Culture, or Sports.",
+    "SEO description: one complete factual sentence, 140-155 characters, supported by the article. Use Markdown ## headings only when useful; never use #.",
+    "Return only a valid JSON array. Each object must have exactly: title, content, category, source_url, image_url, seo_description. Use the exact source_url and use null for image_url if unavailable. Return [] if no candidate qualifies.",
+    compactRetryFeedback ? "RETRY GUIDANCE: " + compactRetryFeedback + " Keep all evidence, originality, safety, and length rules unchanged." : "",
+    "SOURCE CANDIDATES:",
+    JSON.stringify(candidates)
+  ].filter(Boolean).join("\n\n");
+  const prompt = fallbackMode ? compactFallbackPrompt : fullPrompt;
 
   const config = provider === "groq" ? {
     name: "Groq",
@@ -1110,7 +1129,8 @@ Return a fresh, complete response now. Do not repeat the malformed response.
               model: config.model,
               messages: [{ role: "user", content: prompt + formatCorrection }],
               response_format: { type: "json_object" },
-              max_completion_tokens: 6000,
+              reasoning_effort: "low",
+              max_completion_tokens: 2200,
             }
           : {
               contents: [{ role: "user", parts: [{ text: prompt + formatCorrection }] }],
@@ -1838,7 +1858,7 @@ async function main() {
     }
 
     try {
-      console.log("Trying Groq fallback with up to 12 source candidates and expanded source evidence.");
+      console.log("Trying Groq fallback with up to four best-ranked source candidates and expanded source evidence.");
       generated = await generateArticles(
         geminiApiKey,
         sourceArticles,
