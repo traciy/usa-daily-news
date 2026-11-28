@@ -1777,6 +1777,11 @@ async function submitToIndexNow(urls) {
   console.log(`IndexNow accepted ${uniqueUrls.length} newly published URL(s) (HTTP ${response.status}).`);
 }
 
+function isNoPublishableStoryError(error) {
+  const message = typeof error === "string" ? error : String(error?.message || error || "");
+  return /found no publishable stories in the supplied evidence|no articles passed the editorial checks|no stories have enough source material/i.test(message);
+}
+
 async function main() {
   const supabaseUrl = requiredEnv("SUPABASE_FUNCTION_URL");
   const bearerToken = requiredEnv("SUPABASE_BEARER_TOKEN");
@@ -1805,58 +1810,62 @@ async function main() {
   // The persistent daily counter applies to scheduled runs, manual runs and retries.
   console.log("Starting the scheduled four-hour publishing check.");
   const sourceArticles = await getHeadlines(publishedArticles, trendTopics);
+  if (sourceArticles.length === 0) {
+    console.log("No stories passed the source-evidence threshold. This publishing check is complete; nothing was published.");
+    return;
+  }
+
   let generated;
   let articles;
   let generationProvider = "Gemini";
-  let primaryGenerationError = null;
 
-  // Generate one article candidate at a time. A short draft is rejected, not expanded.
+  // Groq is a real fallback for empty Gemini selections, provider errors,
+  // and drafts rejected by the independent editorial validator.
   try {
-    console.log("Generating the initial article drafts with Gemini.");
+    console.log("Generating one evidence-led article with Gemini.");
     generated = await generateArticles(geminiApiKey, sourceArticles, "", "gemini", trendTopics);
-  } catch (error) {
-    primaryGenerationError = error;
-    console.warn("Gemini initial generation failed: " + (error?.message || error));
-    if (/found no publishable stories in the supplied evidence/i.test(String(error?.message || error))) throw error;
-    if (!process.env.GROQ_API_KEY?.trim()) throw error;
-
-    console.warn("Trying the configured Groq fallback once because the initial Gemini request failed.");
-    generated = await generateArticles(geminiApiKey, sourceArticles, String(error?.message || error).slice(0, 300), "groq", trendTopics);
-    generationProvider = "Groq";
-  }
-
-
-  try {
     articles = validateAndNormalize(generated, sourceArticles);
-  } catch (validationError) {
-    // A rejected batch should not stop the cycle when alternative source
-    // candidates remain. Request one replacement batch and explicitly exclude
-    // rejected headlines/URLs. All normal editorial gates run again unchanged.
-    if (generationProvider !== "Gemini") throw validationError;
-    console.warn("No article from the first Gemini batch passed editorial checks. Requesting one replacement batch and excluding rejected stories: " +
-      (validationError?.message || validationError));
-    const rejectionText = String(validationError?.message || validationError);
-    const rejectedSources = sourceArticles.filter((source) =>
-      source.title && rejectionText.includes(source.title)
-    );
-    const rejectedKeys = new Set(rejectedSources.map((source) => normalizedUrl(source.url)));
-    const replacementSources = sourceArticles.filter((source) =>
-      !rejectedKeys.has(normalizedUrl(source.url))
-    );
-    if (rejectedSources.length === 0 || replacementSources.length === 0) {
-      throw validationError;
+  } catch (geminiError) {
+    const geminiMessage = String(geminiError?.message || geminiError);
+    console.warn("Gemini did not produce an article that passed the publishing checks: " + geminiMessage);
+
+    if (!process.env.GROQ_API_KEY?.trim()) {
+      if (isNoPublishableStoryError(geminiMessage)) {
+        console.log("No article met the source and quality requirements, and Groq is not configured. Nothing was published; the run completed normally.");
+        return;
+      }
+      throw geminiError;
     }
-    console.warn("Excluding " + rejectedSources.length +
-      " previously rejected source candidate(s); " + replacementSources.length +
-      " alternative candidate(s) remain for replacement generation.");
-    generated = await generateArticles(
-      geminiApiKey,
-      replacementSources,
-      rejectionText.slice(0, 1200),
-      "gemini",
-      trendTopics
-    );
-    articles = validateAndNormalize(generated, replacementSources);
+
+    try {
+      console.log("Trying Groq fallback with up to 12 source candidates and expanded source evidence.");
+      generated = await generateArticles(
+        geminiApiKey,
+        sourceArticles,
+        "The Gemini attempt did not produce an article that passed independent validation. Reason: " +
+          geminiMessage.slice(0, 1800) +
+          "\nChoose a different eligible candidate when possible. Do not reuse a candidate rejected for a factual, originality, length, or source-evidence problem. Keep every existing editorial requirement and hard length rule.",
+        "groq",
+        trendTopics
+      );
+      articles = validateAndNormalize(generated, sourceArticles);
+      generationProvider = "Groq";
+    } catch (groqError) {
+      const groqMessage = String(groqError?.message || groqError);
+      console.warn("Groq fallback did not produce an article that passed the publishing checks: " + groqMessage);
+
+      if (isNoPublishableStoryError(groqMessage)) {
+        console.log("Neither provider found an article that met every source, originality and length requirement. Nothing was published; this is a completed editorial skip, not a workflow failure.");
+        console.log("Gemini result: " + geminiMessage.slice(0, 900));
+        console.log("Groq result: " + groqMessage.slice(0, 900));
+        return;
+      }
+
+      throw new Error(
+        "Article generation failed. Gemini: " + geminiMessage.slice(0, 900) +
+        " | Groq fallback: " + groqMessage.slice(0, 1200)
+      );
+    }
   }
 
   // Final non-bypassable publishing gate: every article body must contain at least
