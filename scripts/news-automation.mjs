@@ -124,7 +124,7 @@ function normalizedUrl(value) {
   }
 }
 
-function parseModelJson(text) {
+function parseModelJson(text, providerName = "AI provider") {
   const cleaned = String(text ?? "")
     .replace(/^```(?:json)?\s*/i, "")
     .replace(/```\s*$/, "")
@@ -133,7 +133,7 @@ function parseModelJson(text) {
   try {
     data = JSON.parse(cleaned);
   } catch (error) {
-    throw new Error(`Gemini did not return valid JSON: ${error.message}`);
+    throw new Error(providerName + " did not return valid JSON: " + error.message);
   }
   if (!Array.isArray(data)) data = Array.isArray(data?.articles) ? data.articles : [data];
   return data;
@@ -1137,7 +1137,7 @@ Return a fresh, complete response now. Do not repeat the malformed response.
 
     let parsed;
     try {
-      parsed = parseModelJson(responseText);
+      parsed = parseModelJson(responseText, config?.name || "Gemini");
     } catch (error) {
       lastJsonError = error;
       console.warn((config?.name || "Gemini") + " returned malformed JSON on attempt " +
