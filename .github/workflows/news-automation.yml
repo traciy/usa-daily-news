@@ -33,7 +33,7 @@ jobs:
       MIN_ARTICLES: "1"
       ARTICLE_TARGET_CHARS: "2500"
       DAILY_PUBLISH_LIMIT: "12"
-      MIN_PUBLISH_INTERVAL_MINUTES: "120"
+      MIN_PUBLISH_INTERVAL_MINUTES: "90"
       PUBLISH_TIME_ZONE: "Africa/Nairobi"
       PUBLISH_STATE_FILE: ".github/publish-state/daily-count.json"
       SUPABASE_FUNCTION_URL: https://dyabpvcqedeioarkgjlz.supabase.co/functions/v1/api-articles
