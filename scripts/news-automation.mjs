@@ -141,6 +141,18 @@ function parseModelJson(text, providerName = "AI provider") {
 
 const RSS_FEEDS = [
   // United States: national headlines and public affairs.
+  // CNN replaced its discontinued section feeds with a current CNN-hosted feed.
+  { name: "CNN", url: "https://feeds.cnn.com/feed/faurecia/all.rss", category: "Politics", country: "United States" },
+  // Yahoo Finance retired its general RSS endpoint; use current Yahoo Finance economy coverage via Google News RSS.
+  { name: "Yahoo Finance", url: "https://news.google.com/rss/search?q=when:24h+site:finance.yahoo.com/economy&hl=en-US&gl=US&ceid=US:en", category: "Economy", country: "United States" },
+  // The ESPN www-host feeds were returning HTML challenge pages; the ESPN sports RSS host remains active.
+  { name: "ESPN Top News", url: "http://sports.espn.go.com/espn/rss/news", category: "Sports", country: "United States" },
+  { name: "ESPN NFL", url: "http://sports.espn.go.com/espn/rss/nfl/news", category: "Sports", country: "United States" },
+  { name: "ESPN NBA", url: "http://sports.espn.go.com/espn/rss/nba/news", category: "Sports", country: "United States" },
+  { name: "ESPN MLB", url: "http://sports.espn.go.com/espn/rss/mlb/news", category: "Sports", country: "United States" },
+  { name: "ESPN NHL", url: "http://sports.espn.go.com/espn/rss/nhl/news", category: "Sports", country: "United States" },
+  { name: "ESPN College Football", url: "http://sports.espn.go.com/espn/rss/ncf/news", category: "Sports", country: "United States" },
+  { name: "ESPN College Basketball", url: "http://sports.espn.go.com/espn/rss/ncb/news", category: "Sports", country: "United States" },
   { name: "NPR", url: "https://feeds.npr.org/1001/rss.xml", category: "Politics", country: "United States" },
   { name: "NBC News", url: "https://feeds.nbcnews.com/nbcnews/public/news", category: "Politics", country: "United States" },
   { name: "ABC News", url: "https://abcnews.go.com/abcnews/topstories", category: "Politics", country: "United States" },
@@ -150,9 +162,9 @@ const RSS_FEEDS = [
   { name: "Politico", url: "https://rss.politico.com/politics-news.xml", category: "Politics", country: "United States" },
   { name: "The Hill", url: "https://thehill.com/feed/", category: "Politics", country: "United States" },
   { name: "Axios", url: "https://api.axios.com/feed/", category: "Politics", country: "United States" },
-  { name: "CNN Top Stories", url: "https://edition.cnn.com/rss/cnn_topstories.rss", category: "Politics", country: "United States" },
-  { name: "CNN US", url: "https://edition.cnn.com/rss/cnn_us.rss", category: "Politics", country: "United States" },
-  { name: "CNN Politics", url: "https://edition.cnn.com/rss/cnn_allpolitics.rss", category: "Politics", country: "United States" },
+
+
+
   { name: "NPR Politics", url: "https://feeds.npr.org/1014/rss.xml", category: "Politics", country: "United States" },
   { name: "New York Times US", url: "https://rss.nytimes.com/services/xml/rss/nyt/US.xml", category: "Politics", country: "United States" },
   { name: "New York Times Politics", url: "https://rss.nytimes.com/services/xml/rss/nyt/Politics.xml", category: "Politics", country: "United States" },
@@ -164,18 +176,18 @@ const RSS_FEEDS = [
   { name: "New York Times Business", url: "https://rss.nytimes.com/services/xml/rss/nyt/Business.xml", category: "Economy", country: "United States" },
   { name: "MarketWatch Top Stories", url: "https://feeds.marketwatch.com/marketwatch/topstories/", category: "Economy", country: "United States" },
   { name: "Fortune", url: "https://fortune.com/feed/", category: "Economy", country: "United States" },
-  { name: "Yahoo Finance", url: "https://finance.yahoo.com/news/rssindex", category: "Economy", country: "United States" },
+
 
   // United States: technology, science and health.
   { name: "TechCrunch", url: "https://techcrunch.com/feed/", category: "Tech", country: "United States" },
   { name: "The Verge", url: "https://www.theverge.com/rss/index.xml", category: "Tech", country: "United States" },
   { name: "Wired", url: "https://www.wired.com/feed/rss", category: "Tech", country: "United States" },
   { name: "Ars Technica", url: "https://feeds.arstechnica.com/arstechnica/index", category: "Tech", country: "United States" },
-  { name: "CNN Technology", url: "https://edition.cnn.com/rss/cnn_tech.rss", category: "Tech", country: "United States" },
+
   { name: "New York Times Technology", url: "https://rss.nytimes.com/services/xml/rss/nyt/Technology.xml", category: "Tech", country: "United States" },
   { name: "New York Times Science", url: "https://rss.nytimes.com/services/xml/rss/nyt/Science.xml", category: "Tech", country: "United States" },
   { name: "ScienceDaily", url: "https://www.sciencedaily.com/rss/top/science.xml", category: "Tech", country: "United States" },
-  { name: "CNN Health", url: "https://edition.cnn.com/rss/cnn_health.rss", category: "Culture", country: "United States" },
+
   { name: "New York Times Health", url: "https://rss.nytimes.com/services/xml/rss/nyt/Health.xml", category: "Culture", country: "United States" },
 
   // United States: entertainment, film, television, music and culture.
@@ -187,21 +199,21 @@ const RSS_FEEDS = [
   { name: "People", url: "https://people.com/feed/", category: "Culture", country: "United States" },
   { name: "New York Times Arts", url: "https://rss.nytimes.com/services/xml/rss/nyt/Arts.xml", category: "Culture", country: "United States" },
   { name: "New York Times Movies", url: "https://rss.nytimes.com/services/xml/rss/nyt/Movies.xml", category: "Culture", country: "United States" },
-  { name: "CNN Entertainment", url: "https://edition.cnn.com/rss/cnn_showbiz.rss", category: "Culture", country: "United States" },
+
 
   // United States: sports across major leagues and college sports.
-  { name: "ESPN Top News", url: "https://www.espn.com/espn/rss/news", category: "Sports", country: "United States" },
-  { name: "ESPN NFL", url: "https://www.espn.com/espn/rss/nfl/news", category: "Sports", country: "United States" },
-  { name: "ESPN NBA", url: "https://www.espn.com/espn/rss/nba/news", category: "Sports", country: "United States" },
-  { name: "ESPN MLB", url: "https://www.espn.com/espn/rss/mlb/news", category: "Sports", country: "United States" },
-  { name: "ESPN NHL", url: "https://www.espn.com/espn/rss/nhl/news", category: "Sports", country: "United States" },
-  { name: "ESPN College Football", url: "https://www.espn.com/espn/rss/college-football/news", category: "Sports", country: "United States" },
-  { name: "ESPN College Basketball", url: "https://www.espn.com/espn/rss/college-basketball/news", category: "Sports", country: "United States" },
+
+
+
+
+
+
+
   { name: "Fox Sports", url: "https://feeds.foxnews.com/foxnews/sports", category: "Sports", country: "United States" },
   { name: "Yahoo Sports", url: "https://sports.yahoo.com/rss/", category: "Sports", country: "United States" },
   { name: "CBS Sports", url: "https://www.cbssports.com/rss/headlines/", category: "Sports", country: "United States" },
   { name: "New York Times Sports", url: "https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml", category: "Sports", country: "United States" },
-  { name: "CNN Sports", url: "https://edition.cnn.com/rss/cnn_sport.rss", category: "Sports", country: "United States" },
+
 
   // United Kingdom: national news, politics, business, technology, culture and sport.
   { name: "BBC World", url: "https://feeds.bbci.co.uk/news/world/rss.xml", category: "World", country: "United Kingdom" },
