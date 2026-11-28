@@ -1080,7 +1080,7 @@ ${trendBrief}
 - If related coverage is supplied, treat it only as a lead to corroborate facts; never treat a headline alone as proof. Attribute any additional factual detail to the publisher that reported it and preserve disagreements between sources.
 - Every paragraph must contribute a distinct fact, explanation, verified timeline point, or clearly identified uncertainty. Remove generic scene-setting, repeated conclusions, empty transitions, and stock phrases.
 - Do not manufacture an opinion, analysis, context, or "what it means" section from assumptions. If the evidence supports no useful explanation beyond repeating the source, omit the candidate.
-- Write only what the supplied, verified source evidence can genuinely support.
+- STRICT LENGTH ACCEPTANCE GATE: A published article must contain at least ${ARTICLE_TARGET_CHARS} characters and 350 words. When the selected evidence genuinely supports it, aim for 3,100-3,600 characters and 420-500 words so the draft clears validation with room to spare.
 - Write only what the supplied, verified source evidence can genuinely support. Do not stretch a short source summary into a long report, infer missing context, repeat facts, add generic background, speculate about consequences, or invent next steps to reach the character threshold.
 - If the source evidence cannot support a complete, distinct, useful report of at least ${ARTICLE_TARGET_CHARS} characters, omit that candidate. Return [] when no candidate qualifies. Prefer no publication over a short, repetitive or padded article.
 - Do not perform or request a second-pass expansion of a short draft. Short drafts are rejected by the publishing validator rather than inflated.
@@ -1089,8 +1089,7 @@ ${trendBrief}
 - Use natural paragraphs with clear transitions. Do not follow a fixed paragraph count. H2 subheadings are optional; use concise descriptive headings only when they genuinely improve navigation, especially for longer reports. Do not add headings merely to satisfy a count.
 
 Basic SEO and presentation:
-- Write one complete, factual meta description of 50-160 characters. It must accurately summarize the article and include the main subject when appropriate; never return a fragment or a few words.
-- Write one complete, factual meta description of 50-160 characters. It must accurately summarize the article and include the main subject when appropriate; never return a fragment or a few words.
+- Write one complete, factual meta description of 140-155 characters. It must accurately summarize the specific article, include the main subject when appropriate, and end as a complete sentence.
 - Identify one clear primary search phrase and a small set of closely related terms from the actual story. Use the primary phrase naturally in the headline, opening paragraph and, where it reads naturally, one descriptive H2; use related terms only where factually relevant.
 - When the supplied evidence supports the required length, structure the report with a direct opening, coherent paragraphs and a concise ending that explains what is confirmed and what remains unknown. Use H2s only to organize real subtopics, never to inflate length.
 - Write a unique, accurate SEO title and a compelling but factual meta description that summarizes the specific development. Avoid keyword stuffing, repeated conclusions, generic introductions, padded background, sensational language and vague phrases that add no factual value.
