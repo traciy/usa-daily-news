@@ -920,7 +920,7 @@ async function getHeadlines(publishedArticles = [], trendTopics = []) {
     const response = await fetchWithRetry(feed.url, {
       headers: {
         Accept: "application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
-        "User-Agent": "USA-Daily-News-Bot/1.0 (+https://usa-daily-news.info-luwigang254.workers.dev)",
+        "User-Agent": "USA-Daily-News-RSS-Reader/1.0 (+https://usadailynews.space)",
       },
       signal: AbortSignal.timeout(15000),
     }, feed.name + " RSS feed", 1);
