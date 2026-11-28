@@ -359,9 +359,15 @@ function isPromotionalStory(article) {
   const text = [article?.title, article?.description, article?.url].filter(Boolean).join(" ");
   let pathname = "";
   try { pathname = new URL(article?.url || "").pathname.toLowerCase(); } catch { /* invalid URLs are rejected elsewhere */ }
-  if (/\/(?:betting|sportsbook|casino)(?:\/|$)/i.test(pathname)) return true;
-  return /\b(?:sportsbook|sports betting|casino)\b.{0,100}\b(?:bonuses?|promos?|offers?|claim up to|free bets?)\b/i.test(text) ||
+  if (/\/(?:betting|sportsbook|casino|deals|shopping|gift-guides|buying-guides)(?:\/|$)/i.test(pathname)) return true;
+
+  const bettingPromotion =
+    /\b(?:sportsbook|sports betting|casino)\b.{0,100}\b(?:bonuses?|promos?|offers?|claim up to|free bets?)\b/i.test(text) ||
     /\b(?:claim up to \$?[\d,]+|free bets?|promo codes?)\b/i.test(text);
+  const shoppingPromotion =
+    /\b(?:black friday|cyber monday|prime day)\b.{0,100}\b(?:deals?|discounts?|offers?|price cuts?)\b/i.test(text) ||
+    /\b(?:best deals?|deal roundup|deals roundup|deals you can|discount codes?|coupon codes?|gift guides?|shopping guides?|buying guides?|where to buy|what to buy|products worth buying|price comparison|price tracker)\b/i.test(text);
+  return bettingPromotion || shoppingPromotion;
 }
 
 function plainDescriptionText(value) {
@@ -815,15 +821,31 @@ function selectBalancedByCountry(items, limit, priorityScore = null) {
   return selected;
 }
 
+function editorialCandidateScore(article, trendTopics = []) {
+  const text = String(article.title || "") + " " + String(article.description || "");
+  const normalized = text.toLowerCase();
+  const trendScore = trendingMatchScore(article, trendTopics);
+  const clearDevelopment = /\b(?:announces?|approves?|approved|rejects?|rejected|signs?|signed|blocks?|blocked|rules?|ruled|votes?|voted|election|wins?|won|defeats?|defeated|resigns?|resigned|recalls?|recalled|files?|filed|sues?|sued|strikes?|struck|outage|shutdown|launches?|launched|reports?|reported|investigation|charges?|charged|indicts?|indicted|layoffs?|laid off)\b/i.test(normalized) ? 3 : 0;
+  const directUsRelevance = /\b(?:u\.s\.|united states|american|white house|congress|senate|house of representatives|supreme court|federal|pentagon|state department|governor|mayor|nfl|nba|mlb|nhl|ncaa)\b/i.test(normalized) ? 2 : 0;
+  const evidenceLength = [article.article_text, article.content, article.description].filter(Boolean).join(" ").length;
+  const evidenceScore = Math.min(4, Math.floor(evidenceLength / 2500));
+  return trendScore * 2 + clearDevelopment + directUsRelevance + evidenceScore;
+}
+
 function selectUsPublisherFirst(items, limit, trendTopics = []) {
   const usPublishers = items.filter((item) => item.source?.country === "United States");
   const otherPublishers = items.filter((item) => item.source?.country !== "United States");
   const preferredUsCount = Math.min(usPublishers.length, Math.ceil(limit * 0.8));
-  const score = (article) => trendingMatchScore(article, trendTopics);
+  const score = (article) => editorialCandidateScore(article, trendTopics);
   const usSelection = selectBalancedByCountry(usPublishers, preferredUsCount, score);
   const internationalSelection = selectBalancedByCountry(otherPublishers, limit - usSelection.length, score);
+  const evidenceLength = (article) => [article.article_text, article.content, article.description].filter(Boolean).join(" ").length;
   return [...usSelection, ...internationalSelection]
-    .sort((a, b) => score(b) - score(a) || (Date.parse(b.publishedAt || "") || 0) - (Date.parse(a.publishedAt || "") || 0));
+    .sort((a, b) =>
+      score(b) - score(a) ||
+      evidenceLength(b) - evidenceLength(a) ||
+      (Date.parse(b.publishedAt || "") || 0) - (Date.parse(a.publishedAt || "") || 0)
+    );
 }
 
 function trendingMatchScore(article, trendTopics = []) {
@@ -912,7 +934,9 @@ async function getHeadlines(publishedArticles = [], trendTopics = []) {
     if (publishedUrls.has(normalizedUrl(article.url))) return false;
     return !publishedTitles.some((title) => titleSimilarity(title, article.title) >= 0.65);
   });
-  const evidenceEligible = selectUsPublisherFirst(notPreviouslyPublished, 10, trendTopics);
+  // Give the models a wider set of evidence-qualified options so one weak trend match
+  // cannot crowd out the strongest U.S. reporting.
+  const evidenceEligible = selectUsPublisherFirst(notPreviouslyPublished, 16, trendTopics);
   console.log("Previously published stories skipped: " + (evidenceQualified.length - notPreviouslyPublished.length) + ".");
   const evidenceCountries = [...new Set(evidenceEligible.map((article) => article.source?.country).filter(Boolean))];
   console.log("Evidence-qualified country coverage: " + evidenceCountries.length + " countries/regions: " + evidenceCountries.join(", "));
@@ -925,16 +949,18 @@ async function getHeadlines(publishedArticles = [], trendTopics = []) {
     title: item.title,
   })).map((item) => item.publisher + " [" + item.publisherCountry + ", " + item.characters + " chars]: " + item.title).join(" | "));
   if (evidenceEligible.length === 0) {
-    throw new Error("No stories have enough source material (" + MIN_SOURCE_EVIDENCE_CHARS + " distinct characters). RSS feeds are returning summaries or publishers are blocking article retrieval; no weak articles will be generated.");
+    console.warn("No candidate had enough distinct source evidence after duplicate and editorial filtering. This run will finish without publishing rather than publish an unsupported article.");
+    return [];
   }
   return evidenceEligible;
 }
 
 async function generateArticles(geminiApiKey, sourceArticles, retryFeedback = "", provider = "gemini", trendTopics = []) {
-  // Keep Gemini comprehensive; compact evidence for free-tier fallback providers.
+  // Give Groq a meaningful fallback evidence package instead of only four short summaries.
+  // Twelve candidates with up to 3,500 source characters each stay compact while retaining enough detail.
   const fallbackMode = provider !== "gemini";
-  const candidateLimit = fallbackMode ? 4 : sourceArticles.length;
-  const evidenceLimit = fallbackMode ? 1400 : 4500;
+  const candidateLimit = fallbackMode ? Math.min(12, sourceArticles.length) : sourceArticles.length;
+  const evidenceLimit = fallbackMode ? 3500 : 4500;
   const selectedSources = sourceArticles.slice(0, candidateLimit);
   const candidates = selectedSources.map((article, index) => {
     const evidenceParts = [article.article_text, article.content, article.description]
@@ -964,7 +990,7 @@ async function generateArticles(geminiApiKey, sourceArticles, retryFeedback = ""
   });
 
   const trendBrief = trendTopics.length
-    ? JSON.stringify(trendTopics.slice(0, fallbackMode ? 3 : trendTopics.length).map((trend) => ({
+    ? JSON.stringify(trendTopics.slice(0, fallbackMode ? 5 : trendTopics.length).map((trend) => ({
         topic: trend.topic,
         category: trend.editorial?.category,
         priority: trend.editorial?.priority,
@@ -1084,7 +1110,7 @@ Return a fresh, complete response now. Do not repeat the malformed response.
               model: config.model,
               messages: [{ role: "user", content: prompt + formatCorrection }],
               response_format: { type: "json_object" },
-              max_tokens: 3500,
+              max_completion_tokens: 6000,
             }
           : {
               contents: [{ role: "user", parts: [{ text: prompt + formatCorrection }] }],
