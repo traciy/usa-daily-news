@@ -11,7 +11,8 @@ const MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
 const ARTICLE_COUNT = 1; // Hard cap: one article per automation run.
 const ARTICLE_TARGET_CHARS = Math.max(2500, positiveInteger(process.env.ARTICLE_TARGET_CHARS, 2500));
 const MIN_SOURCE_EVIDENCE_CHARS = 2000;
-const DAILY_PUBLISH_LIMIT = positiveInteger(process.env.DAILY_PUBLISH_LIMIT, 6);
+const DAILY_PUBLISH_LIMIT = positiveInteger(process.env.DAILY_PUBLISH_LIMIT, 12);
+const MIN_PUBLISH_INTERVAL_MINUTES = positiveInteger(process.env.MIN_PUBLISH_INTERVAL_MINUTES, 120);
 const PUBLISH_TIME_ZONE = process.env.PUBLISH_TIME_ZONE || "Africa/Nairobi";
 const PUBLISH_STATE_FILE = process.env.PUBLISH_STATE_FILE || ".github/publish-state/daily-count.json";
 const PUBLISH_ENABLED = String(process.env.PUBLISH_ENABLED).toLowerCase() === "true";
@@ -49,7 +50,7 @@ async function readDailyPublishState() {
   try {
     raw = await readFile(PUBLISH_STATE_FILE, "utf8");
   } catch (error) {
-    if (error?.code === "ENOENT") return { date: today, count: 0 };
+    if (error?.code === "ENOENT") return { date: today, count: 0, lastPublishedAt: null };
     throw error;
   }
 
@@ -59,10 +60,13 @@ async function readDailyPublishState() {
   } catch {
     throw new Error("The daily publishing counter is invalid JSON. Refusing to publish until the counter can be read safely.");
   }
-  if (!state || typeof state.date !== "string" || !Number.isInteger(state.count) || state.count < 0) {
+  if (!state || typeof state.date !== "string" || !Number.isInteger(state.count) || state.count < 0 ||
+      (state.lastPublishedAt != null && (typeof state.lastPublishedAt !== "string" || !Number.isFinite(Date.parse(state.lastPublishedAt))))) {
     throw new Error("The daily publishing counter is malformed. Refusing to publish until it is repaired.");
   }
-  return state.date === today ? { date: today, count: state.count } : { date: today, count: 0 };
+  return state.date === today
+    ? { date: today, count: state.count, lastPublishedAt: state.lastPublishedAt || null }
+    : { date: today, count: 0, lastPublishedAt: null };
 }
 
 async function ensureDailyPublishCapacity() {
@@ -71,7 +75,15 @@ async function ensureDailyPublishCapacity() {
     console.log(`Daily publication limit reached for ${state.date}: ${state.count}/${DAILY_PUBLISH_LIMIT}. This run will not generate or publish another article.`);
     return false;
   }
-  console.log(`Daily publication capacity for ${state.date}: ${state.count}/${DAILY_PUBLISH_LIMIT} articles already reserved.`);
+  if (state.lastPublishedAt) {
+    const nextEligibleAt = Date.parse(state.lastPublishedAt) + MIN_PUBLISH_INTERVAL_MINUTES * 60 * 1000;
+    const remainingMs = nextEligibleAt - Date.now();
+    if (remainingMs > 0) {
+      console.log(`Publishing pace limit: the last article was reserved at ${state.lastPublishedAt}. The next article is eligible in about ${Math.ceil(remainingMs / 60000)} minute(s), at ${new Date(nextEligibleAt).toISOString()}.`);
+      return false;
+    }
+  }
+  console.log(`Daily publication capacity for ${state.date}: ${state.count}/${DAILY_PUBLISH_LIMIT} articles reserved; minimum spacing is ${MIN_PUBLISH_INTERVAL_MINUTES} minutes.`);
   return true;
 }
 
@@ -80,7 +92,7 @@ async function reserveDailyPublishSlot() {
   if (state.count >= DAILY_PUBLISH_LIMIT) {
     throw new Error(`Daily publication limit reached for ${state.date}: ${state.count}/${DAILY_PUBLISH_LIMIT}. Publishing is blocked.`);
   }
-  const nextState = { date: state.date, count: state.count + 1 };
+  const nextState = { date: state.date, count: state.count + 1, lastPublishedAt: new Date().toISOString() };
   await mkdir(dirname(PUBLISH_STATE_FILE), { recursive: true });
   await writeFile(PUBLISH_STATE_FILE, JSON.stringify(nextState, null, 2) + "\n", "utf8");
   console.log(`Reserved daily publication slot ${nextState.count}/${DAILY_PUBLISH_LIMIT} for ${nextState.date}.`);
@@ -146,13 +158,13 @@ const RSS_FEEDS = [
   // Yahoo Finance retired its general RSS endpoint; use current Yahoo Finance economy coverage via Google News RSS.
   { name: "Yahoo Finance", url: "https://news.google.com/rss/search?q=when:24h+site:finance.yahoo.com/economy&hl=en-US&gl=US&ceid=US:en", category: "Economy", country: "United States" },
   // The ESPN www-host feeds were returning HTML challenge pages; the ESPN sports RSS host remains active.
-  { name: "ESPN Top News", url: "http://sports.espn.go.com/espn/rss/news", category: "Sports", country: "United States" },
-  { name: "ESPN NFL", url: "http://sports.espn.go.com/espn/rss/nfl/news", category: "Sports", country: "United States" },
-  { name: "ESPN NBA", url: "http://sports.espn.go.com/espn/rss/nba/news", category: "Sports", country: "United States" },
-  { name: "ESPN MLB", url: "http://sports.espn.go.com/espn/rss/mlb/news", category: "Sports", country: "United States" },
-  { name: "ESPN NHL", url: "http://sports.espn.go.com/espn/rss/nhl/news", category: "Sports", country: "United States" },
-  { name: "ESPN College Football", url: "http://sports.espn.go.com/espn/rss/ncf/news", category: "Sports", country: "United States" },
-  { name: "ESPN College Basketball", url: "http://sports.espn.go.com/espn/rss/ncb/news", category: "Sports", country: "United States" },
+  { name: "ESPN Top News", url: "https://www.espn.com/espn/rss/news", category: "Sports", country: "United States" },
+  { name: "ESPN NFL", url: "https://www.espn.com/espn/rss/nfl/news", category: "Sports", country: "United States" },
+  { name: "ESPN NBA", url: "https://www.espn.com/espn/rss/nba/news", category: "Sports", country: "United States" },
+  { name: "ESPN MLB", url: "https://www.espn.com/espn/rss/mlb/news", category: "Sports", country: "United States" },
+  { name: "ESPN NHL", url: "https://www.espn.com/espn/rss/nhl/news", category: "Sports", country: "United States" },
+  { name: "ESPN College Football", url: "https://www.espn.com/espn/rss/ncf/news", category: "Sports", country: "United States" },
+  { name: "ESPN College Basketball", url: "https://www.espn.com/espn/rss/ncb/news", category: "Sports", country: "United States" },
   { name: "NPR", url: "https://feeds.npr.org/1001/rss.xml", category: "Politics", country: "United States" },
   { name: "NBC News", url: "https://feeds.nbcnews.com/nbcnews/public/news", category: "Politics", country: "United States" },
   { name: "ABC News", url: "https://abcnews.go.com/abcnews/topstories", category: "Politics", country: "United States" },
@@ -174,7 +186,7 @@ const RSS_FEEDS = [
   { name: "CNBC Top News", url: "https://www.cnbc.com/id/100003114/device/rss/rss.html", category: "Economy", country: "United States" },
   { name: "CNBC Economy", url: "https://www.cnbc.com/id/20910258/device/rss/rss.html", category: "Economy", country: "United States" },
   { name: "New York Times Business", url: "https://rss.nytimes.com/services/xml/rss/nyt/Business.xml", category: "Economy", country: "United States" },
-  { name: "MarketWatch Top Stories", url: "https://feeds.marketwatch.com/marketwatch/topstories/", category: "Economy", country: "United States" },
+  { name: "MarketWatch Top Stories", url: "https://feeds.content.dowjones.io/public/rss/mw_topstories", category: "Economy", country: "United States" },
   { name: "Fortune", url: "https://fortune.com/feed/", category: "Economy", country: "United States" },
 
 
@@ -441,18 +453,22 @@ function descriptionMatchesArticle(description, title, content) {
   return matched >= minimumMatches;
 }
 
-function normalizeSeoDescription(candidate, content) {
+function normalizeSeoDescription(candidate, content, title = "") {
   const candidateText = plainDescriptionText(candidate);
-  if (isValidSeoDescription(candidateText)) return candidateText;
+  // A correctly sized sentence is accepted only when its wording is demonstrably
+  // tied to this headline and article, not merely because the character count fits.
+  if (isValidSeoDescription(candidateText) && descriptionMatchesArticle(candidateText, title, content)) {
+    return candidateText;
+  }
 
   const sentences = completeArticleSentences(content);
-  // Prefer a complete sentence (or two adjacent complete sentences) from the
-  // article itself. Never append filler or cut a sentence with an ellipsis.
-  for (let start = 0; start < Math.min(sentences.length, 5); start += 1) {
+  // Recover an extractive description from the article itself when a provider's
+  // metadata is too long, incomplete, generic, or semantically mismatched.
+  for (let start = 0; start < Math.min(sentences.length, 12); start += 1) {
     let combined = "";
-    for (let end = start; end < Math.min(sentences.length, start + 3); end += 1) {
+    for (let end = start; end < Math.min(sentences.length, start + 4); end += 1) {
       combined = combined ? combined + " " + sentences[end] : sentences[end];
-      if (isValidSeoDescription(combined)) return combined;
+      if (isValidSeoDescription(combined) && descriptionMatchesArticle(combined, title, content)) return combined;
       if (combined.length > 155) break;
     }
   }
@@ -584,23 +600,41 @@ async function enrichSourceArticles(articles) {
     // Try up to ten newest stories per feed, subject to the overall balanced candidate limits below.
     selected.push(...articles.filter((item) => item.source?.name === feed.name).slice(0, 10));
   }
-  const enriched = await Promise.all(selected.map(async (article) => {
-    try {
-      const response = await fetchWithRetry(article.url, {
-        headers: { Accept: "text/html,application/xhtml+xml", "User-Agent": "Mozilla/5.0 (compatible; USADailyNewsBot/1.0)" },
-        signal: AbortSignal.timeout(10000),
-      }, "Publisher article page", 1);
-      const html = (await response.text()).slice(0, 1000000);
-      const articleText = extractArticleText(html);
-      const pageImage = article.urlToImage || extractArticleImage(html, article.url);
-      if (!article.urlToImage && pageImage) console.log("Recovered publisher image for: " + article.title);
-      return { ...article, urlToImage: pageImage, article_text: articleText.length >= 500 ? articleText : "" };
-    } catch (error) {
-      console.warn("Could not retrieve full article text for " + article.source?.name + ": " + (error?.message || error));
-      return { ...article, article_text: "" };
+  // Keep the load on publishers controlled instead of opening every article page at once.
+  const enriched = new Array(selected.length);
+  let cursor = 0;
+  async function worker() {
+    while (cursor < selected.length) {
+      const index = cursor++;
+      const article = selected[index];
+      try {
+        const response = await fetchWithRetry(article.url, {
+          headers: {
+            Accept: "text/html,application/xhtml+xml",
+            "User-Agent": "USA-Daily-News-Article-Reader/1.0 (+https://usadailynews.space)",
+          },
+          signal: AbortSignal.timeout(10000),
+        }, "Publisher article page", 1);
+        const html = (await response.text()).slice(0, 1000000);
+        const articleText = extractArticleText(html);
+        const pageImage = article.urlToImage || extractArticleImage(html, article.url);
+        if (!article.urlToImage && pageImage) console.log("Recovered publisher image for: " + article.title);
+        enriched[index] = { ...article, urlToImage: pageImage, article_text: articleText.length >= 500 ? articleText : "" };
+      } catch (error) {
+        const message = String(error?.message || error);
+        if (/HTTP 403/.test(message)) {
+          console.warn("Publisher article-page access was denied (HTTP 403) by " + article.source?.name + ". No access workaround will be attempted; this story can qualify only if its own RSS text meets the evidence threshold: " + article.title);
+        } else {
+          console.warn("Could not retrieve full article text for " + article.source?.name + ": " + message);
+        }
+        // Keep only the publisher's supplied RSS text; the evidence gate below decides
+        // whether that public excerpt is substantial enough to support publication.
+        enriched[index] = { ...article, article_text: "" };
+      }
     }
-  }));
-  const byUrl = new Map(enriched.map((item) => [normalizedUrl(item.url), item]));
+  }
+  await Promise.all(Array.from({ length: Math.min(8, selected.length) }, () => worker()));
+  const byUrl = new Map(enriched.filter(Boolean).map((item) => [normalizedUrl(item.url), item]));
   return articles.map((item) => byUrl.get(normalizedUrl(item.url)) || item);
 }
 
@@ -1046,7 +1080,7 @@ ${trendBrief}
 - If related coverage is supplied, treat it only as a lead to corroborate facts; never treat a headline alone as proof. Attribute any additional factual detail to the publisher that reported it and preserve disagreements between sources.
 - Every paragraph must contribute a distinct fact, explanation, verified timeline point, or clearly identified uncertainty. Remove generic scene-setting, repeated conclusions, empty transitions, and stock phrases.
 - Do not manufacture an opinion, analysis, context, or "what it means" section from assumptions. If the evidence supports no useful explanation beyond repeating the source, omit the candidate.
-- STRICT LENGTH ACCEPTANCE GATE: A published article must contain at least ${ARTICLE_TARGET_CHARS} characters, counting spaces and Markdown. This is an acceptance threshold, NOT a target to pad toward.
+- Write only what the supplied, verified source evidence can genuinely support.
 - Write only what the supplied, verified source evidence can genuinely support. Do not stretch a short source summary into a long report, infer missing context, repeat facts, add generic background, speculate about consequences, or invent next steps to reach the character threshold.
 - If the source evidence cannot support a complete, distinct, useful report of at least ${ARTICLE_TARGET_CHARS} characters, omit that candidate. Return [] when no candidate qualifies. Prefer no publication over a short, repetitive or padded article.
 - Do not perform or request a second-pass expansion of a short draft. Short drafts are rejected by the publishing validator rather than inflated.
@@ -1055,7 +1089,7 @@ ${trendBrief}
 - Use natural paragraphs with clear transitions. Do not follow a fixed paragraph count. H2 subheadings are optional; use concise descriptive headings only when they genuinely improve navigation, especially for longer reports. Do not add headings merely to satisfy a count.
 
 Basic SEO and presentation:
-- Write a clear, accurate headline that naturally names the main subject and important development. Keep it to 110 characters or fewer; avoid clickbait and keyword stuffing.
+- Write one complete, factual meta description of 50-160 characters. It must accurately summarize the article and include the main subject when appropriate; never return a fragment or a few words.
 - Write one complete, factual meta description of 50-160 characters. It must accurately summarize the article and include the main subject when appropriate; never return a fragment or a few words.
 - Identify one clear primary search phrase and a small set of closely related terms from the actual story. Use the primary phrase naturally in the headline, opening paragraph and, where it reads naturally, one descriptive H2; use related terms only where factually relevant.
 - When the supplied evidence supports the required length, structure the report with a direct opening, coherent paragraphs and a concise ending that explains what is confirmed and what remains unknown. Use H2s only to organize real subtopics, never to inflate length.
@@ -1086,10 +1120,10 @@ ${compactRetryFeedback ? "\nRETRY GUIDANCE FROM THE PREVIOUS ATTEMPT:\n" + compa
     "Exclude advertising, sponsored or affiliate content, betting/casino promotions, shopping or deal roundups, gift guides, coupon content, listicles, and publisher boilerplate.",
     "Use only facts from the selected candidate evidence. Do not use another candidate as corroboration. Never invent numbers, dates, quotes, causes, motives, reactions, context, interviews, or next steps.",
     "Write original reporting structure and wording, not a sentence-by-sentence rewrite. Attribute the central report in the opening paragraph with the publisher name linked to that candidate exact source_url. Do not imply independent verification.",
-    "Each paragraph must add a distinct supported fact or explanation. Do not pad, repeat, speculate, or add generic background. If the evidence cannot support a complete useful article of at least " + ARTICLE_TARGET_CHARS + " characters, return no article.",
+    "Each paragraph must add a distinct supported fact or explanation. Do not pad, repeat, speculate, or add generic background. The hard minimum is " + ARTICLE_TARGET_CHARS + " characters and 350 words. When the selected evidence genuinely supports it, aim for roughly 3,100-3,600 characters and 420-500 words so the draft clears validation with room to spare. If the evidence cannot support the minimum, return no article.",
     "Hold for human review and omit stories about death, serious injury, hospitalization, arrest, criminal charges, conviction, court rulings, election outcomes, endorsements, layoffs, or financial distress.",
     "Headline: accurate, factual, no more than 110 characters. Category must be exactly Politics, Tech, Economy, Culture, or Sports.",
-    "SEO description: one complete factual sentence, 140-155 characters, supported by the article. Use Markdown ## headings only when useful; never use #.",
+    "SEO description: one complete, specific factual sentence of 140-155 characters. It must accurately describe this article and reuse its actual names, places, events or subject terms. Before output, count characters and correct the sentence without adding unsupported facts or filler. Use Markdown ## headings only when useful; never use #.",
     "Return only a valid JSON array. Each object must have exactly: title, content, category, source_url, image_url, seo_description. Use the exact source_url and use null for image_url if unavailable. Return [] if no candidate qualifies.",
     compactRetryFeedback ? "RETRY GUIDANCE: " + compactRetryFeedback + " Keep all evidence, originality, safety, and length rules unchanged." : "",
     "SOURCE CANDIDATES:",
@@ -1295,9 +1329,11 @@ function validateAndNormalize(generated, sourceArticles) {
     const title = typeof article.title === "string" ? article.title.trim() : "";
     const content = typeof article.content === "string" ? article.content.trim() : "";
     const rawSeoDescription = typeof article.seo_description === "string" ? article.seo_description.trim() : "";
-    const seoDescription = normalizeSeoDescription(rawSeoDescription, content);
-    if (!isValidSeoDescription(seoDescription) || !descriptionMatchesArticle(seoDescription, title, content)) {
-      const reason = "SEO description must be complete, article-specific, supported by the article text, and 140-155 characters without padding or truncation.";
+    const seoDescription = normalizeSeoDescription(rawSeoDescription, content, title);
+    const seoDescriptionValid = isValidSeoDescription(seoDescription);
+    const seoDescriptionMatches = descriptionMatchesArticle(seoDescription, title, content);
+    if (!seoDescriptionValid || !seoDescriptionMatches) {
+      const reason = "SEO description must be complete, article-specific, supported by the article text, and 140-155 characters (received " + seoDescription.length + " characters; complete=" + hasCompleteSeoEnding(seoDescription) + "; articleMatch=" + seoDescriptionMatches + ").";
       console.warn("Skipping article '" + title + "': " + reason);
       rejectionReasons.push(reason);
       continue;
@@ -1840,7 +1876,7 @@ async function main() {
   if (!(await ensureDailyPublishCapacity())) return;
   // One run can publish no more than one source-grounded article.
   // The persistent daily counter applies to scheduled runs, manual runs and retries.
-  console.log("Starting the scheduled four-hour publishing check.");
+  console.log("Starting the evidence-led publishing check (one article maximum per run).");
   const sourceArticles = await getHeadlines(publishedArticles, trendTopics);
   if (sourceArticles.length === 0) {
     console.log("No stories passed the source-evidence threshold. This publishing check is complete; nothing was published.");
@@ -1880,7 +1916,30 @@ async function main() {
         "groq",
         trendTopics
       );
-      articles = validateAndNormalize(generated, sourceArticles);
+      try {
+        articles = validateAndNormalize(generated, sourceArticles);
+      } catch (firstGroqValidationError) {
+        const validationMessage = String(firstGroqValidationError?.message || firstGroqValidationError);
+        const retryableQualityFailure = /article body is shorter than|fewer than 350 words|SEO description must be complete/i.test(validationMessage);
+        if (!retryableQualityFailure) throw firstGroqValidationError;
+
+        // Do one evidence-preserving correction attempt with a different source.
+        // The rejected source is excluded instead of being expanded or padded.
+        const rejectedUrls = new Set(generated.map((item) => normalizedUrl(item?.source_url)).filter(Boolean));
+        const retrySources = sourceArticles.filter((item) => !rejectedUrls.has(normalizedUrl(item.url)));
+        if (!retrySources.length) throw firstGroqValidationError;
+        console.warn("Groq draft failed a correctable length/SEO validation check. Retrying once with the rejected source excluded: " + validationMessage.slice(0, 800));
+        generated = await generateArticles(
+          geminiApiKey,
+          retrySources,
+          "A previous Groq draft failed independent validation: " + validationMessage.slice(0, 800) +
+            "\nThe previous source URL is excluded. Select a different source. The article must contain at least " + ARTICLE_TARGET_CHARS +
+            " characters and 350 words; aim for 3,100-3,600 characters and 420-500 words only when the evidence supports every paragraph. Write a complete, article-specific SEO sentence of 140-155 characters. Do not pad, truncate a sentence, or add facts.",
+          "groq",
+          trendTopics
+        );
+        articles = validateAndNormalize(generated, retrySources);
+      }
       generationProvider = "Groq";
     } catch (groqError) {
       const groqMessage = String(groqError?.message || groqError);
