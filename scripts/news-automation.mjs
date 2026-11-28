@@ -157,7 +157,7 @@ const RSS_FEEDS = [
   { name: "CNN", url: "https://feeds.cnn.com/feed/faurecia/all.rss", category: "Politics", country: "United States" },
   // Yahoo Finance retired its general RSS endpoint; use current Yahoo Finance economy coverage via Google News RSS.
   { name: "Yahoo Finance", url: "https://news.google.com/rss/search?q=when:24h+site:finance.yahoo.com/economy&hl=en-US&gl=US&ceid=US:en", category: "Economy", country: "United States" },
-  // The ESPN www-host feeds were returning HTML challenge pages; the ESPN sports RSS host remains active.
+  // Current ESPN.com RSS endpoints are used below; legacy sports.espn.go.com URLs were not parsed by the automation runtime.
   { name: "ESPN Top News", url: "https://www.espn.com/espn/rss/news", category: "Sports", country: "United States" },
   { name: "ESPN NFL", url: "https://www.espn.com/espn/rss/nfl/news", category: "Sports", country: "United States" },
   { name: "ESPN NBA", url: "https://www.espn.com/espn/rss/nba/news", category: "Sports", country: "United States" },
@@ -1124,7 +1124,7 @@ ${compactRetryFeedback ? "\nRETRY GUIDANCE FROM THE PREVIOUS ATTEMPT:\n" + compa
     "Hold for human review and omit stories about death, serious injury, hospitalization, arrest, criminal charges, conviction, court rulings, election outcomes, endorsements, layoffs, or financial distress.",
     "Headline: accurate, factual, no more than 110 characters. Category must be exactly Politics, Tech, Economy, Culture, or Sports.",
     "SEO description: one complete, specific factual sentence of 140-155 characters. It must accurately describe this article and reuse its actual names, places, events or subject terms. Before output, count characters and correct the sentence without adding unsupported facts or filler. Use Markdown ## headings only when useful; never use #.",
-    "Return only a valid JSON array. Each object must have exactly: title, content, category, source_url, image_url, seo_description. Use the exact source_url and use null for image_url if unavailable. Return [] if no candidate qualifies.",
+    'Return one valid JSON object with exactly one top-level "articles" array. Put article objects inside that array; each object must have exactly: title, content, category, source_url, image_url, seo_description. Use the exact source_url and use null for image_url if unavailable. If no candidate qualifies, return {"articles":[]}.',
     compactRetryFeedback ? "RETRY GUIDANCE: " + compactRetryFeedback + " Keep all evidence, originality, safety, and length rules unchanged." : "",
     "SOURCE CANDIDATES:",
     JSON.stringify(candidates)
@@ -1141,6 +1141,9 @@ ${compactRetryFeedback ? "\nRETRY GUIDANCE FROM THE PREVIOUS ATTEMPT:\n" + compa
   const apiKey = config?.apiKey || geminiApiKey;
   if (!apiKey) throw new Error(config ? config.name + " API key is not configured." : "GEMINI_API_KEY is not configured.");
   const openAiCompatible = provider !== "gemini";
+  const jsonContainerCorrection = openAiCompatible
+    ? 'Return one JSON object with exactly one top-level "articles" array; place article objects inside it. Use {"articles":[]} when no candidate qualifies.'
+    : "Return one valid JSON array. Use [] when no candidate qualifies.";
 
   const maximumJsonAttempts = 3;
   let lastJsonError = null;
@@ -1151,7 +1154,7 @@ ${compactRetryFeedback ? "\nRETRY GUIDANCE FROM THE PREVIOUS ATTEMPT:\n" + compa
 STRICT JSON REPAIR — ATTEMPT ${jsonAttempt}/${maximumJsonAttempts}:
 Your previous response could not be parsed as valid JSON. Error: ${String(lastJsonError?.message || "invalid JSON").slice(0, 300)}
 Return a fresh, complete response now. Do not repeat the malformed response.
-- Output only one valid JSON array, with no Markdown fences, commentary or text before or after it.
+- ${jsonContainerCorrection} Output no Markdown fences, commentary or text before or after the JSON.
 - Use double quotes for every JSON key and string value.
 - Escape every double quote and backslash inside article text correctly.
 - Represent paragraph breaks inside JSON strings with \\n, not literal unescaped line breaks.
